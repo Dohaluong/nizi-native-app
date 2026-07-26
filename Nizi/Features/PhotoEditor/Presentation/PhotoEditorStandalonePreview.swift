@@ -34,7 +34,7 @@ struct PhotoEditorStandalonePreview: View {
         .fullScreenCover(isPresented: $isPresentingEditor) {
             PhotoEditorView(
                 context: .standalone(photoId: "preview-photo-1"),
-                imageLoader: MockPhotoEditorImageLoading(),
+                renderEngine: MockPhotoRendering(),
                 repository: repository
             ) { result in
                 lastResult = result
