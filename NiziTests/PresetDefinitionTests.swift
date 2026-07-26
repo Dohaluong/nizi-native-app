@@ -39,4 +39,34 @@ struct PresetDefinitionTests {
         let decoded = try JSONDecoder().decode(PresetDefinition.self, from: data)
         #expect(decoded == preset)
     }
+
+    /// Regression test: the Preset Tuning Panel added `blacksOffset`/`whitesOffset`/
+    /// `vibranceOffset`/`tintOffset`/`sharpnessAmount`/`clarityOffset` to the schema, but every
+    /// preset shipped before that tool existed (all 14 entries in the real `presets.json`) has
+    /// none of these keys. `PresetDefinition.init(from:)` must decode such JSON without throwing,
+    /// defaulting every missing field to `0` rather than a synthesized `Decodable` conformance's
+    /// `keyNotFound` failure.
+    @Test
+    func decodesLegacyJSONMissingTuningFields() throws {
+        let legacyJSON = """
+        {
+            "id": "classic-film", "name": "Classic Film", "shortName": "Classic",
+            "nameKey": "photoEditor.preset.classic.name", "shortNameKey": "photoEditor.preset.classic.shortName",
+            "lutResource": "fuji-film.cube", "lutDimension": 32, "defaultIntensity": 0.85,
+            "exposureOffset": 0, "contrastOffset": 0, "saturationOffset": 0, "warmthOffset": 0,
+            "highlightsOffset": 0, "shadowsOffset": 0,
+            "grainAmount": 0, "grainSize": 0, "bloomAmount": 0, "bloomRadius": 0,
+            "vignetteAmount": 0, "vignetteRadius": 0,
+            "protectSkinTones": true, "isMonochrome": false,
+            "thumbnailAssetName": null, "sortOrder": 1, "isActive": true, "isPrototype": false
+        }
+        """
+        let decoded = try JSONDecoder().decode(PresetDefinition.self, from: Data(legacyJSON.utf8))
+        #expect(decoded.blacksOffset == 0)
+        #expect(decoded.whitesOffset == 0)
+        #expect(decoded.vibranceOffset == 0)
+        #expect(decoded.tintOffset == 0)
+        #expect(decoded.sharpnessAmount == 0)
+        #expect(decoded.clarityOffset == 0)
+    }
 }

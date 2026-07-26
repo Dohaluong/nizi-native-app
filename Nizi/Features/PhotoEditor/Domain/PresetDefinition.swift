@@ -42,6 +42,20 @@ struct PresetDefinition: Codable, Identifiable, Equatable, Sendable {
     let warmthOffset: Float
     let highlightsOffset: Float
     let shadowsOffset: Float
+    /// Diagnostics-only additions (Preset Tuning Panel) — absent from every preset shipped before
+    /// that tool existed, so decoding must tolerate a missing key (see `init(from:)` below) rather
+    /// than fail every bundled preset the moment one new field is introduced.
+    let blacksOffset: Float
+    let whitesOffset: Float
+    /// Applied *in addition to* `saturationOffset` (`PhotoToneAdjuster`), not a replacement for
+    /// it — `CIVibrance` boosts muted colors more than already-saturated ones and is more
+    /// skin-tone-safe, which is why the Preset Tuning Panel's Color section leads with this over
+    /// plain Saturation, but both still exist as independent, addable offsets.
+    let vibranceOffset: Float
+    /// Green↔Magenta axis of the same `CITemperatureAndTint` filter `warmthOffset` already drives
+    /// (its `neutral`/`targetNeutral` vectors are `(temperature, tint)` pairs) — `PhotoToneAdjuster`
+    /// sets both from one filter invocation.
+    let tintOffset: Float
 
     let grainAmount: Float
     let grainSize: Float
@@ -49,6 +63,14 @@ struct PresetDefinition: Codable, Identifiable, Equatable, Sendable {
     let bloomRadius: Float
     let vignetteAmount: Float
     let vignetteRadius: Float
+    /// `CISharpenLuminance`'s `sharpness`, applied in `PresetRenderer`'s texture stage alongside
+    /// grain/bloom/vignette.
+    let sharpnessAmount: Float
+    /// TODO — no local-contrast/"clarity" engine exists yet (Preset Tuning Panel spec explicitly
+    /// allows shipping the schema field + UI slider ahead of the actual Core Image implementation).
+    /// Parsed and carried through, never acted on by `PresetRenderer` yet — same status
+    /// `protectSkinTones` already has below.
+    let clarityOffset: Float
 
     /// Schema-only in V1 — real per-region skin-tone protection is masked/HSL-aware processing,
     /// explicitly out of scope for this app's Photo Editor (see ADDEDUM § 12–14 and
@@ -72,4 +94,91 @@ struct PresetDefinition: Codable, Identifiable, Equatable, Sendable {
     static let originalId = "original"
 
     var isOriginal: Bool { id == Self.originalId }
+
+    init(
+        id: String, name: String, shortName: String, nameKey: String, shortNameKey: String,
+        lutResource: String?, lutDimension: Int?, defaultIntensity: Float,
+        exposureOffset: Float, contrastOffset: Float, saturationOffset: Float, warmthOffset: Float,
+        highlightsOffset: Float, shadowsOffset: Float,
+        blacksOffset: Float = 0, whitesOffset: Float = 0, vibranceOffset: Float = 0, tintOffset: Float = 0,
+        grainAmount: Float, grainSize: Float, bloomAmount: Float, bloomRadius: Float,
+        vignetteAmount: Float, vignetteRadius: Float, sharpnessAmount: Float = 0, clarityOffset: Float = 0,
+        protectSkinTones: Bool, isMonochrome: Bool,
+        thumbnailAssetName: String?, sortOrder: Int, isActive: Bool, isPrototype: Bool
+    ) {
+        self.id = id
+        self.name = name
+        self.shortName = shortName
+        self.nameKey = nameKey
+        self.shortNameKey = shortNameKey
+        self.lutResource = lutResource
+        self.lutDimension = lutDimension
+        self.defaultIntensity = defaultIntensity
+        self.exposureOffset = exposureOffset
+        self.contrastOffset = contrastOffset
+        self.saturationOffset = saturationOffset
+        self.warmthOffset = warmthOffset
+        self.highlightsOffset = highlightsOffset
+        self.shadowsOffset = shadowsOffset
+        self.blacksOffset = blacksOffset
+        self.whitesOffset = whitesOffset
+        self.vibranceOffset = vibranceOffset
+        self.tintOffset = tintOffset
+        self.grainAmount = grainAmount
+        self.grainSize = grainSize
+        self.bloomAmount = bloomAmount
+        self.bloomRadius = bloomRadius
+        self.vignetteAmount = vignetteAmount
+        self.vignetteRadius = vignetteRadius
+        self.sharpnessAmount = sharpnessAmount
+        self.clarityOffset = clarityOffset
+        self.protectSkinTones = protectSkinTones
+        self.isMonochrome = isMonochrome
+        self.thumbnailAssetName = thumbnailAssetName
+        self.sortOrder = sortOrder
+        self.isActive = isActive
+        self.isPrototype = isPrototype
+    }
+
+    /// Hand-written instead of synthesized so the six Preset Tuning Panel fields
+    /// (`blacksOffset`/`whitesOffset`/`vibranceOffset`/`tintOffset`/`sharpnessAmount`/
+    /// `clarityOffset`) can default to `0` when absent — every preset shipped before the tuning
+    /// panel existed lacks these keys entirely, and a plain synthesized `Decodable` would throw
+    /// `keyNotFound` for every one of them the moment a single new field was added. `encode(to:)`
+    /// stays synthesized (unaffected by providing just `init(from:)` here).
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        shortName = try container.decode(String.self, forKey: .shortName)
+        nameKey = try container.decode(String.self, forKey: .nameKey)
+        shortNameKey = try container.decode(String.self, forKey: .shortNameKey)
+        lutResource = try container.decodeIfPresent(String.self, forKey: .lutResource)
+        lutDimension = try container.decodeIfPresent(Int.self, forKey: .lutDimension)
+        defaultIntensity = try container.decode(Float.self, forKey: .defaultIntensity)
+        exposureOffset = try container.decode(Float.self, forKey: .exposureOffset)
+        contrastOffset = try container.decode(Float.self, forKey: .contrastOffset)
+        saturationOffset = try container.decode(Float.self, forKey: .saturationOffset)
+        warmthOffset = try container.decode(Float.self, forKey: .warmthOffset)
+        highlightsOffset = try container.decode(Float.self, forKey: .highlightsOffset)
+        shadowsOffset = try container.decode(Float.self, forKey: .shadowsOffset)
+        blacksOffset = try container.decodeIfPresent(Float.self, forKey: .blacksOffset) ?? 0
+        whitesOffset = try container.decodeIfPresent(Float.self, forKey: .whitesOffset) ?? 0
+        vibranceOffset = try container.decodeIfPresent(Float.self, forKey: .vibranceOffset) ?? 0
+        tintOffset = try container.decodeIfPresent(Float.self, forKey: .tintOffset) ?? 0
+        grainAmount = try container.decode(Float.self, forKey: .grainAmount)
+        grainSize = try container.decode(Float.self, forKey: .grainSize)
+        bloomAmount = try container.decode(Float.self, forKey: .bloomAmount)
+        bloomRadius = try container.decode(Float.self, forKey: .bloomRadius)
+        vignetteAmount = try container.decode(Float.self, forKey: .vignetteAmount)
+        vignetteRadius = try container.decode(Float.self, forKey: .vignetteRadius)
+        sharpnessAmount = try container.decodeIfPresent(Float.self, forKey: .sharpnessAmount) ?? 0
+        clarityOffset = try container.decodeIfPresent(Float.self, forKey: .clarityOffset) ?? 0
+        protectSkinTones = try container.decode(Bool.self, forKey: .protectSkinTones)
+        isMonochrome = try container.decode(Bool.self, forKey: .isMonochrome)
+        thumbnailAssetName = try container.decodeIfPresent(String.self, forKey: .thumbnailAssetName)
+        sortOrder = try container.decode(Int.self, forKey: .sortOrder)
+        isActive = try container.decode(Bool.self, forKey: .isActive)
+        isPrototype = try container.decode(Bool.self, forKey: .isPrototype)
+    }
 }
