@@ -13,10 +13,10 @@ import SwiftUI
 /// `CurationPreviewView` already use for their own full-screen presentation, and read the result
 /// back through `onClose`.
 ///
-/// Sprint 2–5 (Editor + Rendering foundation + Preset + Adjust) scope: load a real Core-Image-
-/// rendered preview, Cancel/Save, press-and-hold to view the original, unsaved-change detection,
-/// a Preset strip, and the six Adjust sliders. No Auto Enhance yet (Bước 6) — the tool tray is a
-/// two-tab Preset/Adjust switcher rather than a three-tab picker with one tab showing nothing.
+/// Sprint 2–6 (Editor + Rendering foundation + Preset + Adjust + Auto Enhance) scope: load a real
+/// Core-Image-rendered preview, Cancel/Save, press-and-hold to view the original, unsaved-change
+/// detection, a Preset strip, the six Adjust sliders, and on-device Auto Enhance. No Album/Event
+/// integration or collection style yet (Bước 8–9).
 struct PhotoEditorView: View {
     /// Which tool tray is currently showing below the image (§ 6.4: Preset is always the default
     /// tab on open). Not part of `PhotoEditorViewModel` — which tab is selected is pure View state
@@ -24,12 +24,14 @@ struct PhotoEditorView: View {
     private enum EditorTool: String, CaseIterable, Identifiable {
         case preset
         case adjust
+        case auto
         var id: String { rawValue }
 
         var titleKey: String {
             switch self {
             case .preset: "photoEditor.tool.preset"
             case .adjust: "photoEditor.tool.adjust"
+            case .auto: "photoEditor.tool.auto"
             }
         }
     }
@@ -45,6 +47,7 @@ struct PhotoEditorView: View {
         renderEngine: PhotoRendering? = nil,
         repository: PhotoEditRepository = InMemoryPhotoEditRepository(),
         presetRepository: PresetRepository = BundlePresetRepository(),
+        autoEnhanceService: AutoEnhancing = AutoEnhanceService(),
         onClose: @escaping (PhotoEditorResult) -> Void
     ) {
         self.onClose = onClose
@@ -53,7 +56,8 @@ struct PhotoEditorView: View {
         // the render engine and the view model resolving presets from two different catalogs.
         let resolvedRenderEngine = renderEngine ?? PhotoRenderEngine(presetRepository: presetRepository)
         _viewModel = State(initialValue: PhotoEditorViewModel(
-            context: context, renderEngine: resolvedRenderEngine, repository: repository, presetRepository: presetRepository
+            context: context, renderEngine: resolvedRenderEngine, repository: repository,
+            presetRepository: presetRepository, autoEnhanceService: autoEnhanceService
         ))
     }
 
@@ -117,6 +121,8 @@ struct PhotoEditorView: View {
                 PresetStripView(viewModel: viewModel)
             case .adjust:
                 AdjustPanelView(viewModel: viewModel)
+            case .auto:
+                AutoEnhancePanelView(viewModel: viewModel)
             }
         }
     }

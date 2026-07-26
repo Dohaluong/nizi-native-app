@@ -35,7 +35,8 @@ struct PhotoEditorStandalonePreview: View {
             PhotoEditorView(
                 context: .standalone(photoId: "preview-photo-1"),
                 renderEngine: MockPhotoRendering(),
-                repository: repository
+                repository: repository,
+                autoEnhanceService: MockAutoEnhancing()
             ) { result in
                 lastResult = result
                 isPresentingEditor = false

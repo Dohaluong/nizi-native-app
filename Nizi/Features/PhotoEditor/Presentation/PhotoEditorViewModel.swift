@@ -57,9 +57,15 @@ final class PhotoEditorViewModel {
     /// session-lifetime only, never persisted to disk.
     private(set) var presetThumbnails: [String: CGImage] = [:]
 
+    private(set) var isAutoEnhanceRunning = false
+    /// Snapshot taken right before Auto Enhance overwrites `adjustments` — the one-level undo
+    /// § 9.3 asks for. `nil` whenever there's nothing to undo (never run yet, or already undone).
+    private var adjustmentsBeforeAutoEnhance: PhotoAdjustments?
+
     private let renderEngine: PhotoRendering
     private let repository: PhotoEditRepository
     private let presetRepository: PresetRepository
+    private let autoEnhanceService: AutoEnhancing
 
     /// Cancels/supersedes any preview render still in flight when a newer one is requested — see
     /// `refreshPreview()`. A monotonic counter rather than relying solely on `Task` cancellation
@@ -83,16 +89,22 @@ final class PhotoEditorViewModel {
         context: EditorContext,
         renderEngine: PhotoRendering,
         repository: PhotoEditRepository,
-        presetRepository: PresetRepository
+        presetRepository: PresetRepository,
+        autoEnhanceService: AutoEnhancing
     ) {
         self.context = context
         self.renderEngine = renderEngine
         self.repository = repository
         self.presetRepository = presetRepository
+        self.autoEnhanceService = autoEnhanceService
         session = PhotoEditSession(photoId: context.photoId, existingRecipe: nil)
     }
 
     var hasUnsavedChanges: Bool { session.hasUnsavedChanges }
+
+    /// Whether the Auto Enhance tab should offer "Undo" right now — § 9.3 requires this to always
+    /// be possible right after applying, never a one-shot irreversible action.
+    var canUndoAutoEnhance: Bool { adjustmentsBeforeAutoEnhance != nil }
 
     /// `nil` `presetId` displays as Original — never a separate "no selection" state (spec § 7.4:
     /// Original is always a real, selectable entry, not the absence of one).
@@ -180,6 +192,40 @@ final class PhotoEditorViewModel {
     /// restore whatever this photo had before the editor opened.
     func resetEntirePhoto() {
         session.resetToOriginal()
+        Task { await refreshPreview() }
+    }
+
+    // MARK: - Auto Enhance (Bước 6)
+
+    /// Analyzes this photo on-device and overwrites `adjustments` with the suggestion — never
+    /// merged/blended with whatever Adjust values were already there, so the result is exactly
+    /// what `AutoEnhanceRules` computed, visible and editable in the Adjust tab (§ 9.3). Snapshots
+    /// the prior `adjustments` first so `undoAutoEnhance()` can restore them exactly.
+    func applyAutoEnhance() async {
+        guard !isAutoEnhanceRunning else { return }
+        isAutoEnhanceRunning = true
+        defer { isAutoEnhanceRunning = false }
+
+        do {
+            let suggested = try await autoEnhanceService.analyze(photoId: context.photoId)
+            adjustmentsBeforeAutoEnhance = session.workingRecipe.adjustments
+            session.workingRecipe.adjustments = suggested
+            session.workingRecipe.autoEnhanceApplied = true
+            session.workingRecipe.autoEnhanceVersion = AutoEnhanceRules.version
+            await refreshPreview()
+        } catch {
+            NiziLogger.photoEditor.error("photo_editor_auto_enhance_failed photoId=\(self.context.photoId, privacy: .private) error=\(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// § 9.3 — restores whatever `adjustments` were before Auto Enhance ran, not a blanket reset
+    /// to zero (the user may have had manual Adjust values already, which Auto Enhance overwrote).
+    func undoAutoEnhance() {
+        guard let previous = adjustmentsBeforeAutoEnhance else { return }
+        session.workingRecipe.adjustments = previous
+        session.workingRecipe.autoEnhanceApplied = false
+        session.workingRecipe.autoEnhanceVersion = nil
+        adjustmentsBeforeAutoEnhance = nil
         Task { await refreshPreview() }
     }
 
