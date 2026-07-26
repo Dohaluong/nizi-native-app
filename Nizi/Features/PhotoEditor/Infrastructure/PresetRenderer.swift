@@ -128,7 +128,15 @@ struct PresetRenderer: PresetRendering {
         matrix.bVector = CIVector(x: 0, y: 0, z: 1, w: 0)
         matrix.aVector = CIVector(x: 0, y: 0, z: 0, w: 0)
         matrix.biasVector = CIVector(x: 0, y: 0, z: 0, w: 1)
-        return matrix.outputImage ?? image
+        // A non-zero `biasVector` makes Core Image treat the *entire infinite canvas* as
+        // non-transparent output (bias is added even where the source is conceptually clear
+        // outside `image.extent`), so `matrix.outputImage.extent` comes back as `CGRect.infinite`
+        // rather than the finite extent that went in. `PhotoRenderEngine.render` then calls
+        // `ciContext.createCGImage(image, from: image.extent)` with that infinite rect, which
+        // silently produces a blank/failed render — exactly why a selected preset never appeared
+        // to apply. Cropping back to the pre-bias extent is what `applyBloom` already does for
+        // the same underlying reason, just a much larger blow-up here.
+        return (matrix.outputImage ?? image).cropped(to: image.extent)
     }
 
     // MARK: - Texture style (ADDEDUM § 8.2 — non-linear vs. the color blend above)
