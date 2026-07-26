@@ -102,6 +102,14 @@ struct PhotoLibraryDiagnosticsView: View {
                     AlbumDraftPlanningPreview()
                 }
             }
+
+            // Placeholder-only — `PhotoEditorStandalonePreview` uses `MockPhotoRendering`, so
+            // this doesn't touch Photos either, same reasoning as "Album Layout" above.
+            Section("Photo Editor") {
+                NavigationLink("Standalone Preview") {
+                    PhotoEditorStandalonePreview()
+                }
+            }
         }
         .navigationTitle("Photo Library Diagnostics")
         .task {
