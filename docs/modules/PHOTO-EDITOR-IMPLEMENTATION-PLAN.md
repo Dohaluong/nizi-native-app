@@ -505,3 +505,28 @@ a Fujifilm X100VI camera Log-conversion pack (built for grading flat log footage
 "dưới 10 preset" guidance (§ 452 above) — that cap was about not over-investing in hand-designed
 prototype color, which no longer applies once the presets are real, already-graded, licensed LUTs.
 `BundlePresetRepositoryTests`/`BundledLUTPresetsTests` were updated accordingly.
+
+## 12. Follow-up — intensity amplification and a LUT management screen
+
+Two more pieces of direct user feedback after trying the real LUTs on-device:
+
+1. "Áp dụng LUTs đã có hiệu quả nhưng khác biệt chưa rõ. Tôi cần tăng độ khác biệt lên khoảng 150%"
+   — a plain 1:1 LUT application read as too subtle. `PresetRenderer`'s color blend now amplifies
+   by `colorIntensityAmplification = 1.5` (100% UI intensity → 150% of a single LUT application,
+   extrapolated past the raw result rather than capped at it). Required rewriting the blend
+   formula itself (RGB-channel scaling + `CIAdditionCompositing` instead of alpha-scaling +
+   `over`-compositing, since alpha can't exceed `1.0` — see `PHOTO-EDITOR-PRESET-GUIDE.md`'s Update
+   2). Texture (grain/bloom/vignette) is deliberately not amplified the same way.
+
+2. "Tôi cần 1 màn hình quản lý LUTs (thêm bớt, active, đặt tên cho các LUTs)" — a LUT Manager screen
+   (`Home → Diagnostics → Photo Editor → LUT Manager`). Since an installed app can never rewrite
+   its own bundle, this is a *runtime* customization layer, not a `presets.json` editor:
+   `MDPresetOverride` (active/name overrides for a bundled preset) and `MDCustomPreset` (fully
+   user-imported presets, `.cube` copied into `Documents/CustomLUTs/`) are new SwiftData models;
+   `CustomizablePresetRepository` merges bundled + overrides + custom and implements both the
+   existing `PresetRepository` (unchanged signature — every render call site keeps working
+   untouched) and a new `PresetManaging` protocol (the CRUD surface, used only by the management
+   screen). Every real call site (Album, Event, standalone) now constructs
+   `CustomizablePresetRepository` instead of `BundlePresetRepository` directly, so a customization
+   actually affects what the editor shows — see `PHOTO-EDITOR-PRESET-GUIDE.md` § 10 for the full
+   design. `CustomizablePresetRepositoryTests` covers the merge/override/import/remove logic.

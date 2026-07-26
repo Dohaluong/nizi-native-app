@@ -109,6 +109,9 @@ struct PhotoLibraryDiagnosticsView: View {
                 NavigationLink("Standalone Preview") {
                     PhotoEditorStandalonePreview()
                 }
+                NavigationLink("LUT Manager") {
+                    PresetManagerView()
+                }
             }
         }
         .navigationTitle("Photo Library Diagnostics")

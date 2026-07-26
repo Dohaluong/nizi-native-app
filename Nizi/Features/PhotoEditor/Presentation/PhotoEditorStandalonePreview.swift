@@ -38,6 +38,7 @@ struct PhotoEditorStandalonePreview: View {
                 context: .standalone(photoId: "preview-photo-1"),
                 renderEngine: MockPhotoRendering(),
                 repository: SwiftDataPhotoEditRepository(modelContainer: modelContext.container),
+                presetRepository: CustomizablePresetRepository(modelContainer: modelContext.container),
                 autoEnhanceService: MockAutoEnhancing()
             ) { result in
                 lastResult = result

@@ -22,6 +22,19 @@ ADDEDUM § 3.2 ("LUT chỉ nên chứa phần màu và tone chính"), every real
 the look, and no texture has been invented on top of a vendor-tuned grade without a real visual
 reference to justify it.
 
+**Update 2**: `PresetRenderer`'s color blend now amplifies by `colorIntensityAmplification = 1.5` —
+UI intensity 100% extrapolates 150% past a plain single-LUT application, not just "however strong
+the LUT alone is." This came from direct on-device feedback that a 1:1 LUT read as too subtle.
+Retune that one constant in `PresetRenderer.swift`, not any preset's `defaultIntensity`, if the
+overall punch ever needs adjusting again.
+
+**Update 3**: a "LUT Manager" screen now exists (`Home → Diagnostics → Photo Editor → LUT Manager`,
+DEBUG builds only) for toggling a preset's active state, renaming it, or importing/removing a
+custom `.cube` — see § 10 below. This is a *runtime* customization layer, not a `presets.json`
+editor (an installed app can never rewrite its own bundle); `CustomizablePresetRepository` is what
+every real call site (Album, Event, standalone) now constructs instead of `BundlePresetRepository`
+directly, so these customizations actually affect what the editor's own Preset strip shows.
+
 ---
 
 ## 1. Where everything lives
@@ -195,3 +208,31 @@ has no XMP-to-Core-Image conversion. A separate camera-LUT pack (`x100vi-3d-lut-
 X100VI F-Log/F-Log2 → Rec.709 conversion LUTs) was also excluded — those convert flat/log camera
 footage to a viewable image and would look wrong applied to an already-normal photo (exactly the
 "LUT Log video, không phải ảnh thường" case ADDEDUM § 3.1 says to check for).
+
+## 10. The LUT Manager screen (runtime customization)
+
+`PresetManagerView.swift` — lists every preset (bundled + custom), lets you:
+
+- **Toggle active** — hides a preset from the editor's Preset strip without touching
+  `presets.json`. Stored as an `MDPresetOverride` row keyed by preset id; no row at all means "use
+  the bundled preset exactly as shipped."
+- **Rename** — overrides display name/short name the same way, via the same override row.
+- **Import a `.cube`** — copies the picked file into `Documents/CustomLUTs/` (app-writable storage;
+  the bundle itself is read-only once installed) and stores a full `PresetDefinition` for it as an
+  `MDCustomPreset` row. Validated *before* anything is copied or saved: the file must parse via
+  `CubeFileParser` at its own declared `LUT_3D_SIZE`, or the import is rejected outright
+  (`PresetManagingError.invalidLUTFile`).
+- **Delete** — only ever offered for a custom (imported) preset; a bundled one can only be
+  deactivated. Deleting removes both the `MDCustomPreset` row and its copied `.cube` file.
+
+`CustomizablePresetRepository` is what actually merges all of this: it implements both
+`PresetRepository` (the existing read-only interface `PhotoRenderEngine`/`PhotoEditorViewModel`
+already use — unchanged, still synchronous) and `PresetManaging` (the new CRUD surface, `async`,
+used only by the management screen). `loadPresets()` (render-facing) filters out inactive presets,
+the same way `presets.json`'s own `isActive: false` entries are already dropped by
+`PresetValidator`; `allPresets()` (management-facing) does not, so a deactivated preset can still be
+found and re-activated.
+
+A custom preset's own license responsibility is the importing user's, same as the 13 bundled ones
+— this screen has no way to verify a picked file's license, only that it's a structurally valid
+`.cube`.

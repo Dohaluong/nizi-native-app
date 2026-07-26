@@ -802,6 +802,7 @@ private struct CurationPreviewView: View {
             PhotoEditorView(
                 context: context,
                 repository: SwiftDataPhotoEditRepository(modelContainer: modelContext.container),
+                presetRepository: CustomizablePresetRepository(modelContainer: modelContext.container),
                 collectionStyleRepository: SwiftDataCollectionStyleRepository(modelContainer: modelContext.container)
             ) { _ in
                 // § 19/§ 21 — same known gap noted on the Album side: refreshing the displayed

@@ -81,6 +81,7 @@ struct AlbumPhotoPreviewView: View {
             PhotoEditorView(
                 context: context,
                 repository: SwiftDataPhotoEditRepository(modelContainer: modelContext.container),
+                presetRepository: CustomizablePresetRepository(modelContainer: modelContext.container),
                 collectionStyleRepository: SwiftDataCollectionStyleRepository(modelContainer: modelContext.container)
             ) { _ in
                 // § 19/§ 21 — the caller should refresh the displayed image for `affectedPhotoIds`

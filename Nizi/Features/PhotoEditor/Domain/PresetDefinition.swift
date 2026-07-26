@@ -21,8 +21,11 @@ struct PresetDefinition: Codable, Identifiable, Equatable, Sendable {
     /// already uses for other JSON-defined, user-facing content (docs/ALBUM_LAYOUT_SYSTEM.md §
     /// Localization) — a bundled JSON resource's text still has to honor the app's EN/VI catalog,
     /// same as any other user-facing string (docs/architecture/ARCHITECTURE.md § 5).
-    let name: String
-    let shortName: String
+    /// `var`, not `let` — `PresetManaging` implementations rename a bundled preset by producing a
+    /// copy with these overridden, not by mutating `presets.json` (which is a read-only bundle
+    /// resource an installed app can never rewrite).
+    var name: String
+    var shortName: String
     let nameKey: String
     let shortNameKey: String
 
@@ -56,7 +59,9 @@ struct PresetDefinition: Codable, Identifiable, Equatable, Sendable {
 
     let thumbnailAssetName: String?
     let sortOrder: Int
-    let isActive: Bool
+    /// `var` for the same reason `name`/`shortName` are — `PresetManaging` toggles this via an
+    /// override row, never by rewriting `presets.json`.
+    var isActive: Bool
 
     /// ADDEDUM § 5 / § 14.10 requires marking prototype presets (built from Core Image
     /// adjustments, no licensed LUT embedded yet) "clearly in code and docs" until a real `.cube`
