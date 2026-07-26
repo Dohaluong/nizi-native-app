@@ -50,7 +50,7 @@
     "vignetteRadius": 0,
     "protectSkinTones": true,
     "isMonochrome": false,
-    "thumbnailAssetName": null,
+    "thumbnailAssetName": "classic-film-thumb.jpg",
     "sortOrder": 1,
     "isActive": true,
     "isPrototype": false
@@ -78,7 +78,7 @@
     "vignetteRadius": 0,
     "protectSkinTones": true,
     "isMonochrome": false,
-    "thumbnailAssetName": null,
+    "thumbnailAssetName": "bold-film-thumb.jpg",
     "sortOrder": 2,
     "isActive": true,
     "isPrototype": false
@@ -106,7 +106,7 @@
     "vignetteRadius": 0,
     "protectSkinTones": true,
     "isMonochrome": false,
-    "thumbnailAssetName": null,
+    "thumbnailAssetName": "cine-grade-thumb.jpg",
     "sortOrder": 3,
     "isActive": true,
     "isPrototype": false
@@ -134,7 +134,7 @@
     "vignetteRadius": 0,
     "protectSkinTones": true,
     "isMonochrome": false,
-    "thumbnailAssetName": null,
+    "thumbnailAssetName": "creatives-thumb.jpg",
     "sortOrder": 4,
     "isActive": true,
     "isPrototype": false
@@ -162,7 +162,7 @@
     "vignetteRadius": 0,
     "protectSkinTones": true,
     "isMonochrome": false,
-    "thumbnailAssetName": null,
+    "thumbnailAssetName": "chrome-thumb.jpg",
     "sortOrder": 5,
     "isActive": true,
     "isPrototype": false
@@ -190,7 +190,7 @@
     "vignetteRadius": 0,
     "protectSkinTones": true,
     "isMonochrome": false,
-    "thumbnailAssetName": null,
+    "thumbnailAssetName": "retro-64-thumb.jpg",
     "sortOrder": 6,
     "isActive": true,
     "isPrototype": false
@@ -218,7 +218,7 @@
     "vignetteRadius": 0,
     "protectSkinTones": true,
     "isMonochrome": false,
-    "thumbnailAssetName": null,
+    "thumbnailAssetName": "lomo-thumb.jpg",
     "sortOrder": 7,
     "isActive": true,
     "isPrototype": false
@@ -246,7 +246,7 @@
     "vignetteRadius": 0,
     "protectSkinTones": true,
     "isMonochrome": false,
-    "thumbnailAssetName": null,
+    "thumbnailAssetName": "moody-aqua-thumb.jpg",
     "sortOrder": 8,
     "isActive": true,
     "isPrototype": false
@@ -274,7 +274,7 @@
     "vignetteRadius": 0,
     "protectSkinTones": true,
     "isMonochrome": false,
-    "thumbnailAssetName": null,
+    "thumbnailAssetName": "nomad-thumb.jpg",
     "sortOrder": 9,
     "isActive": true,
     "isPrototype": false
@@ -302,7 +302,7 @@
     "vignetteRadius": 0,
     "protectSkinTones": true,
     "isMonochrome": false,
-    "thumbnailAssetName": null,
+    "thumbnailAssetName": "palm-springs-thumb.jpg",
     "sortOrder": 10,
     "isActive": true,
     "isPrototype": false
@@ -330,7 +330,7 @@
     "vignetteRadius": 0,
     "protectSkinTones": true,
     "isMonochrome": false,
-    "thumbnailAssetName": null,
+    "thumbnailAssetName": "santorini-thumb.jpg",
     "sortOrder": 11,
     "isActive": true,
     "isPrototype": false
@@ -358,7 +358,7 @@
     "vignetteRadius": 0,
     "protectSkinTones": true,
     "isMonochrome": false,
-    "thumbnailAssetName": null,
+    "thumbnailAssetName": "brooklyn-thumb.jpg",
     "sortOrder": 12,
     "isActive": true,
     "isPrototype": false
@@ -386,7 +386,7 @@
     "vignetteRadius": 0,
     "protectSkinTones": true,
     "isMonochrome": false,
-    "thumbnailAssetName": null,
+    "thumbnailAssetName": "vintage-fox-thumb.jpg",
     "sortOrder": 13,
     "isActive": true,
     "isPrototype": false

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// The Preset tool tray (PHOTO-EDITOR.md § 7.2) — a horizontally scrolling row of preset
 /// thumbnails rendered from the photo actually being edited, plus an intensity slider for
@@ -76,13 +77,14 @@ struct PresetStripView: View {
     }
 }
 
-/// Deliberately a static placeholder, not a live per-photo render — generating one via
-/// `PhotoRenderEngine` for every preset was slow/unreliable enough in practice (14 concurrent
-/// LUT renders) that it stood in the way of the one thing that actually matters: picking a preset
-/// correctly applies its LUT to the main preview. A real thumbnail can come back later as its own,
-/// separately-verified piece of work; this is a stable-per-preset color swatch (never
-/// `String.hashValue`, which isn't stable across launches — docs/specs/SPEC-MODIFY-DRAFT.md § 11),
-/// so at least every preset in the strip is visually distinguishable in the meantime.
+/// A static, bundled thumbnail per `preset.thumbnailAssetName` (rendered once from
+/// docs/modules/photo-editor/preset-photo.jpeg via the real `PresetRenderer`, not live per-photo —
+/// generating one via `PhotoRenderEngine` for every preset on every photo was slow/unreliable
+/// enough in practice (14 concurrent LUT renders) that it stood in the way of the one thing that
+/// actually matters: picking a preset correctly applies its LUT to the main preview). Falls back to
+/// a stable-per-preset color swatch (never `String.hashValue`, which isn't stable across launches —
+/// docs/specs/SPEC-MODIFY-DRAFT.md § 11) + SF Symbol for `Original` and any preset with no bundled
+/// thumbnail (e.g. a Preset Tuning Panel-authored custom preset).
 private struct PresetThumbnailButton: View {
     let preset: PresetDefinition
     let isSelected: Bool
@@ -98,15 +100,26 @@ private struct PresetThumbnailButton: View {
         return Color(hue: hue, saturation: 0.35, brightness: 0.55)
     }
 
+    private var thumbnail: UIImage? {
+        PresetThumbnailImageCache.shared.image(named: preset.thumbnailAssetName)
+    }
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 6) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(swatchColor)
-                    Image(systemName: preset.isOriginal ? "circle.slash" : "camera.filters")
-                        .font(.system(size: 18))
-                        .foregroundStyle(preset.isOriginal ? Color.secondary : .white.opacity(0.85))
+                    if let thumbnail {
+                        Image(uiImage: thumbnail)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    } else {
+                        Image(systemName: preset.isOriginal ? "circle.slash" : "camera.filters")
+                            .font(.system(size: 18))
+                            .foregroundStyle(preset.isOriginal ? Color.secondary : .white.opacity(0.85))
+                    }
                 }
                 .frame(width: 64, height: 64)
                 .overlay(
@@ -131,5 +144,34 @@ private struct PresetThumbnailButton: View {
             hash = hash &* 0x0000_0100_0000_01B3
         }
         return hash
+    }
+}
+
+/// Loads a preset's bundled thumbnail JPEG by plain filename — same flat, loose-bundle-resource
+/// resolution `CubeLUTLoader` already uses for `.cube` files (this Xcode target's synchronized
+/// group flattens every non-Swift resource to the bundle root regardless of source subfolder), not
+/// an `Image(_:bundle:)` asset-catalog lookup, since these thumbnails were never added to
+/// `Assets.xcassets`. Caches decoded images in memory — there are only 13 of them, each 160×160.
+private final class PresetThumbnailImageCache: @unchecked Sendable {
+    static let shared = PresetThumbnailImageCache()
+
+    private let lock = NSLock()
+    private var cache: [String: UIImage] = [:]
+
+    func image(named assetName: String?) -> UIImage? {
+        guard let assetName else { return nil }
+
+        lock.lock()
+        defer { lock.unlock() }
+        if let cached = cache[assetName] { return cached }
+
+        let name = (assetName as NSString).deletingPathExtension
+        let ext = (assetName as NSString).pathExtension
+        guard let url = Bundle.main.url(forResource: name, withExtension: ext.isEmpty ? nil : ext),
+              let image = UIImage(contentsOfFile: url.path) else {
+            return nil
+        }
+        cache[assetName] = image
+        return image
     }
 }
