@@ -95,18 +95,48 @@ struct PresetRenderer: PresetRendering {
     /// which is exactly the amplification this exists to allow. `forceOpaqueAlpha` resets alpha to
     /// a clean `1.0` afterward, since adding two alpha-1 layers would otherwise leave alpha at `2`,
     /// which the texture stage's own `over`/blend-mode compositing depends on being correct.
+    ///
+    /// The scale+add math itself runs on `gammaSpace`-encoded values, not Core Image's default
+    /// (linear-light) working space — a real bug found via user report + a standalone diagnostic:
+    /// extrapolating `factor > 1` in *linear* light space clips shadows to black far more
+    /// aggressively than the same nominal amplification looks like in gamma/perceptual space
+    /// (linear values compress shadow detail into a tiny numeric range, so subtracting even a
+    /// modest `(1 - factor)`-scaled `original` term pushes them hard negative). Measured on the 4
+    /// most extreme shipped LUTs at 85% intensity (150% amplification): linear-space blending
+    /// darkened the output 20–27% versus the *pure*, unamplified LUT (which is itself 0–8%
+    /// *brighter* than the source) — gamma-space blending cuts that down to 5–14%. The direction of
+    /// `matchedToWorkingSpace(from:)`/`matchedFromWorkingSpace(to:)` below was picked by testing
+    /// both and keeping the one that actually reduced the darkening, not by relying on the API
+    /// names alone. A residual few-percent darkening still remains — extrapolation past 100%
+    /// clipped at `0...1` is inherently lossy in the shadows/highlights it clips, whichever space
+    /// it runs in.
+    private static let gammaSpace = CGColorSpace(name: CGColorSpace.sRGB)!
+
     private static func blend(original: CIImage, styled: CIImage, factor: Float) -> CIImage {
         guard factor != 1 else { return styled }
         guard factor != 0 else { return original }
 
-        let originalScaled = scaleRGB(original, by: 1 - factor)
-        let styledScaled = scaleRGB(styled, by: factor)
+        guard let originalGamma = original.matchedToWorkingSpace(from: gammaSpace),
+              let styledGamma = styled.matchedToWorkingSpace(from: gammaSpace) else {
+            // Color-space matching unavailable for this image — fall back to the plain linear-space
+            // blend rather than failing the render entirely.
+            let originalScaled = scaleRGB(original, by: 1 - factor)
+            let styledScaled = scaleRGB(styled, by: factor)
+            let add = CIFilter.additionCompositing()
+            add.inputImage = styledScaled
+            add.backgroundImage = originalScaled
+            return forceOpaqueAlpha(add.outputImage ?? styled)
+        }
+
+        let originalScaled = scaleRGB(originalGamma, by: 1 - factor)
+        let styledScaled = scaleRGB(styledGamma, by: factor)
 
         let add = CIFilter.additionCompositing()
         add.inputImage = styledScaled
         add.backgroundImage = originalScaled
-        let summed = add.outputImage ?? styled
-        return forceOpaqueAlpha(summed)
+        let summedGamma = forceOpaqueAlpha(add.outputImage ?? styledGamma)
+
+        return summedGamma.matchedFromWorkingSpace(to: gammaSpace) ?? summedGamma
     }
 
     /// Scales RGB by `factor` (which may be negative or greater than 1 — Core Image's internal

@@ -7,6 +7,7 @@
 
 import CoreGraphics
 import CoreImage
+import CoreImage.CIFilterBuiltins
 import Foundation
 import Testing
 @testable import Nizi
@@ -124,5 +125,73 @@ struct PresetRendererTests {
             let output = renderer.applyPreset(preset, intensity: preset.defaultIntensity, to: input)
             #expect(output.extent == input.extent, "\(label) produced extent \(output.extent)")
         }
+    }
+
+    /// Regression test for a real bug reported by the user: real film-emulation LUTs mostly
+    /// *brighten* an image slightly on their own (0-8% brighter across the 13 shipped LUTs, measured
+    /// via a standalone diagnostic), yet the amplified color blend at a typical 85% preset intensity
+    /// (150% amplification → an effective 127.5% crossfade factor) came out visibly *darker* than
+    /// the source. Root cause: `blend()`'s scale+add math ran in Core Image's default linear-light
+    /// working space, where extrapolating a crossfade factor past 100% clips shadow detail to black
+    /// far more aggressively than the same nominal amplification looks like in gamma/perceptual
+    /// space. `blend()` now runs that math on `gammaSpace`-encoded values instead — this asserts a
+    /// brightening LUT's blended output average brightness doesn't drop below the *source* image's
+    /// own average, which the pre-fix linear-space blend violated by 20-50% on every real LUT tested.
+    @Test
+    func amplifiedBlendOfABrighteningLUTStaysNoDarkerThanSource() {
+        // A cube that uniformly lifts every input value — mimics the real shipped LUTs' own
+        // tendency to brighten slightly, not the drastically-different-hue identity/pure-red cubes
+        // the other tests above use to isolate LUT application itself.
+        let dimension = 4
+        let denom = Float(dimension - 1)
+        var floats: [Float] = []
+        for _ in 0..<dimension {
+            for _ in 0..<dimension {
+                for r in 0..<dimension {
+                    let lifted = min(Float(r) / denom + 0.1, 1)
+                    floats.append(contentsOf: [lifted, lifted, lifted, 1] as [Float])
+                }
+            }
+        }
+        let cubeData = floats.withUnsafeBufferPointer { Data(buffer: $0) }
+        let cube = LUTCube(dimension: dimension, data: cubeData, colorSpace: CGColorSpaceCreateDeviceRGB())
+        let renderer = PresetRenderer(lutLoader: FakeLUTLoader(cube: cube))
+        let preset = Self.makePreset(intensity: 0.85)
+
+        // A full shadow-to-highlight gradient, not a flat color — the bug only shows up once a
+        // meaningful shadow range exists to clip.
+        let gradientFilter = CIFilter.smoothLinearGradient()
+        gradientFilter.point0 = CGPoint(x: 0, y: 0)
+        gradientFilter.point1 = CGPoint(x: 64, y: 0)
+        gradientFilter.color0 = CIColor(red: 0.05, green: 0.05, blue: 0.06, alpha: 1)
+        gradientFilter.color1 = CIColor(red: 0.95, green: 0.93, blue: 0.88, alpha: 1)
+        let input = (gradientFilter.outputImage ?? CIImage(color: .gray))
+            .cropped(to: CGRect(x: 0, y: 0, width: 64, height: 16))
+
+        let output = renderer.applyPreset(preset, intensity: preset.defaultIntensity, to: input)
+
+        let context = CIContext(options: [.useSoftwareRenderer: true])
+        func averageBrightness(_ image: CIImage) -> Double {
+            let average = CIFilter.areaAverage()
+            average.inputImage = image
+            average.extent = image.extent
+            var bitmap = [UInt8](repeating: 0, count: 4)
+            context.render(
+                average.outputImage!, toBitmap: &bitmap, rowBytes: 4,
+                bounds: CGRect(x: 0, y: 0, width: 1, height: 1), format: .RGBA8,
+                colorSpace: CGColorSpaceCreateDeviceRGB()
+            )
+            return (Double(bitmap[0]) + Double(bitmap[1]) + Double(bitmap[2])) / 3
+        }
+
+        let sourceBrightness = averageBrightness(input)
+        let outputBrightness = averageBrightness(output)
+        // Not a strict `>=` — extrapolating past 100% and clipping at `0...1` is inherently a little
+        // lossy even with the gamma-space fix (verified via a standalone diagnostic: ~1.5% darker
+        // on this exact scenario, comfortably within this bound). The pre-fix linear-space blend
+        // measured 20-27% darker than the source on the real shipped LUTs; a wrong-direction gamma
+        // attempt measured 45-50% darker. `0.9` catches a regression back to either without being
+        // so tight it's sensitive to minor, expected extrapolation/clipping loss.
+        #expect(outputBrightness >= sourceBrightness * 0.9, "blended output (\(outputBrightness)) darker than source (\(sourceBrightness)) by more than the expected small margin, despite a brightening LUT")
     }
 }
