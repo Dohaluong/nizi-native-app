@@ -14,6 +14,17 @@ import Foundation
 /// reference is), so it's re-fetched on demand, never the full image (§ 30).
 protocol AlbumEditActionApplying {
     func apply(_ action: AlbumEditAction, to draft: AlbumDraft) async throws -> AlbumDraft
+
+    /// Replaces every reference to `oldPhotoId` — `coverPhotoId`, every Page's `assignments`
+    /// across every Spread, both `heroPhotoId` fields (Page and Spread) — with `newPhoto`. Not an
+    /// `AlbumEditAction` case: this isn't an interactive editing gesture with its own undo
+    /// semantics, just a mechanical identifier swap following Photo Editor's "save as new asset"
+    /// flow (`PhotoAssetExporting`), which writes a brand-new `PHAsset` for a photo that used to
+    /// be `oldPhotoId` and needs every occurrence of the old id updated to the new one. A photo
+    /// can legitimately appear in more than one place in the same Album (the cover photo is
+    /// explicitly allowed to also appear inside a Page), so every occurrence is updated, not just
+    /// the first match.
+    func replacePhoto(oldPhotoId: String, with newPhoto: AlbumPhotoReference, in draft: AlbumDraft) -> AlbumDraft
 }
 
 struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
@@ -162,6 +173,31 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
             page.assignmentScore = result.score
             page.heroPhotoId = newLayout.slots.first { $0.role == .hero }
                 .flatMap { heroSlot in page.assignments.first { $0.slotId == heroSlot.id }?.photoId }
+        }
+        return updated
+    }
+
+    // MARK: - Photo Editor "save as new asset" swap
+
+    func replacePhoto(oldPhotoId: String, with newPhoto: AlbumPhotoReference, in draft: AlbumDraft) -> AlbumDraft {
+        var updated = draft
+        if updated.coverPhotoId == oldPhotoId {
+            updated.coverPhotoId = newPhoto.id
+        }
+        for spreadIndex in updated.spreads.indices {
+            for position in [AlbumSpreadPagePosition.left, .right] {
+                PageLocation(spreadIndex: spreadIndex, position: position).mutate(&updated) { page in
+                    for assignmentIndex in page.assignments.indices where page.assignments[assignmentIndex].photo.id == oldPhotoId {
+                        page.assignments[assignmentIndex].photo = newPhoto
+                    }
+                    if page.heroPhotoId == oldPhotoId {
+                        page.heroPhotoId = newPhoto.id
+                    }
+                }
+            }
+            if updated.spreads[spreadIndex].heroPhotoId == oldPhotoId {
+                updated.spreads[spreadIndex].heroPhotoId = newPhoto.id
+            }
         }
         return updated
     }

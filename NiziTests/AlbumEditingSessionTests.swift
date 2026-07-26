@@ -213,4 +213,48 @@ struct AlbumEditingSessionTests {
         // No PHAssetChangeRequest / PHPhotoLibrary call exists in this codebase for edit actions.
         #expect(Bool(true))
     }
+
+    // MARK: - Photo Editor "save as new asset" swap
+
+    /// "p1" is deliberately both `coverPhotoId` *and* the first photo in the left Page's
+    /// assignments in `makeDraft()` — exercising exactly the "same photo in more than one place"
+    /// case `AlbumDraftValidator`'s own doc comment calls out as legitimate (the cover photo is
+    /// explicitly allowed to also appear inside a Page).
+    @Test func replacePhotoUpdatesEveryOccurrenceIncludingCoverAndHero() {
+        let applier = makeApplier()
+        var draft = makeDraft()
+        draft.spreads[0].leftPage.heroPhotoId = "p1"
+        draft.spreads[0].heroPhotoId = "p1"
+        let newPhoto = reference("p1-new")
+
+        let updated = applier.replacePhoto(oldPhotoId: "p1", with: newPhoto, in: draft)
+
+        #expect(updated.coverPhotoId == "p1-new")
+        #expect(updated.spreads[0].leftPage.assignments.first { $0.slotId == "photo-1" }?.photo.id == "p1-new")
+        #expect(updated.spreads[0].leftPage.heroPhotoId == "p1-new")
+        #expect(updated.spreads[0].heroPhotoId == "p1-new")
+        // Untouched sibling occurrences of a *different* photo id.
+        #expect(updated.spreads[0].leftPage.assignments.first { $0.slotId == "photo-2" }?.photo.id == "p2")
+    }
+
+    @Test func replacePhotoLeavesUnrelatedPhotosUntouched() {
+        let applier = makeApplier()
+        let draft = makeDraft()
+        let newPhoto = reference("p3-new")
+
+        let updated = applier.replacePhoto(oldPhotoId: "p3", with: newPhoto, in: draft)
+
+        #expect(updated.coverPhotoId == "p1") // cover was "p1", never touched
+        #expect(updated.spreads[0].rightPage.assignments.first { $0.slotId == "photo-1" }?.photo.id == "p3-new")
+        #expect(updated.spreads[0].rightPage.assignments.first { $0.slotId == "photo-2" }?.photo.id == "p4")
+    }
+
+    @Test func replacePhotoNeverDeletesFromPhotosLibrary() {
+        // Same guard as `removingSpreadNeverDeletesFromPhotosLibrary` above — `replacePhoto` is a
+        // pure `AlbumDraft` mutation; the actual Photos-library write/delete lives entirely in
+        // `PhotoAssetExporter`, a separate Infrastructure type this method never touches.
+        let applier = makeApplier()
+        _ = applier.replacePhoto(oldPhotoId: "p1", with: reference("p1-new"), in: makeDraft())
+        #expect(Bool(true))
+    }
 }

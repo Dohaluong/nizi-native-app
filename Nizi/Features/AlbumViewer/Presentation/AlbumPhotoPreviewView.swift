@@ -29,6 +29,12 @@ struct AlbumPhotoPreviewView: View {
     let albumId: String
     let allAlbumPhotoIds: [String]
     let onDismiss: () -> Void
+    /// Called after Photo Editor's Album "save as new asset" flow (`PhotoAssetExporting`) creates
+    /// a brand-new `PHAsset` for the photo that used to be `oldPhotoId` — this view has no direct
+    /// hold on the `AlbumDraft` itself, so `AlbumDetailView` (the actual owner) is responsible for
+    /// swapping every reference to it (`AlbumEditActionApplying.replacePhoto`) and persisting the
+    /// result. A no-op default so every other caller of this view is unaffected.
+    var onPhotoReplaced: (_ oldPhotoId: String, _ newPhoto: AlbumPhotoReference) -> Void = { _, _ in }
 
     @Environment(\.modelContext) private var modelContext
     @State private var currentIndex: Int
@@ -41,11 +47,13 @@ struct AlbumPhotoPreviewView: View {
         albumId: String,
         allAlbumPhotoIds: [String],
         startIndex: Int,
+        onPhotoReplaced: @escaping (_ oldPhotoId: String, _ newPhoto: AlbumPhotoReference) -> Void = { _, _ in },
         onDismiss: @escaping () -> Void
     ) {
         self.photos = photos
         self.albumId = albumId
         self.allAlbumPhotoIds = allAlbumPhotoIds
+        self.onPhotoReplaced = onPhotoReplaced
         self.onDismiss = onDismiss
         _currentIndex = State(initialValue: startIndex)
     }
@@ -83,12 +91,16 @@ struct AlbumPhotoPreviewView: View {
                 repository: SwiftDataPhotoEditRepository(modelContainer: modelContext.container),
                 presetRepository: CustomizablePresetRepository(modelContainer: modelContext.container),
                 collectionStyleRepository: SwiftDataCollectionStyleRepository(modelContainer: modelContext.container)
-            ) { _ in
-                // § 19/§ 21 — the caller should refresh the displayed image for `affectedPhotoIds`
-                // once Album's own photo pipeline (`AlbumPhotoView`/`ApplePhotosAlbumPhotoProvider`)
-                // is recipe-aware; it isn't yet (that's Bước 9's collection-style/override
-                // resolution, not this sprint's Album/Event *entry point* integration), so this
-                // photo will keep showing its unedited pixels here until that lands.
+            ) { result in
+                // Album's save flow always exports a brand-new asset (`PhotoAssetExporting`), never
+                // just a recipe — `newPhotoId` is how the caller learns what to swap `photoId`'s
+                // references over to.
+                if let newPhotoId = result.newPhotoId {
+                    let newReference = AlbumPhotoReference(
+                        id: newPhotoId, source: .applePhotos, sourceIdentifier: newPhotoId, originalFilename: nil
+                    )
+                    onPhotoReplaced(result.photoId, newReference)
+                }
                 editorContext = nil
             }
         }

@@ -30,6 +30,7 @@ struct AlbumDetailView: View {
 
     private let itemBuilder: AlbumViewerItemBuilding = DefaultAlbumViewerItemBuilder()
     private let layoutRepository: AlbumLayoutRepository = BundleAlbumLayoutRepository()
+    private let editActionApplier: AlbumEditActionApplying = DefaultAlbumEditActionApplying()
 
     init(draft: AlbumDraft, onUpdate: @escaping (AlbumDraft) async -> Void = { _ in }, onDelete: @escaping () async -> Void = {}) {
         _draft = State(initialValue: draft)
@@ -168,7 +169,12 @@ struct AlbumDetailView: View {
         }
         .fullScreenCover(item: $photoPreviewTarget) { target in
             AlbumPhotoPreviewView(
-                photos: target.photos, albumId: draft.id, allAlbumPhotoIds: allAlbumPhotoIds, startIndex: target.startIndex
+                photos: target.photos, albumId: draft.id, allAlbumPhotoIds: allAlbumPhotoIds, startIndex: target.startIndex,
+                onPhotoReplaced: { oldPhotoId, newPhoto in
+                    let updated = editActionApplier.replacePhoto(oldPhotoId: oldPhotoId, with: newPhoto, in: draft)
+                    draft = updated
+                    Task { await onUpdate(updated) }
+                }
             ) {
                 photoPreviewTarget = nil
             }
