@@ -1,0 +1,8 @@
+# Xcode
+DerivedData/
+*.xcuserstate
+.DS_Store
+
+# Licensed/purchased LUT preset packs — reference material only, never redistributed via git.
+# See docs/modules/photo-editor/ADDEDUM.md § 3.1, § 14 (license checks before embedding any LUT).
+docs/modules/photo-editor/*.zip

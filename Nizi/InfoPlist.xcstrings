@@ -1,0 +1,35 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Nizi"
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nizi analyzes your photos right on your iPhone to help you rediscover trips and memorable moments. Photos are only uploaded when you actively create an Album."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nizi phân tích ảnh ngay trên iPhone của bạn để tìm lại các chuyến đi và khoảnh khắc đáng nhớ. Ảnh chỉ được tải lên khi bạn chủ động tạo Album."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

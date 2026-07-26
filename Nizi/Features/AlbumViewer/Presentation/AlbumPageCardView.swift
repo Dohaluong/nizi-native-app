@@ -1,0 +1,36 @@
+//
+//  AlbumPageCardView.swift
+//  Nizi
+//
+//  Created by Do Ha Luong on 7/25/26.
+//
+
+import SwiftUI
+
+/// One Page rendered as a book-page card — real photos via `AlbumPageRenderer` +
+/// `ProductionAlbumSlotPhotoProvider`. Shared by `AlbumDetailView`'s inline carousel and
+/// `AlbumPageViewer`'s single-page Viewer so both present a Page identically.
+struct AlbumPageCardView: View {
+    let viewerPage: AlbumViewerPage
+    let layoutRepository: AlbumLayoutRepository
+    var onTapPhoto: ((AlbumPhotoAssignment) -> Void)? = nil
+
+    var body: some View {
+        Group {
+            if let layout = try? layoutRepository.layout(id: viewerPage.page.layoutId) {
+                AlbumPageRenderer(
+                    layout: layout, assignments: viewerPage.page.assignments,
+                    photoProvider: ProductionAlbumSlotPhotoProvider(),
+                    onTapPhoto: onTapPhoto
+                )
+            } else {
+                Color(.secondarySystemFill)
+            }
+        }
+        .padding(12)
+        .aspectRatio(1, contentMode: .fit)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+        .shadow(color: .black.opacity(0.10), radius: 16, x: 0, y: 8)
+    }
+}

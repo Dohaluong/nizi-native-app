@@ -1,0 +1,653 @@
+{
+  "schemaVersion": 1,
+  "layouts": [
+    {
+      "id": "square.1.full-bleed",
+      "name": "Full Bleed",
+      "nameKey": "album.layout.square.1.full_bleed",
+      "photoCount": 1,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "square",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 1000,
+            "height": 1000
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ]
+    },
+    {
+      "id": "square.1.inset",
+      "name": "Inset",
+      "nameKey": "album.layout.square.1.inset",
+      "photoCount": 1,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "square",
+          "frame": {
+            "x": 60,
+            "y": 60,
+            "width": 880,
+            "height": 880
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ]
+    },
+    {
+      "id": "square.1.landscape-center",
+      "name": "Landscape Center",
+      "nameKey": "album.layout.square.1.landscape_center",
+      "photoCount": 1,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 60,
+            "y": 220,
+            "width": 880,
+            "height": 560
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ]
+    },
+    {
+      "id": "square.2.vertical-split",
+      "name": "Vertical Split",
+      "nameKey": "album.layout.square.2.vertical_split",
+      "photoCount": 2,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "supporting",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 492,
+            "height": 1000
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 508,
+            "y": 0,
+            "width": 492,
+            "height": 1000
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ]
+    },
+    {
+      "id": "square.2.horizontal-split",
+      "name": "Horizontal Split",
+      "nameKey": "album.layout.square.2.horizontal_split",
+      "photoCount": 2,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 1000,
+            "height": 492
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 0,
+            "y": 508,
+            "width": 1000,
+            "height": 492
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ]
+    },
+    {
+      "id": "square.2.hero-top",
+      "name": "Hero Top",
+      "nameKey": "album.layout.square.2.hero_top",
+      "photoCount": 2,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 1000,
+            "height": 660
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 0,
+            "y": 676,
+            "width": 1000,
+            "height": 324
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ]
+    },
+    {
+      "id": "square.3.hero-top",
+      "name": "Hero Top",
+      "nameKey": "album.layout.square.3.hero_top",
+      "photoCount": 3,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 60,
+            "y": 60,
+            "width": 880,
+            "height": 560
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 60,
+            "y": 636,
+            "width": 432,
+            "height": 304
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-3",
+          "order": 2,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 508,
+            "y": 636,
+            "width": 432,
+            "height": 304
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ]
+    },
+    {
+      "id": "square.3.hero-left",
+      "name": "Hero Left",
+      "nameKey": "album.layout.square.3.hero_left",
+      "photoCount": 3,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 60,
+            "y": 60,
+            "width": 552,
+            "height": 880
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 628,
+            "y": 60,
+            "width": 312,
+            "height": 432
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-3",
+          "order": 2,
+          "role": "supporting",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 628,
+            "y": 508,
+            "width": 312,
+            "height": 432
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ]
+    },
+    {
+      "id": "square.3.equal-columns",
+      "name": "Equal Columns",
+      "nameKey": "album.layout.square.3.equal_columns",
+      "photoCount": 3,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "supporting",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 60,
+            "y": 60,
+            "width": 280,
+            "height": 880
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 360,
+            "y": 60,
+            "width": 280,
+            "height": 880
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-3",
+          "order": 2,
+          "role": "supporting",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 660,
+            "y": 60,
+            "width": 280,
+            "height": 880
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ]
+    },
+    {
+      "id": "square.4.grid",
+      "name": "Grid",
+      "nameKey": "album.layout.square.4.grid",
+      "photoCount": 4,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "supporting",
+          "preferredOrientation": "square",
+          "frame": {
+            "x": 60,
+            "y": 60,
+            "width": 432,
+            "height": 432
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "square",
+          "frame": {
+            "x": 508,
+            "y": 60,
+            "width": 432,
+            "height": 432
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-3",
+          "order": 2,
+          "role": "supporting",
+          "preferredOrientation": "square",
+          "frame": {
+            "x": 60,
+            "y": 508,
+            "width": 432,
+            "height": 432
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-4",
+          "order": 3,
+          "role": "supporting",
+          "preferredOrientation": "square",
+          "frame": {
+            "x": 508,
+            "y": 508,
+            "width": 432,
+            "height": 432
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ]
+    },
+    {
+      "id": "square.4.hero-top",
+      "name": "Hero Top",
+      "nameKey": "album.layout.square.4.hero_top",
+      "photoCount": 4,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 60,
+            "y": 60,
+            "width": 880,
+            "height": 544
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 60,
+            "y": 620,
+            "width": 280,
+            "height": 320
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-3",
+          "order": 2,
+          "role": "supporting",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 360,
+            "y": 620,
+            "width": 280,
+            "height": 320
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-4",
+          "order": 3,
+          "role": "supporting",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 660,
+            "y": 620,
+            "width": 280,
+            "height": 320
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ]
+    },
+    {
+      "id": "square.4.hero-left",
+      "name": "Hero Left",
+      "nameKey": "album.layout.square.4.hero_left",
+      "photoCount": 4,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 60,
+            "y": 60,
+            "width": 552,
+            "height": 880
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 628,
+            "y": 60,
+            "width": 312,
+            "height": 280
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-3",
+          "order": 2,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 628,
+            "y": 360,
+            "width": 312,
+            "height": 280
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-4",
+          "order": 3,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 628,
+            "y": 660,
+            "width": 312,
+            "height": 280
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ]
+    }
+  ]
+}
