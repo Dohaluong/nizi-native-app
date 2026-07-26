@@ -102,6 +102,14 @@ struct AlbumPhotoPreviewView: View {
                     onPhotoReplaced(result.photoId, newReference)
                 }
                 editorContext = nil
+                // A save swaps `photoId` out for a brand-new asset — this preview's `TabView` still
+                // has the old (possibly now-deleted) photo loaded at `currentIndex`, so staying here
+                // would show either a stale image or a broken one. Returning straight to the Album
+                // is also just the more sensible place to land after "save this edit," rather than
+                // back onto the single photo that was mid-edit a moment ago.
+                if result.didSave {
+                    onDismiss()
+                }
             }
         }
     }

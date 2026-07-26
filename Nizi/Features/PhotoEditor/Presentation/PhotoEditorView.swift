@@ -197,9 +197,9 @@ struct PhotoEditorView: View {
     private var toolTray: some View {
         VStack(spacing: 0) {
             toolPicker
-            // Background and height are applied exactly once, here, never inside
-            // `PresetStripView`/`AdjustPanelView` themselves — that's what makes switching tabs
-            // change only the content, never the surrounding color or height.
+            // Height is applied exactly once, here, never inside `PresetStripView`/
+            // `AdjustPanelView` themselves — that's what makes switching tabs change only the
+            // content, never the surrounding height.
             Group {
                 switch selectedTool {
                 case .preset:
@@ -209,8 +209,10 @@ struct PhotoEditorView: View {
                 }
             }
             .frame(height: PhotoEditorToolTrayMetrics.contentHeight)
-            .background(PhotoEditorToolTrayMetrics.background)
         }
+        // One background for the tab picker and the content together — no separate light bar
+        // sitting on top of the dark tray, no seam between the two.
+        .background(PhotoEditorToolTrayMetrics.background)
     }
 
     private var toolPicker: some View {
@@ -221,14 +223,13 @@ struct PhotoEditorView: View {
                 } label: {
                     Text(localizedString(dynamicKey: tool.titleKey))
                         .font(.subheadline.weight(selectedTool == tool ? .semibold : .regular))
-                        .foregroundStyle(selectedTool == tool ? Color.primary : .secondary)
+                        .foregroundStyle(selectedTool == tool ? Color.white : .white.opacity(0.5))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 8)
                 }
                 .buttonStyle(.plain)
             }
         }
-        .background(.ultraThinMaterial)
     }
 
     @ViewBuilder
