@@ -147,7 +147,8 @@ struct EventDetailView: View {
                 initialThumbnail: presentation.initialThumbnail,
                 eventId: presentation.eventId,
                 assetProvider: assetProvider,
-                onToggle: toggleSelection
+                onToggle: toggleSelection,
+                onAssetReplaced: replaceAsset
             )
         }
     }
@@ -460,6 +461,29 @@ struct EventDetailView: View {
             return
         }
     }
+
+    /// Called after Photo Editor's Event "save as new asset" flow (`PhotoAssetExporting`) exports
+    /// a brand-new `PHAsset` for whichever photo was just edited — swaps this curation item's
+    /// asset id over to it, both in `curationResult` (so the grid/preview reflect it immediately)
+    /// and persisted via `updateItemAsset`. Mirrors `toggleSelection`'s shape exactly.
+    private func replaceAsset(itemID: UUID, newAssetID: String) {
+        guard var result = curationResult else { return }
+
+        for groupIndex in result.groups.indices {
+            guard let itemIndex = result.groups[groupIndex].items.firstIndex(where: { $0.id == itemID }) else { continue }
+            result.groups[groupIndex].items[itemIndex].assetID = newAssetID
+            curationResult = result
+
+            Task {
+                do {
+                    try await makeStore().updateItemAsset(itemID: itemID, newAssetLocalIdentifier: newAssetID)
+                } catch {
+                    NiziLogger.discovery.error("curation_asset_update_failed")
+                }
+            }
+            return
+        }
+    }
 }
 
 // MARK: - Cover
@@ -674,6 +698,10 @@ private struct CurationPreviewView: View {
     let eventId: String
     let assetProvider: PhotoAssetProvider
     let onToggle: (UUID) -> Void
+    /// Fired when Photo Editor's completion result carries a `newPhotoId` (Event's save flow
+    /// always exports a real new asset, per `PhotoAssetExporting`) — `EventDetailView` owns
+    /// `curationResult` and is responsible for updating + persisting it.
+    let onAssetReplaced: (_ itemID: UUID, _ newAssetID: String) -> Void
 
     /// Resolved from `openedAssetID` against `items`, never assumed — see the `init` below.
     /// `-1` (never a valid TabView tag) means "the requested asset isn't in this list," which the
@@ -722,7 +750,8 @@ private struct CurationPreviewView: View {
         initialThumbnail: PlatformImage?,
         eventId: String,
         assetProvider: PhotoAssetProvider,
-        onToggle: @escaping (UUID) -> Void
+        onToggle: @escaping (UUID) -> Void,
+        onAssetReplaced: @escaping (_ itemID: UUID, _ newAssetID: String) -> Void
     ) {
         _items = State(initialValue: items)
         // The caller (`EventDetailView.openPreview`) already validates non-empty +
@@ -736,6 +765,7 @@ private struct CurationPreviewView: View {
         self.eventId = eventId
         self.assetProvider = assetProvider
         self.onToggle = onToggle
+        self.onAssetReplaced = onAssetReplaced
     }
 
     private var dismissProgress: CGFloat {
@@ -804,11 +834,18 @@ private struct CurationPreviewView: View {
                 repository: SwiftDataPhotoEditRepository(modelContainer: modelContext.container),
                 presetRepository: CustomizablePresetRepository(modelContainer: modelContext.container),
                 collectionStyleRepository: SwiftDataCollectionStyleRepository(modelContainer: modelContext.container)
-            ) { _ in
-                // § 19/§ 21 — same known gap noted on the Album side: refreshing the displayed
-                // image for `affectedPhotoIds` needs this event's own photo pipeline
-                // (`PhotoAssetProvider`/`PhotoKitAssetProvider`) to become recipe-aware, which is
-                // Bước 9's job, not this sprint's entry-point integration.
+            ) { result in
+                // Event's save flow always exports a brand-new asset (`PhotoAssetExporting`),
+                // never just a recipe — match by the edited photo's id (not `currentIndex`, which
+                // this full-screen cover can't guarantee is still the same by the time it closes)
+                // to find which item to update, both locally (immediate UI refresh) and via
+                // `onAssetReplaced` (persistence + the grid's own `curationResult`).
+                if let newPhotoId = result.newPhotoId,
+                   let index = items.firstIndex(where: { $0.assetID == result.photoId }) {
+                    let itemID = items[index].id
+                    items[index].assetID = newPhotoId
+                    onAssetReplaced(itemID, newPhotoId)
+                }
                 editorContext = nil
             }
         }

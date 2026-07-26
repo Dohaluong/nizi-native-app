@@ -172,6 +172,29 @@ struct SwiftDataMemoryDiscoveryStoreTests {
         #expect(reloadedItem?.selectionSource == .userAdded)
     }
 
+    /// Photo Editor's Event "save as new asset" flow (`PhotoAssetExporting`) exports a brand-new
+    /// `PHAsset` for whichever photo was just edited — `updateItemAsset` is how the curation item
+    /// that used to point at the original asset gets swapped over to it.
+    @Test func updateItemAssetPersistsWithoutRewritingTheWholeResult() async throws {
+        let store = try makeStore()
+        let eventID = UUID()
+        let result = EventCurationResult.fixture(photoEventID: eventID)
+        try await store.saveResult(result)
+
+        let firstItem = try #require(result.groups.first?.items.first)
+        let originalAssetID = firstItem.assetID
+
+        try await store.updateItemAsset(itemID: firstItem.id, newAssetLocalIdentifier: "new-asset-after-edit")
+
+        let reloaded = try await store.result(for: eventID)
+        let reloadedItem = reloaded?.groups.first?.items.first { $0.id == firstItem.id }
+        #expect(reloadedItem?.assetID == "new-asset-after-edit")
+        #expect(reloadedItem?.assetID != originalAssetID)
+        // Everything else about the item stays untouched by the swap.
+        #expect(reloadedItem?.isSelected == firstItem.isSelected)
+        #expect(reloadedItem?.sortOrder == firstItem.sortOrder)
+    }
+
     @Test func clearResultRemovesGroupsAndItemsToo() async throws {
         let store = try makeStore()
         let eventID = UUID()

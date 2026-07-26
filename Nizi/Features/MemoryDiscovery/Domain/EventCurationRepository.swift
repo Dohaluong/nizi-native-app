@@ -16,6 +16,10 @@ protocol EventCurationRepository {
     /// The one path a user's tap takes — mutates a single item's selection in place,
     /// independent of any curation run.
     func updateItemSelection(itemID: UUID, isSelected: Bool, source: SelectionSource) async throws
+    /// Swaps a single item's asset identifier — used only by Photo Editor's Event "save as new
+    /// asset" flow (`PhotoAssetExporting`), which exports a brand-new `PHAsset` for whichever
+    /// photo was just edited and needs this curation item to reference it instead of the original.
+    func updateItemAsset(itemID: UUID, newAssetLocalIdentifier: String) async throws
     func markStatus(photoEventID: UUID, status: CurationStatus, errorMessage: String?) async throws
     func clearResult(for photoEventID: UUID) async throws
 }

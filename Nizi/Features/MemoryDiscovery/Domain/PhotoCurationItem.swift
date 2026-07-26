@@ -13,7 +13,10 @@ import Foundation
 /// can override without disturbing `isSuggested`.
 struct PhotoCurationItem: Identifiable, Equatable {
     let id: UUID
-    let assetID: String
+    /// `var` — Photo Editor's Event "save as new asset" flow (`PhotoAssetExporting`) exports a
+    /// brand-new `PHAsset` for whichever photo was just edited, and
+    /// `EventCurationRepository.updateItemAsset` swaps this item's identifier over to it.
+    var assetID: String
     var sortOrder: Int
     /// 0...100 — see `PhotoQualityMetrics.compositeScore`.
     let qualityScore: Int

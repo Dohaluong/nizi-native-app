@@ -299,6 +299,14 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
         try modelContext.save()
     }
 
+    func updateItemAsset(itemID: UUID, newAssetLocalIdentifier: String) async throws {
+        var descriptor = FetchDescriptor<MDPhotoCurationItem>(predicate: #Predicate { $0.id == itemID })
+        descriptor.fetchLimit = 1
+        guard let item = try modelContext.fetch(descriptor).first else { return }
+        item.assetLocalIdentifier = newAssetLocalIdentifier
+        try modelContext.save()
+    }
+
     func markStatus(photoEventID: UUID, status: CurationStatus, errorMessage: String?) async throws {
         var descriptor = FetchDescriptor<MDEventCurationResult>(
             predicate: #Predicate { $0.eventCandidateID == photoEventID }
