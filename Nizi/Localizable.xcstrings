@@ -4086,6 +4086,23 @@
         }
       }
     },
+    "photoEditor.saveScope.assetHandling" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save As"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lưu dưới dạng"
+          }
+        }
+      }
+    },
     "photoEditor.saveScope.autoEnhanceEachPhoto" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4133,6 +4150,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Áp phong cách cho toàn bộ Event?"
+          }
+        }
+      }
+    },
+    "photoEditor.saveScope.overwrite" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overwrite Original"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lưu đè"
+          }
+        }
+      }
+    },
+    "photoEditor.saveScope.overwriteWarning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The original photo will be deleted from your library."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ảnh gốc sẽ bị xoá khỏi thư viện ảnh."
+          }
+        }
+      }
+    },
+    "photoEditor.saveScope.saveAsCopy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Copy"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tạo bản copy"
           }
         }
       }

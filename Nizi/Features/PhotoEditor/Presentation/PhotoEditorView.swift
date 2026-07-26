@@ -114,13 +114,13 @@ struct PhotoEditorView: View {
                 sourceType: viewModel.context.sourceType,
                 presetName: selectedPresetDisplayName,
                 presetIntensityPercent: Int(viewModel.presetIntensityPercent.rounded()),
-                onSaveThisPhotoOnly: {
+                onSaveThisPhotoOnly: { overwrite in
                     showSaveScopeSheet = false
-                    Task { await finishSave(using: viewModel.saveThisPhotoOnly) }
+                    Task { await finishSave { await viewModel.saveAsNewAsset(overwrite: overwrite) } }
                 },
-                onApplyToWholeCollection: { autoEnhanceEachPhoto in
+                onApplyToWholeCollection: { overwrite, autoEnhanceEachPhoto in
                     showSaveScopeSheet = false
-                    Task { await finishSave { await viewModel.saveWithCollectionStyle(autoEnhanceEachPhoto: autoEnhanceEachPhoto) } }
+                    Task { await finishSave { await viewModel.saveWithCollectionStyle(autoEnhanceEachPhoto: autoEnhanceEachPhoto, overwrite: overwrite) } }
                 },
                 onCancel: { showSaveScopeSheet = false }
             )

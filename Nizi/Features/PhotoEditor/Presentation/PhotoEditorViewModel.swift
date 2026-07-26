@@ -69,6 +69,7 @@ final class PhotoEditorViewModel {
     private let presetRepository: PresetRepository
     private let autoEnhanceService: AutoEnhancing
     private let collectionStyleRepository: CollectionStyleRepository
+    private let assetExporter: PhotoAssetExporting
 
     /// Cancels/supersedes any preview render still in flight when a newer one is requested — see
     /// `refreshPreview()`. A monotonic counter rather than relying solely on `Task` cancellation
@@ -88,7 +89,8 @@ final class PhotoEditorViewModel {
         repository: PhotoEditRepository,
         presetRepository: PresetRepository,
         autoEnhanceService: AutoEnhancing,
-        collectionStyleRepository: CollectionStyleRepository
+        collectionStyleRepository: CollectionStyleRepository,
+        assetExporter: PhotoAssetExporting = PhotoAssetExporter()
     ) {
         self.context = context
         self.renderEngine = renderEngine
@@ -96,6 +98,7 @@ final class PhotoEditorViewModel {
         self.presetRepository = presetRepository
         self.autoEnhanceService = autoEnhanceService
         self.collectionStyleRepository = collectionStyleRepository
+        self.assetExporter = assetExporter
         session = PhotoEditSession(photoId: context.photoId, existingRecipe: nil)
     }
 
@@ -319,20 +322,59 @@ final class PhotoEditorViewModel {
         }
     }
 
-    /// § 11.4/§ 11.5 — saves this photo exactly like `saveThisPhotoOnly()`, then writes a
-    /// `CollectionEditStyle` for the Album/Event this editor was opened from, carrying only this
-    /// photo's *preset* and *intensity* — never its manual Adjust values (§ 3.4, § 11.4: "Các điều
-    /// chỉnh sáng và màu riêng của ảnh này sẽ không được sao chép"). When `autoEnhanceEachPhoto` is
-    /// true, every *other* photo in `context.photoIds` gets its own independent Auto Enhance
-    /// analysis and its own `PhotoEditRecipe` (§ 9.3: never one shared result copied to all of
-    /// them) — each inheriting the collection's preset rather than duplicating it.
+    /// Album/Event's "save as a real photo" flow — renders this photo's current edit at full
+    /// resolution, writes it as a brand-new asset via `assetExporter` (EXIF preserved, dated/
+    /// located to match the original), and reports the new asset's id back via
+    /// `PhotoEditorResult.newPhotoId` so the caller can swap its own Album-assignment/Event-
+    /// curation-item reference over to it. `overwrite` also deletes the original asset once the
+    /// new one exists; "save as copy" leaves the original in the library, just no longer
+    /// referenced by this Album/Event. Never used for `.standalone` — nothing to swap a reference
+    /// in there, so it stays on the plain recipe-only `saveThisPhotoOnly()`.
     @discardableResult
-    func saveWithCollectionStyle(autoEnhanceEachPhoto: Bool) async -> PhotoEditorResult {
+    func saveAsNewAsset(overwrite: Bool) async -> PhotoEditorResult {
+        guard !isSaving else { return .cancelled(photoId: context.photoId) }
+        isSaving = true
+        defer { isSaving = false }
+
+        do {
+            let newPhotoId = try await assetExporter.exportEditedCopy(
+                photoId: context.photoId,
+                recipe: session.workingRecipe,
+                renderer: renderEngine,
+                deleteOriginal: overwrite
+            )
+            if overwrite {
+                // The original asset is gone — its recipe row would just be an orphan otherwise.
+                // The new asset needs none: its pixels already *are* the edited result.
+                try? await repository.deleteRecipe(photoId: context.photoId)
+            }
+            return PhotoEditorResult(
+                photoId: context.photoId, didSave: true, collectionStyleChanged: false,
+                affectedPhotoIds: [context.photoId], newPhotoId: newPhotoId, didDeleteOriginalAsset: overwrite
+            )
+        } catch {
+            NiziLogger.photoEditor.error("photo_editor_save_as_new_asset_failed photoId=\(self.context.photoId, privacy: .private) error=\(String(describing: error), privacy: .public)")
+            return .cancelled(photoId: context.photoId)
+        }
+    }
+
+    /// § 11.4/§ 11.5 — saves this photo via `saveAsNewAsset(overwrite:)` (Album/Event's photo
+    /// always becomes a real new asset now, not just a recipe), then writes a `CollectionEditStyle`
+    /// for the Album/Event this editor was opened from, carrying only this photo's *preset* and
+    /// *intensity* — never its manual Adjust values (§ 3.4, § 11.4: "Các điều chỉnh sáng và màu
+    /// riêng của ảnh này sẽ không được sao chép"). When `autoEnhanceEachPhoto` is true, every
+    /// *other* photo in `context.photoIds` gets its own independent Auto Enhance analysis and its
+    /// own `PhotoEditRecipe` (§ 9.3: never one shared result copied to all of them) — each
+    /// inheriting the collection's preset rather than duplicating it; siblings only ever inherit a
+    /// preset/intensity *style*, never a full pixel edit, so they stay on the recipe-only path —
+    /// no new asset is exported for them.
+    @discardableResult
+    func saveWithCollectionStyle(autoEnhanceEachPhoto: Bool, overwrite: Bool) async -> PhotoEditorResult {
         guard let sourceId = context.sourceId, context.sourceType != .standalone else {
-            return await saveThisPhotoOnly()
+            return await saveAsNewAsset(overwrite: overwrite)
         }
 
-        let thisPhotoResult = await saveThisPhotoOnly()
+        let thisPhotoResult = await saveAsNewAsset(overwrite: overwrite)
         guard thisPhotoResult.didSave else { return thisPhotoResult }
 
         let collectionType: CollectionType = context.sourceType == .album ? .album : .event
@@ -361,7 +403,10 @@ final class PhotoEditorViewModel {
             affectedPhotoIds = context.photoIds
         }
 
-        return PhotoEditorResult(photoId: context.photoId, didSave: true, collectionStyleChanged: true, affectedPhotoIds: affectedPhotoIds)
+        return PhotoEditorResult(
+            photoId: context.photoId, didSave: true, collectionStyleChanged: true, affectedPhotoIds: affectedPhotoIds,
+            newPhotoId: thisPhotoResult.newPhotoId, didDeleteOriginalAsset: thisPhotoResult.didDeleteOriginalAsset
+        )
     }
 
     /// Runs Auto Enhance independently for each photo id and saves each result as its own

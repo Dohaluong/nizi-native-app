@@ -16,12 +16,17 @@ struct SaveScopeSheet: View {
     let sourceType: EditorSourceType
     let presetName: String
     let presetIntensityPercent: Int
-    let onSaveThisPhotoOnly: () -> Void
-    let onApplyToWholeCollection: (_ autoEnhanceEachPhoto: Bool) -> Void
+    let onSaveThisPhotoOnly: (_ overwrite: Bool) -> Void
+    let onApplyToWholeCollection: (_ overwrite: Bool, _ autoEnhanceEachPhoto: Bool) -> Void
     let onCancel: () -> Void
 
     @State private var isShowingWholeCollectionConfirmation = false
     @State private var autoEnhanceEachPhoto = false
+    /// Defaults to "save as copy" (`false`) — the non-destructive, easily-reversible choice. Photo
+    /// Editor's own edits are always non-destructive right up until this exact moment; overwriting
+    /// is the one action here that deletes something real from the user's library, so it should
+    /// never be the silent default.
+    @State private var overwriteOriginal = false
 
     var body: some View {
         if isShowingWholeCollectionConfirmation {
@@ -36,8 +41,10 @@ struct SaveScopeSheet: View {
             Text("photoEditor.saveScope.title")
                 .font(.headline)
 
+            assetHandlingPicker
+
             Button {
-                onSaveThisPhotoOnly()
+                onSaveThisPhotoOnly(overwriteOriginal)
             } label: {
                 Text("photoEditor.saveScope.thisPhotoOnly")
                     .frame(maxWidth: .infinity)
@@ -58,6 +65,27 @@ struct SaveScopeSheet: View {
         }
         .padding(20)
         .presentationDetents([.medium])
+    }
+
+    /// § — new "Lưu đè / Tạo bản copy" choice: saving now always writes the currently-edited photo
+    /// as a brand-new asset (preserving EXIF) rather than just a recipe, so the user needs to say
+    /// up front whether the original asset should be deleted afterward or kept alongside the new
+    /// one. Shown once, above both save-scope buttons, since it applies the same way regardless of
+    /// "this photo only" vs "whole collection."
+    private var assetHandlingPicker: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Picker("photoEditor.saveScope.assetHandling", selection: $overwriteOriginal) {
+                Text("photoEditor.saveScope.saveAsCopy").tag(false)
+                Text("photoEditor.saveScope.overwrite").tag(true)
+            }
+            .pickerStyle(.segmented)
+
+            if overwriteOriginal {
+                Text("photoEditor.saveScope.overwriteWarning")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     @ViewBuilder
@@ -92,7 +120,7 @@ struct SaveScopeSheet: View {
                 }
                 Spacer()
                 Button("photoEditor.autoEnhance.apply") {
-                    onApplyToWholeCollection(autoEnhanceEachPhoto)
+                    onApplyToWholeCollection(overwriteOriginal, autoEnhanceEachPhoto)
                 }
                 .buttonStyle(.borderedProminent)
             }
