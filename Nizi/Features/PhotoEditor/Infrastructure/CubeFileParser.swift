@@ -35,8 +35,16 @@ enum CubeFileParser {
 
             // Any other metadata line (TITLE, DOMAIN_MIN, DOMAIN_MAX, LUT_1D_SIZE, ...) is
             // skipped rather than rejected — this parser only needs the size + the data rows, not
-            // every optional header a `.cube` file may carry.
-            let components = line.split(separator: " ").compactMap { Float($0) }
+            // every optional header a `.cube` file may carry. Critically, a line like
+            // `DOMAIN_MIN 0.0 0.0 0.0` must be rejected as non-data *before* parsing floats — a
+            // few real presets ship this line, and its label happens to fail `Float(_:)`, so a
+            // naive `.compactMap { Float($0) }` over all tokens silently drops just the label and
+            // is left with exactly 3 floats, misreading it as a genuine data row. Requiring
+            // exactly 3 *tokens* up front (not 3 *parseable* tokens after the fact) is what
+            // actually distinguishes the two.
+            let rawComponents = line.split(separator: " ")
+            guard rawComponents.count == 3 else { continue }
+            let components = rawComponents.compactMap { Float($0) }
             guard components.count == 3 else { continue }
             triples.append((components[0], components[1], components[2]))
         }

@@ -70,4 +70,32 @@ struct CubeFileParserTests {
             try CubeFileParser.parse(text: text, expectedDimension: 2)
         }
     }
+
+    /// Regression test for a real bug: several of the 13 shipped LUTs include `DOMAIN_MIN`/
+    /// `DOMAIN_MAX` header lines (`"DOMAIN_MIN 0.0 0.0 0.0"`) that every 64-dimension one happens
+    /// not to have. A naive `line.split(separator: " ").compactMap { Float($0) }` silently drops
+    /// just the non-numeric label and is left with exactly 3 floats — misreading the header line
+    /// as a genuine data row, inflating the row count past `expectedDimension^3`, and failing with
+    /// `.invalidFormat` even though the file is completely well-formed. This is exactly what made
+    /// every 32-dimension preset (`classic-film`, `bold-film`, `chrome`, `retro-64`, `lomo`,
+    /// `brooklyn`) fail to load while every 64-dimension one worked.
+    @Test
+    func domainMinMaxHeaderLinesAreNotMisreadAsDataRows() throws {
+        let text = """
+        TITLE "Test LUT"
+        LUT_3D_SIZE 2
+        DOMAIN_MIN 0.0 0.0 0.0
+        DOMAIN_MAX 1.0 1.0 1.0
+        0.0 0.0 0.0
+        0.1 0.1 0.1
+        0.2 0.2 0.2
+        0.3 0.3 0.3
+        0.4 0.4 0.4
+        0.5 0.5 0.5
+        0.6 0.6 0.6
+        0.7 0.7 0.7
+        """
+        let data = try CubeFileParser.parse(text: text, expectedDimension: 2)
+        #expect(floats(from: data).count == 32) // 8 rows × 4 (RGBA) — DOMAIN_MIN/MAX excluded
+    }
 }
