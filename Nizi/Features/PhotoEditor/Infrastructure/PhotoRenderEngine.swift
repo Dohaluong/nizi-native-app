@@ -92,11 +92,25 @@ final class PhotoRenderEngine: PhotoRendering, @unchecked Sendable {
         return result
     }
 
+    /// § 18.3 — "Dùng autorelease pool tại các đoạn render nặng." `createCGImage` is where every
+    /// intermediate `CIImage` in the filter chain actually gets evaluated; wrapping it means those
+    /// intermediates (and any Objective-C-bridged temporaries Core Image allocates internally) are
+    /// released as soon as this call returns rather than lingering until Swift's own next
+    /// autorelease drain — most relevant for `renderFullResolution`'s multi-megapixel images, but
+    /// harmless and applied uniformly to `renderPreview` too.
     private func render(_ image: CIImage) throws -> CGImage {
-        guard let cgImage = ciContext.createCGImage(image, from: image.extent) else {
-            throw PhotoRenderError.renderFailed
+        var result: CGImage?
+        var renderError: PhotoRenderError?
+        autoreleasepool {
+            if let cgImage = ciContext.createCGImage(image, from: image.extent) {
+                result = cgImage
+            } else {
+                renderError = .renderFailed
+            }
         }
-        return cgImage
+        if let renderError { throw renderError }
+        guard let result else { throw PhotoRenderError.renderFailed }
+        return result
     }
 
     // MARK: - PHAsset access

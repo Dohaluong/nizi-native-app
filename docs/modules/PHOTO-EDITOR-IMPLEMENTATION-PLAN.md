@@ -439,33 +439,51 @@ locked in.
 
 ## 10. Sprint plan
 
-Each sprint below ends with: build succeeds, relevant Swift Testing suite passes, and progress is
-reported (files created/changed, what's done/not done, test results, build result, risks, commit
-hash) — no sprint starts until the previous one builds clean.
+Each sprint below ends with: build succeeds (build-only — the user tests on-device themselves, per
+standing project preference), progress is reported (files created/changed, what's done/not done,
+build result, risks, commit hash) — no sprint starts until the previous one builds clean.
 
-1. **Editor foundation** — `EditorContext`, `PhotoEditorView`, `PhotoEditorViewModel`,
+1. ✅ **Editor foundation** (`94d1690`) — `EditorContext`, `PhotoEditorView`, `PhotoEditorViewModel`,
    `PhotoEditSession`, preview load from `PHAsset` (no presets/adjust yet), Cancel/Save, press-and-
    hold original, unsaved-changes detection, openable standalone via a small preview harness.
-2. **Rendering foundation** — `PhotoRenderEngine`, one reusable `CIContext`, preview vs. full-res
-   APIs, orientation normalization, render-request cancellation owned by the view model.
-3. **Preset** — `PresetDefinition` + bundle JSON, < 10 presets on stock CIFilters, intensity slider
-   0–100%, per-preset default intensity, thumbnail cache for the session, Reset to Original.
-4. **Adjust** — the six sliders (exposure/contrast/highlights/shadows/warmth/saturation), UI range
-   -100…+100 mapped to each filter's native range, per-field reset, reset-all-Adjust, reset-all.
-5. **Auto Enhance** — histogram/brightness/highlight-shadow heuristics → `PhotoAdjustments`,
-   surfaced in the Adjust tab, undoable, no hidden filter.
-6. **Persistence** — `MDPhotoEditRecipe`, `SwiftDataPhotoEditRepository`, `NiziApp.swift`
-   model-container registration, recipe restore on reopen.
-7. **Album/Event integration** — thread `albumId`/`eventId` through the two existing preview
-   views, add their `Edit` entry points, `SaveScopeSheet`, "apply to whole collection" write path
-   (§ 4).
-8. **Collection style + override** — `MDCollectionEditStyle`, `CollectionStyleResolver` priority
-   chain (§ 6), per-photo override UI.
-9. **Testing and performance hardening** — the full matrix in the spec's § 10 (landscape/portrait,
-   large files, iCloud-not-local, screenshot, Live Photo, Photos-app-edited, large Album/Event,
-   rapid preset/slider changes, cancel-unsaved, reopen-saved-recipe, style changes, per-photo
-   override, reset-to-original), plus RAM/main-thread/render-latency/cancellation/cache-lifecycle
-   checks called out in spec § 18.
+2. ✅ **Rendering foundation** (`16b326a`) — `PhotoRenderEngine`, one reusable `CIContext`, preview
+   vs. full-res APIs, orientation normalization, render-request cancellation owned by the view
+   model.
+3. ✅ **Preset** (`2768ead`) — `PresetDefinition` + bundle JSON, 8 prototype presets on stock
+   CIFilters (real `.cube` LUT loader built but unused — no licensed LUT embedded yet), intensity
+   slider 0–100%, per-preset default intensity, thumbnail cache for the session, Reset to Original,
+   `docs/modules/PHOTO-EDITOR-PRESET-GUIDE.md`.
+4. ✅ **Adjust** (`4b5b19f`) — the six sliders (exposure/contrast/highlights/shadows/warmth/
+   saturation), UI range -100…+100 mapped to each filter's native range via shared
+   `PhotoToneAdjuster`, per-field reset, reset-all-Adjust, reset-all.
+5. ✅ **Auto Enhance** (`1696a99`) — `ImageAnalyzer` (real pixel/histogram sampling) +
+   `AutoEnhanceRules` (pure, unit-tested heuristics) → `PhotoAdjustments`, surfaced in the Adjust
+   tab, undoable, no hidden filter.
+6. ✅ **Persistence** (`40d72be`) — `MDPhotoEditRecipe`, `SwiftDataPhotoEditRepository`,
+   `NiziApp.swift` model-container registration, recipe restore on reopen (standalone harness
+   switched to the real repository so this is actually exercised, not simulated).
+7. ✅ **Album/Event integration** (`5f310e9`) — `albumId`/`eventId` threaded through the two
+   existing preview views, `Edit` entry points added, `SaveScopeSheet`, "apply to whole collection"
+   write path (§ 4), `MDCollectionEditStyle`/`SwiftDataCollectionStyleRepository`.
+8. ✅ **Collection style + override** (`e4789e4`) — `CollectionStyleResolver` priority chain (§ 6),
+   editor pre-populates a photo's inherited style on open, save sets `inheritsCollectionStyle`
+   correctly, small inheriting/custom indicator in the Preset tab.
+9. 🔶 **Testing and performance hardening** — `docs/modules/PHOTO-EDITOR-TEST-CHECKLIST.md` written
+   (the full on-device matrix: landscape/portrait, large files, iCloud-not-local, screenshot, Live
+   Photo, Photos-app-edited, large Album/Event, rapid preset/slider changes, cancel-unsaved,
+   reopen-saved-recipe, style changes, per-photo override, reset-to-original, plus RAM/main-thread/
+   render-latency/cancellation/cache-lifecycle) — actual execution is manual, on-device, by the
+   user. One concrete fix landed from a code-level self-audit: `PhotoRenderEngine.render(_:)` now
+   wraps `CIContext.createCGImage` in `autoreleasepool` (§ 18.3), previously missing.
 
-This is 9 build/test checkpoints rather than the spec's own 6 "Sprints," since it follows the more
+**Known, deliberately out-of-scope gap** (flagged at Bước 8 and Bước 9, not fixed in Bước 10):
+Album's and Event's own photo *display* — `AlbumPhotoView`/`ApplePhotosAlbumPhotoProvider`,
+`EventDetailView`'s `PhotoAssetProvider`-based thumbnails — does not render through
+`PhotoRenderEngine`/`CollectionStyleResolver`. A saved edit is fully persisted and correctly
+resolved, but has no visible effect outside the editor itself yet. Retrofitting those existing,
+actively-used display pipelines to become recipe-aware is a substantial cross-cutting change
+distinct from "add an Edit entry point" or "resolve which style applies" — it would need its own
+scoped pass, not a silent expansion of Bước 8/9.
+
+This is 9 build checkpoints rather than the spec's own 6 "Sprints," since it follows the more
 granular Bước 2–10 breakdown given in the task instructions (Bước 1, this document, is done).
