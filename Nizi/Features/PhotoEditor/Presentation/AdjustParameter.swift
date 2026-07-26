@@ -31,6 +31,20 @@ enum AdjustParameter: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// The icon-only Adjust tray shows this instead of `titleKey`'s text — the value itself is
+    /// already visible on the slider below, so the icon row only needs to identify *which*
+    /// parameter, not restate its number.
+    var systemImage: String {
+        switch self {
+        case .exposure: "plusminus.circle"
+        case .contrast: "circle.lefthalf.filled"
+        case .highlights: "sun.max"
+        case .shadows: "moon"
+        case .warmth: "thermometer.sun"
+        case .saturation: "drop"
+        }
+    }
+
     func value(in adjustments: PhotoAdjustments) -> Float {
         switch self {
         case .exposure: adjustments.exposure

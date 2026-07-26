@@ -7,35 +7,79 @@
 
 import SwiftUI
 
-/// The Adjust tool tray (PHOTO-EDITOR.md § 8.2) — a 2-row grid of the six parameters (each
-/// showing its current value), a slider for whichever one is selected, and the three reset levels
-/// § 8.4 asks for (this parameter / all Adjust / the whole photo).
+/// The Adjust tool tray (PHOTO-EDITOR.md § 8.2) — an icon-only row (Auto Enhance first, the six
+/// parameters, Reset last) plus a slider for whichever parameter icon is currently selected. No
+/// numeric label lives on the icons themselves — the value is already visible on the slider below,
+/// so restating it a second time on every icon was pure duplication.
 struct AdjustPanelView: View {
     let viewModel: PhotoEditorViewModel
     @State private var selectedParameter: AdjustParameter = .exposure
 
-    private let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
-
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            LazyVGrid(columns: columns, spacing: 8) {
+            iconRow
+            sliderRow
+        }
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
+    }
+
+    private var iconRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                autoButton
                 ForEach(AdjustParameter.allCases) { parameter in
-                    AdjustParameterButton(
-                        parameter: parameter,
-                        valuePercent: viewModel.adjustPercent(for: parameter),
-                        isSelected: parameter == selectedParameter
+                    AdjustIconButton(
+                        systemImage: parameter.systemImage,
+                        accessibilityLabel: localizedString(dynamicKey: parameter.titleKey),
+                        isSelected: parameter == selectedParameter,
+                        isActive: viewModel.adjustPercent(for: parameter) != 0
                     ) {
                         selectedParameter = parameter
                     }
                 }
+                resetButton
             }
             .padding(.horizontal, 16)
-
-            sliderRow
-            resetButtonsRow
         }
-        .padding(.vertical, 12)
-        .background(.ultraThinMaterial)
+    }
+
+    /// A momentary action, not a selectable slider target like the six parameters — tapping it
+    /// runs (or, if already applied, undoes) Auto Enhance immediately; whichever parameter is
+    /// currently selected keeps showing its own (now Auto-updated) value on the slider below, per
+    /// § 9.3's "kết quả hiển thị, không ẩn."
+    private var autoButton: some View {
+        let isApplied = viewModel.session.workingRecipe.autoEnhanceApplied
+        let canUndo = viewModel.canUndoAutoEnhance
+        return AdjustIconButton(
+            systemImage: "sparkles",
+            accessibilityLabel: localizedString(dynamicKey: canUndo ? "photoEditor.autoEnhance.undo" : "photoEditor.tool.auto"),
+            isSelected: false,
+            isActive: isApplied,
+            isLoading: viewModel.isAutoEnhanceRunning
+        ) {
+            if canUndo {
+                viewModel.undoAutoEnhance()
+            } else {
+                Task { await viewModel.applyAutoEnhance() }
+            }
+        }
+        .disabled(viewModel.isAutoEnhanceRunning)
+    }
+
+    /// The only reset action left in this tray — resets all six Adjust values back to `0`
+    /// (`resetAllAdjustments`), not the more drastic "whole photo back to Original" (which also
+    /// clears the selected preset) that used to sit alongside it as a second button; picking
+    /// "Original" in the Preset tab already covers that case.
+    private var resetButton: some View {
+        AdjustIconButton(
+            systemImage: "arrow.counterclockwise",
+            accessibilityLabel: localizedString(dynamicKey: "photoEditor.adjust.resetAll"),
+            isSelected: false,
+            isActive: false
+        ) {
+            viewModel.resetAllAdjustments()
+        }
     }
 
     private var sliderRow: some View {
@@ -48,10 +92,6 @@ struct AdjustPanelView: View {
                 Text(Self.formattedValue(viewModel.adjustPercent(for: selectedParameter)))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
-                Button("photoEditor.adjust.resetParameter") {
-                    viewModel.resetAdjustParameter(selectedParameter)
-                }
-                .font(.caption2)
             }
             Slider(
                 value: Binding(
@@ -64,49 +104,36 @@ struct AdjustPanelView: View {
         .padding(.horizontal, 16)
     }
 
-    private var resetButtonsRow: some View {
-        HStack {
-            Button("photoEditor.adjust.resetAll") { viewModel.resetAllAdjustments() }
-                .font(.caption)
-            Spacer()
-            Button("photoEditor.adjust.resetPhoto", role: .destructive) { viewModel.resetEntirePhoto() }
-                .font(.caption)
-        }
-        .padding(.horizontal, 16)
-    }
-
     private static func formattedValue(_ percent: Double) -> String {
         let rounded = Int(percent.rounded())
         return rounded > 0 ? "+\(rounded)" : "\(rounded)"
     }
 }
 
-private struct AdjustParameterButton: View {
-    let parameter: AdjustParameter
-    let valuePercent: Double
+private struct AdjustIconButton: View {
+    let systemImage: String
+    let accessibilityLabel: String
     let isSelected: Bool
+    let isActive: Bool
+    var isLoading: Bool = false
     let action: () -> Void
-
-    private var roundedValue: Int { Int(valuePercent.rounded()) }
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 2) {
-                Text(localizedString(dynamicKey: parameter.titleKey))
-                    .font(.caption2)
-                    .foregroundStyle(isSelected ? Color.primary : .secondary)
-                    .lineLimit(1)
-                Text(roundedValue == 0 ? "—" : (roundedValue > 0 ? "+\(roundedValue)" : "\(roundedValue)"))
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(roundedValue == 0 ? Color.secondary : Color.accentColor)
+            ZStack {
+                Circle()
+                    .fill(isSelected ? Color.accentColor.opacity(0.18) : Color.clear)
+                if isLoading {
+                    ProgressView()
+                } else {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 18))
+                        .foregroundStyle(isSelected || isActive ? Color.accentColor : Color.secondary)
+                }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.secondary.opacity(0.15) : Color.clear)
-            )
+            .frame(width: 40, height: 40)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
     }
 }

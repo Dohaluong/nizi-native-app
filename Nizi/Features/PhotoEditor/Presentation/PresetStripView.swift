@@ -36,12 +36,15 @@ struct PresetStripView: View {
                 .padding(.horizontal, 16)
             }
 
-            if viewModel.selectedPresetId != PresetDefinition.originalId {
-                intensityRow
-            }
+            // Always present (never conditionally omitted) so the tray's height stays constant
+            // switching to/from `Original` (which has no intensity to show) — `.opacity(0)` hides
+            // the content in place instead of collapsing the row and reflowing everything below it.
+            intensityRow
+                .opacity(viewModel.selectedPresetId == PresetDefinition.originalId ? 0 : 1)
+                .allowsHitTesting(viewModel.selectedPresetId != PresetDefinition.originalId)
         }
         .padding(.vertical, 12)
-        .background(.ultraThinMaterial)
+        .background(Color.black.opacity(0.85))
     }
 
     /// § 12.3 — makes the current inherit-vs-override state visible rather than a silent
@@ -50,7 +53,7 @@ struct PresetStripView: View {
     private var inheritanceIndicator: some View {
         Text(viewModel.isInheritingCollectionStyle ? "photoEditor.preset.inheritingStyle" : "photoEditor.preset.customStyle")
             .font(.caption2)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(.white.opacity(0.7))
             .padding(.horizontal, 16)
     }
 
@@ -59,11 +62,11 @@ struct PresetStripView: View {
             HStack {
                 Text("photoEditor.preset.intensity")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.7))
                 Spacer()
                 Text("\(Int(viewModel.presetIntensityPercent.rounded()))%")
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.7))
             }
             Slider(
                 value: Binding(
@@ -129,7 +132,7 @@ private struct PresetThumbnailButton: View {
 
                 Text(displayName)
                     .font(.caption2)
-                    .foregroundStyle(isSelected ? Color.primary : .secondary)
+                    .foregroundStyle(isSelected ? Color.white : .white.opacity(0.6))
                     .lineLimit(1)
                     .frame(maxWidth: 72)
             }

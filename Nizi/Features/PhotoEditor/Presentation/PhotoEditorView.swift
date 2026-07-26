@@ -26,14 +26,12 @@ struct PhotoEditorView: View {
     private enum EditorTool: String, CaseIterable, Identifiable {
         case preset
         case adjust
-        case auto
         var id: String { rawValue }
 
         var titleKey: String {
             switch self {
             case .preset: "photoEditor.tool.preset"
             case .adjust: "photoEditor.tool.adjust"
-            case .auto: "photoEditor.tool.auto"
             }
         }
     }
@@ -44,6 +42,27 @@ struct PhotoEditorView: View {
     @State private var showDiscardConfirmation = false
     @State private var showSaveScopeSheet = false
     @State private var selectedTool: EditorTool = .preset
+
+    /// Pinch-to-zoom state for `imageArea` — `committedZoom`/`committedPanOffset` are what's left
+    /// in effect between gestures; `pinchMagnification`/`panTranslation` are the in-flight delta of
+    /// whatever gesture is currently active, summed on top via `currentZoom`/`currentPanOffset`.
+    /// Deliberately not reset on every re-render (preset switch, slider drag) — staying zoomed in
+    /// on, say, a face while tweaking Adjust sliders is the whole point.
+    @State private var committedZoom: CGFloat = 1
+    @GestureState private var pinchMagnification: CGFloat = 1
+    @State private var committedPanOffset: CGSize = .zero
+    @GestureState private var panTranslation: CGSize = .zero
+
+    private static let minZoom: CGFloat = 1
+    private static let maxZoom: CGFloat = 5
+
+    private var currentZoom: CGFloat { committedZoom * pinchMagnification }
+    private var currentPanOffset: CGSize {
+        CGSize(
+            width: committedPanOffset.width + panTranslation.width,
+            height: committedPanOffset.height + panTranslation.height
+        )
+    }
 
     init(
         context: EditorContext,
@@ -161,8 +180,6 @@ struct PhotoEditorView: View {
                 PresetStripView(viewModel: viewModel)
             case .adjust:
                 AdjustPanelView(viewModel: viewModel)
-            case .auto:
-                AutoEnhancePanelView(viewModel: viewModel)
             }
         }
     }
@@ -204,6 +221,9 @@ struct PhotoEditorView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: proxy.size.width, height: proxy.size.height)
+                    .scaleEffect(currentZoom)
+                    .offset(currentPanOffset)
+                    .clipped()
             }
             .overlay(alignment: .bottom) { originalBadge }
             // Press-and-hold, matching § 6.3's "chạm giữ để xem ảnh gốc / nhả tay quay lại":
@@ -214,7 +234,36 @@ struct PhotoEditorView: View {
             } onPressingChanged: { isPressing in
                 viewModel.setShowingOriginal(isPressing)
             }
+            // Two-finger pinch-to-zoom + pan, layered on with `.simultaneousGesture` (not
+            // `.gesture`) so it never steals the press-and-hold recognizer above — both need to
+            // fire off the same touches (e.g. pinch-zooming and then holding to compare).
+            .simultaneousGesture(magnifyGesture)
+            .simultaneousGesture(panGesture)
         }
+    }
+
+    private var magnifyGesture: some Gesture {
+        MagnificationGesture()
+            .updating($pinchMagnification) { value, state, _ in state = value }
+            .onEnded { value in
+                committedZoom = min(max(committedZoom * value, Self.minZoom), Self.maxZoom)
+                if committedZoom <= Self.minZoom {
+                    withAnimation(.spring(duration: 0.25)) { committedPanOffset = .zero }
+                }
+            }
+    }
+
+    private var panGesture: some Gesture {
+        DragGesture()
+            .updating($panTranslation) { value, state, _ in
+                guard committedZoom > Self.minZoom else { return }
+                state = value.translation
+            }
+            .onEnded { value in
+                guard committedZoom > Self.minZoom else { return }
+                committedPanOffset.width += value.translation.width
+                committedPanOffset.height += value.translation.height
+            }
     }
 
     @ViewBuilder
