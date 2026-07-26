@@ -112,6 +112,9 @@ struct PhotoLibraryDiagnosticsView: View {
                 NavigationLink("LUT Manager") {
                     PresetManagerView()
                 }
+                NavigationLink("Preset Tuning") {
+                    PresetTuningPanelView()
+                }
             }
         }
         .navigationTitle("Photo Library Diagnostics")

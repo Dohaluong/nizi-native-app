@@ -12,6 +12,21 @@ import Foundation
 /// `Bundle`, no caching) so it's directly unit-testable against small synthetic `.cube` text —
 /// `CubeLUTLoader` is the only thing that touches the file system and the parse cache.
 enum CubeFileParser {
+    /// Reads just the `LUT_3D_SIZE` line without validating the rest of the file — used wherever a
+    /// caller needs the dimension *before* it can call `parse(text:expectedDimension:)` (which
+    /// requires the dimension up front to size its output buffer), e.g. importing a brand-new
+    /// `.cube` file whose dimension isn't known yet.
+    static func declaredDimension(in text: String) -> Int? {
+        for rawLine in text.split(separator: "\n") {
+            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            guard line.hasPrefix("LUT_3D_SIZE") else { continue }
+            let parts = line.split(separator: " ")
+            guard parts.count >= 2 else { return nil }
+            return Int(parts[1])
+        }
+        return nil
+    }
+
     /// - Parameter expectedDimension: The `lutDimension` the calling `PresetDefinition` declares.
     ///   Mismatched against the file's own `LUT_3D_SIZE` line — a preset that claims dimension 33
     ///   but ships a 17-point cube is a data error, not something to silently coerce.

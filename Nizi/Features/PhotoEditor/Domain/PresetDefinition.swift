@@ -31,46 +31,52 @@ struct PresetDefinition: Codable, Identifiable, Equatable, Sendable {
 
     /// A bundled `.cube` file name (e.g. `"warm-memory.cube"`), or `nil` for a preset built purely
     /// from Core Image tone adjustments. `nil` for every V1 preset — see `isPrototype`.
-    let lutResource: String?
-    let lutDimension: Int?
+    /// `var` (with `lutDimension`) — the Preset Tuning Panel can swap a working copy's LUT live.
+    var lutResource: String?
+    var lutDimension: Int?
 
-    let defaultIntensity: Float
+    /// `var` — the Preset Tuning Panel's own Preset Intensity slider is this exact field.
+    var defaultIntensity: Float
 
-    let exposureOffset: Float
-    let contrastOffset: Float
-    let saturationOffset: Float
-    let warmthOffset: Float
-    let highlightsOffset: Float
-    let shadowsOffset: Float
+    /// Every tone/color/style field below is `var` for the same reason: the DEBUG-only Preset
+    /// Tuning Panel mutates a local working copy per slider drag. `presets.json` itself is never
+    /// rewritten by any of this — mutability here is about an in-memory working copy, same
+    /// reasoning `name`/`shortName`/`isActive`/`sortOrder` already have above.
+    var exposureOffset: Float
+    var contrastOffset: Float
+    var saturationOffset: Float
+    var warmthOffset: Float
+    var highlightsOffset: Float
+    var shadowsOffset: Float
     /// Diagnostics-only additions (Preset Tuning Panel) — absent from every preset shipped before
     /// that tool existed, so decoding must tolerate a missing key (see `init(from:)` below) rather
     /// than fail every bundled preset the moment one new field is introduced.
-    let blacksOffset: Float
-    let whitesOffset: Float
+    var blacksOffset: Float
+    var whitesOffset: Float
     /// Applied *in addition to* `saturationOffset` (`PhotoToneAdjuster`), not a replacement for
     /// it — `CIVibrance` boosts muted colors more than already-saturated ones and is more
     /// skin-tone-safe, which is why the Preset Tuning Panel's Color section leads with this over
     /// plain Saturation, but both still exist as independent, addable offsets.
-    let vibranceOffset: Float
+    var vibranceOffset: Float
     /// Green↔Magenta axis of the same `CITemperatureAndTint` filter `warmthOffset` already drives
     /// (its `neutral`/`targetNeutral` vectors are `(temperature, tint)` pairs) — `PhotoToneAdjuster`
     /// sets both from one filter invocation.
-    let tintOffset: Float
+    var tintOffset: Float
 
-    let grainAmount: Float
-    let grainSize: Float
-    let bloomAmount: Float
-    let bloomRadius: Float
-    let vignetteAmount: Float
-    let vignetteRadius: Float
+    var grainAmount: Float
+    var grainSize: Float
+    var bloomAmount: Float
+    var bloomRadius: Float
+    var vignetteAmount: Float
+    var vignetteRadius: Float
     /// `CISharpenLuminance`'s `sharpness`, applied in `PresetRenderer`'s texture stage alongside
     /// grain/bloom/vignette.
-    let sharpnessAmount: Float
+    var sharpnessAmount: Float
     /// TODO — no local-contrast/"clarity" engine exists yet (Preset Tuning Panel spec explicitly
     /// allows shipping the schema field + UI slider ahead of the actual Core Image implementation).
     /// Parsed and carried through, never acted on by `PresetRenderer` yet — same status
     /// `protectSkinTones` already has below.
-    let clarityOffset: Float
+    var clarityOffset: Float
 
     /// Schema-only in V1 — real per-region skin-tone protection is masked/HSL-aware processing,
     /// explicitly out of scope for this app's Photo Editor (see ADDEDUM § 12–14 and

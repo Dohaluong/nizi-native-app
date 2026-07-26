@@ -96,7 +96,7 @@ final class CustomizablePresetRepository: PresetRepository, PresetManaging, @unc
         } catch {
             throw PresetManagingError.invalidLUTFile
         }
-        guard let dimension = Self.declaredDimension(in: text) else {
+        guard let dimension = CubeFileParser.declaredDimension(in: text) else {
             throw PresetManagingError.invalidLUTFile
         }
         guard (try? CubeFileParser.parse(text: text, expectedDimension: dimension)) != nil else {
@@ -255,16 +255,5 @@ final class CustomizablePresetRepository: PresetRepository, PresetManaging, @unc
         mutate(&preset)
         try existing.updateEncodedPreset(preset)
         try modelContext.save()
-    }
-
-    private static func declaredDimension(in cubeText: String) -> Int? {
-        for rawLine in cubeText.split(separator: "\n") {
-            let line = rawLine.trimmingCharacters(in: .whitespaces)
-            guard line.hasPrefix("LUT_3D_SIZE") else { continue }
-            let parts = line.split(separator: " ")
-            guard parts.count >= 2 else { return nil }
-            return Int(parts[1])
-        }
-        return nil
     }
 }
