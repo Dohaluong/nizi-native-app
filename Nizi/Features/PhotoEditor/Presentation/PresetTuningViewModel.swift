@@ -164,6 +164,21 @@ final class PresetTuningViewModel {
         Task { await refreshPreview() }
     }
 
+    /// "Choose Photo" — tunes against one specific, developer-picked photo instead of only the
+    /// shuffled "Next Sample" rotation. Inserted right before the current position (not appended
+    /// at the end) so it becomes the very next `nextSample()` neighbor too, and reused in place if
+    /// already present rather than duplicated.
+    func useSample(assetId: String) {
+        if let existingIndex = sampleAssetIds.firstIndex(of: assetId) {
+            currentSampleIndex = existingIndex
+        } else {
+            let insertionIndex = sampleAssetIds.isEmpty ? 0 : currentSampleIndex
+            sampleAssetIds.insert(assetId, at: insertionIndex)
+            currentSampleIndex = insertionIndex
+        }
+        Task { await refreshPreview() }
+    }
+
     func setShowingOriginal(_ showingOriginal: Bool) {
         guard isShowingOriginal != showingOriginal else { return }
         isShowingOriginal = showingOriginal

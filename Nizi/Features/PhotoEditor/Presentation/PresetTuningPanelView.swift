@@ -18,7 +18,7 @@ struct PresetTuningPanelView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel: PresetTuningViewModel?
     @State private var isImportingLUT = false
-    @State private var isShowingJSONImport = false
+    @State private var isPickingPhoto = false
 
     var body: some View {
         Group {
@@ -60,6 +60,7 @@ struct PresetTuningPanelView: View {
                 HStack {
                     Button("Reset Current Preset", role: .destructive) { viewModel.resetCurrentPreset() }
                     Spacer()
+                    Button("Choose Photo…") { isPickingPhoto = true }
                     Button("Next Sample") { viewModel.nextSample() }
                 }
 
@@ -75,6 +76,16 @@ struct PresetTuningPanelView: View {
             if case .success(let url) = result {
                 Task { await viewModel.importLUT(fileURL: url) }
             }
+        }
+        .sheet(isPresented: $isPickingPhoto) {
+            PhotoPickerView(
+                onPick: { assetId in
+                    isPickingPhoto = false
+                    viewModel.useSample(assetId: assetId)
+                },
+                onCancel: { isPickingPhoto = false }
+            )
+            .ignoresSafeArea()
         }
     }
 

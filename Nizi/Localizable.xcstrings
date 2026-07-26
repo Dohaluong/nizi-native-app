@@ -1615,6 +1615,9 @@
     "Allow iCloud network access" : {
 
     },
+    "Apply Imported JSON" : {
+
+    },
     "Authorization" : {
 
     },
@@ -1736,6 +1739,12 @@
       }
     },
     "Coordinate" : {
+
+    },
+    "Copy JSON" : {
+
+    },
+    "Copy Swift Code" : {
 
     },
     "Couldn't load the events list." : {
@@ -2567,6 +2576,9 @@
         }
       }
     },
+    "Export" : {
+
+    },
     "Failed" : {
 
     },
@@ -2574,6 +2586,9 @@
 
     },
     "hero: %@" : {
+
+    },
+    "Histogram" : {
 
     },
     "home.album_preview.empty" : {
@@ -2724,6 +2739,12 @@
         }
       }
     },
+    "Import JSON" : {
+
+    },
+    "Import New LUT…" : {
+
+    },
     "Landscape" : {
 
     },
@@ -2767,6 +2788,9 @@
     "Localization" : {
 
     },
+    "LUT" : {
+
+    },
     "LUT Manager" : {
 
     },
@@ -2779,6 +2803,12 @@
     "New Album" : {
 
     },
+    "New preset name" : {
+
+    },
+    "Next Sample" : {
+
+    },
     "Nizi" : {
 
     },
@@ -2789,6 +2819,9 @@
 
     },
     "No Results" : {
+
+    },
+    "None" : {
 
     },
     "Not scanned yet" : {
@@ -2917,6 +2950,9 @@
 
     },
     "Open Settings" : {
+
+    },
+    "Original" : {
 
     },
     "Page %lld" : {
@@ -4212,6 +4248,18 @@
     "Portrait" : {
 
     },
+    "Preset" : {
+
+    },
+    "Preset JSON" : {
+
+    },
+    "Preset Tuning" : {
+
+    },
+    "Press & hold preview to compare with Original" : {
+
+    },
     "Primary place" : {
 
     },
@@ -4243,10 +4291,16 @@
     "Requested size" : {
 
     },
+    "Reset Current Preset" : {
+
+    },
     "Run" : {
 
     },
     "Run Location Diagnostics" : {
+
+    },
+    "Save as New Preset" : {
 
     },
     "Scan" : {
