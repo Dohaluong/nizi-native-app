@@ -487,3 +487,21 @@ scoped pass, not a silent expansion of Bước 8/9.
 
 This is 9 build checkpoints rather than the spec's own 6 "Sprints," since it follows the more
 granular Bước 2–10 breakdown given in the task instructions (Bước 1, this document, is done).
+
+## 11. Follow-up — real LUTs replaced the prototype presets
+
+After Bước 10, the user provided 13 of their own licensed "Presetpro" `.cube` LUT packs and asked
+for them to become the real preset catalog, confirming commercial-app-distribution rights directly
+(ADDEDUM § 3.1/§ 14's required license check). `presets.json`'s 8 Sprint-3 prototype color
+presets (Core Image tone adjustments only, no LUT) were **replaced** — not appended to — with 13
+real-LUT presets (`isPrototype: false`): `classic-film`, `bold-film`, `cine-grade`, `creatives`,
+`chrome`, `retro-64`, `lomo`, `moody-aqua`, `nomad`, `palm-springs`, `santorini`, `brooklyn`,
+`vintage-fox`. Three of the source pack's own literal names were renamed to avoid reusing a
+camera/film-stock trademark (ADDEDUM § 14.14) — `Fuji Film` → `Classic Film`, `Elite Chrome` →
+`Chrome`, `Kodachrome 64` → `Retro 64` — and `Lomography` shortened to `Lomo`. Two other source
+packs were excluded outright: three Lightroom `.xmp` presets (wrong format — no `.cube` at all) and
+a Fujifilm X100VI camera Log-conversion pack (built for grading flat log footage, not stills — see
+`PHOTO-EDITOR-PRESET-GUIDE.md` § 9 for the full accounting). This intentionally exceeds V1's own
+"dưới 10 preset" guidance (§ 452 above) — that cap was about not over-investing in hand-designed
+prototype color, which no longer applies once the presets are real, already-graded, licensed LUTs.
+`BundlePresetRepositoryTests`/`BundledLUTPresetsTests` were updated accordingly.

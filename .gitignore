@@ -4,5 +4,8 @@ DerivedData/
 .DS_Store
 
 # Licensed/purchased LUT preset packs — reference material only, never redistributed via git.
-# See docs/modules/photo-editor/ADDEDUM.md § 3.1, § 14 (license checks before embedding any LUT).
+# The individual .cube files actually embedded in the app live under
+# Nizi/Features/PhotoEditor/Infrastructure/ instead (tracked normally) — see
+# docs/modules/PHOTO-EDITOR-PRESET-GUIDE.md § 9 and ADDEDUM.md § 3.1, § 14.
 docs/modules/photo-editor/*.zip
+docs/modules/photo-editor/LUTs/

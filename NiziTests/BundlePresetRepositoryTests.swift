@@ -17,11 +17,16 @@ struct BundlePresetRepositoryTests {
         BundlePresetRepository()
     }
 
+    /// V1's own guidance (PHOTO-EDITOR.md § 7.1, ADDEDUM § 12) was "dưới 10 preset" for
+    /// hand-designed prototype color — the user has since explicitly directed shipping all 13 of
+    /// their own licensed LUTs instead, superseding that cap (see PHOTO-EDITOR-PRESET-GUIDE.md's
+    /// update note). This just pins a sane upper bound so the strip doesn't grow unbounded by
+    /// accident, not the original "<10" rule.
     @Test
-    func loadsUnderTenPresets() throws {
+    func loadsAReasonableNumberOfPresets() throws {
         let presets = try makeRepository().loadPresets()
         #expect(!presets.isEmpty)
-        #expect(presets.count < 10)
+        #expect(presets.count <= 20)
     }
 
     @Test

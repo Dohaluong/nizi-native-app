@@ -4,9 +4,23 @@ Required by `docs/modules/photo-editor/ADDEDUM.md` § 14.15. Read that document 
 authoritative spec for preset architecture; this is the practical "how do I actually change
 something" companion to it.
 
-**Every preset shipped today is a prototype** (`isPrototype: true` in `presets.json`), built purely
-from Core Image tone adjustments — no licensed `.cube` LUT is embedded yet. Nothing here should be
-mistaken for final, tuned color grading (ADDEDUM § 12: don't over-invest in prototype color).
+**Update**: the catalog now ships 13 real, licensed `.cube` LUT presets (`isPrototype: false`) —
+`classic-film`, `bold-film`, `cine-grade`, `creatives`, `chrome`, `retro-64`, `lomo`, `moody-aqua`,
+`nomad`, `palm-springs`, `santorini`, `brooklyn`, `vintage-fox` — sourced from the user's own
+purchased "Presetpro" LUT packs (originally in `docs/modules/photo-editor/LUTs/*.zip`, licensed by
+the user for embedding in this shipped app). A few preset names were deliberately renamed away from
+their source pack's literal name where that name is itself a camera/film-stock trademark (ADDEDUM §
+14.14: "Không dùng tên preset có thể gây hiểu nhầm về thương hiệu") — `Presetpro - Fuji Film` →
+`Classic Film`, `Presetpro - Elite Chrome` → `Chrome`, `Presetpro - Kodachrome 64` → `Retro 64`,
+and `Lomography` shortened to `Lomo`. Everything else in this guide (adding/retuning/disabling a
+preset, testing a LUT, color-space limits) still applies unchanged to these real presets. Only
+`original` has no LUT and needs none.
+
+Nothing here should be mistaken for hand-tuned base-tone color grading on top of these LUTs — per
+ADDEDUM § 3.2 ("LUT chỉ nên chứa phần màu và tone chính"), every real-LUT preset ships with its
+`exposureOffset`/`contrastOffset`/etc. and grain/bloom/vignette all at `0`: the LUT alone carries
+the look, and no texture has been invented on top of a vendor-tuned grade without a real visual
+reference to justify it.
 
 ---
 
@@ -36,8 +50,9 @@ Nizi/Features/PhotoEditor/
 ## 2. Adding a new preset
 
 1. Open `Nizi/Features/PhotoEditor/Infrastructure/presets.json`.
-2. Copy an existing entry (pick one close to what you want — e.g. `soft` for something gentle,
-   `film` for something with grain).
+2. Copy an existing entry close to what you want — any of the 13 real-LUT entries is a clean
+   template if the new preset is also LUT-based; there's no gentle/grainy Core-Image-only
+   prototype left to copy from anymore (the update note above replaced all of those).
 3. Change:
    - `id` — a new, unique lowercase-hyphenated string. This is a permanent identifier: it gets
      written into every `PhotoEditRecipe`/`CollectionEditStyle` that ever selects this preset, so
@@ -67,8 +82,9 @@ preset — only `presets.json` and (if it's LUT-based) one `.cube` file.
    convention as `presets.json` and `album-layouts.json` — no `Resources/` subfolder, since this
    project's Xcode target uses a synchronized file-system group that copies everything to the
    bundle root regardless of source subfolder).
-4. In `presets.json`, set that preset's `lutResource` to the file name (e.g. `"warm-memory.cube"`)
-   and `lutDimension` to its declared `LUT_3D_SIZE`.
+4. In `presets.json`, set that preset's `lutResource` to the file name (e.g. `"vintage-fox.cube"`)
+   and `lutDimension` to its declared `LUT_3D_SIZE` (the 13 shipped presets use both `32` and `64`
+   — `CubeLUTLoader`/`CIColorCubeWithColorSpace` don't care which, as long as it matches the file).
 5. Set `isPrototype: false` once you've compared before/after on real photos (§ 5) and are
    satisfied — this is the "gắn nhãn rõ" bookkeeping ADDEDUM § 14.10 requires.
 6. **Do not change the preset's `id`.** Every already-saved `PhotoEditRecipe` referencing this
@@ -117,8 +133,6 @@ algorithm — it's an honest placeholder (ADDEDUM § 12), not something to spend
 
 ## 6. Testing a LUT
 
-Since no `.cube` ships yet, this is written ahead of actually having one to test:
-
 1. Add the `.cube` + JSON changes from § 3.
 2. Open the standalone Photo Editor preview and select the preset — the render pipeline is the
    same one used for real photos, so this is a real end-to-end test, not a mock.
@@ -162,3 +176,22 @@ disabled, not selectable for new edits."
   `LUTCube.colorSpace` — `CubeLUTLoader` would need a small change to accept a color-space
   parameter per preset rather than always assuming device RGB. Not needed for any preset shipping
   today.
+
+## 9. License bookkeeping for the 13 shipped LUTs
+
+The source packs (originally `docs/modules/photo-editor/LUTs/*.zip`, "Presetpro"-branded) are
+**not** kept in this repo or its git history — same reasoning as the earlier LUT zips excluded via
+`.gitignore` (raw vendor packs aren't distributable app source, only the individual `.cube` files
+actually embedded are). Only the 13 `.cube` files named in the update note at the top of this
+guide are copied into
+`Nizi/Features/PhotoEditor/Infrastructure/`. Embedding them in this shipped app was confirmed with
+the user directly (not assumed) — if this project is ever handed to someone else, re-confirm that
+the commercial-app-distribution license for these specific packs is still understood before
+shipping a build with them, since this guide can't verify that on its own.
+
+Three packs that shipped alongside these (Lightroom Insta Film / Interior Design / Pampas Grass)
+were **not** used — they're Adobe Lightroom `.xmp` presets, not `.cube` 3D LUTs, and this pipeline
+has no XMP-to-Core-Image conversion. A separate camera-LUT pack (`x100vi-3d-lut-v100.zip`, Fujifilm
+X100VI F-Log/F-Log2 → Rec.709 conversion LUTs) was also excluded — those convert flat/log camera
+footage to a viewable image and would look wrong applied to an already-normal photo (exactly the
+"LUT Log video, không phải ảnh thường" case ADDEDUM § 3.1 says to check for).
