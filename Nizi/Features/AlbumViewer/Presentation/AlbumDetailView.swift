@@ -48,6 +48,7 @@ struct AlbumDetailView: View {
     private struct PhotoPreviewTarget: Identifiable {
         let id = UUID()
         let photos: [AlbumPhotoAssignment]
+        let pageId: String
         let startIndex: Int
     }
 
@@ -108,7 +109,25 @@ struct AlbumDetailView: View {
     private func openPhotoPreview(for assignment: AlbumPhotoAssignment, on viewerPage: AlbumViewerPage) {
         let pagePhotos = orderedAssignments(for: viewerPage)
         guard let localIndex = pagePhotos.firstIndex(where: { $0.slotId == assignment.slotId }) else { return }
-        photoPreviewTarget = PhotoPreviewTarget(photos: pagePhotos, startIndex: localIndex)
+        photoPreviewTarget = PhotoPreviewTarget(photos: pagePhotos, pageId: viewerPage.page.id, startIndex: localIndex)
+    }
+
+    /// "Hide from Album" (from `AlbumPhotoPreviewView`'s "..." menu) — removes just this one
+    /// photo's assignment from its Page via the same `AlbumEditAction.removePhoto` the full Page
+    /// editor's own "Remove Photo" tool uses (`AlbumPageViewer.swift`), never touching the Photos
+    /// library. Returns `false` on `cannotRemoveLastPhotoOnPage` (surfaced by the preview as its
+    /// own alert) or any other failure (logged, not surfaced — matches `deleteAlbum()`'s own
+    /// quiet-log convention below for infrequent, hard-to-explain-in-one-line errors).
+    private func hidePhoto(pageId: String, slotId: String) async -> Bool {
+        do {
+            let updated = try await editActionApplier.apply(.removePhoto(pageId: pageId, slotId: slotId), to: draft)
+            draft = updated
+            await onUpdate(updated)
+            return true
+        } catch {
+            NiziLogger.discovery.error("album_hide_photo_failed error=\(String(describing: error), privacy: .public)")
+            return false
+        }
     }
 
     /// Deletes only the persisted Draft row — never touches the Photos Library.
@@ -169,11 +188,15 @@ struct AlbumDetailView: View {
         }
         .fullScreenCover(item: $photoPreviewTarget) { target in
             AlbumPhotoPreviewView(
-                photos: target.photos, albumId: draft.id, allAlbumPhotoIds: allAlbumPhotoIds, startIndex: target.startIndex,
+                photos: target.photos, albumId: draft.id, allAlbumPhotoIds: allAlbumPhotoIds, pageId: target.pageId,
+                startIndex: target.startIndex,
                 onPhotoReplaced: { oldPhotoId, newPhoto in
                     let updated = editActionApplier.replacePhoto(oldPhotoId: oldPhotoId, with: newPhoto, in: draft)
                     draft = updated
                     Task { await onUpdate(updated) }
+                },
+                onHidePhoto: { pageId, slotId in
+                    await hidePhoto(pageId: pageId, slotId: slotId)
                 }
             ) {
                 photoPreviewTarget = nil

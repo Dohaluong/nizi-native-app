@@ -5,6 +5,7 @@
 //  Created by Do Ha Luong on 7/25/26.
 //
 
+import Photos
 import SwiftUI
 
 /// Full-screen zoomed preview for the photos on one Page, tapped inside `AlbumDetailView`'s Page
@@ -28,6 +29,10 @@ struct AlbumPhotoPreviewView: View {
     /// § 4.1). `AlbumDetailView` is the only caller and already has both on hand.
     let albumId: String
     let allAlbumPhotoIds: [String]
+    /// The Page this preview's `photos` belong to — needed (together with an assignment's own
+    /// `slotId`) to call `AlbumEditActionApplying.apply(.removePhoto(pageId:slotId:), to:)` for
+    /// the "Hide from Album" menu action.
+    let pageId: String
     let onDismiss: () -> Void
     /// Called after Photo Editor's Album "save as new asset" flow (`PhotoAssetExporting`) creates
     /// a brand-new `PHAsset` for the photo that used to be `oldPhotoId` — this view has no direct
@@ -35,25 +40,37 @@ struct AlbumPhotoPreviewView: View {
     /// swapping every reference to it (`AlbumEditActionApplying.replacePhoto`) and persisting the
     /// result. A no-op default so every other caller of this view is unaffected.
     var onPhotoReplaced: (_ oldPhotoId: String, _ newPhoto: AlbumPhotoReference) -> Void = { _, _ in }
+    /// "Hide from Album" — removes just this one photo's assignment from its Page (never touches
+    /// the Photos library itself, see § "album.photosRemainInLibrary"). Returns `false` when
+    /// `AlbumEditActionApplying` refuses the removal (e.g. `cannotRemoveLastPhotoOnPage`), which
+    /// this view surfaces as its own alert rather than silently doing nothing.
+    var onHidePhoto: (_ pageId: String, _ slotId: String) async -> Bool = { _, _ in false }
 
     @Environment(\.modelContext) private var modelContext
     @State private var currentIndex: Int
     @State private var isZoomed = false
     @State private var verticalDragOffset: CGFloat = 0
     @State private var editorContext: EditorContext?
+    @State private var currentPhotoDate: Date?
+    @State private var showHideConfirmation = false
+    @State private var hideBlockedAlert = false
 
     init(
         photos: [AlbumPhotoAssignment],
         albumId: String,
         allAlbumPhotoIds: [String],
+        pageId: String,
         startIndex: Int,
         onPhotoReplaced: @escaping (_ oldPhotoId: String, _ newPhoto: AlbumPhotoReference) -> Void = { _, _ in },
+        onHidePhoto: @escaping (_ pageId: String, _ slotId: String) async -> Bool = { _, _ in false },
         onDismiss: @escaping () -> Void
     ) {
         self.photos = photos
         self.albumId = albumId
         self.allAlbumPhotoIds = allAlbumPhotoIds
+        self.pageId = pageId
         self.onPhotoReplaced = onPhotoReplaced
+        self.onHidePhoto = onHidePhoto
         self.onDismiss = onDismiss
         _currentIndex = State(initialValue: startIndex)
     }
@@ -63,7 +80,7 @@ struct AlbumPhotoPreviewView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
+        ZStack(alignment: .top) {
             TabView(selection: $currentIndex) {
                 ForEach(Array(photos.enumerated()), id: \.element.id) { index, assignment in
                     AlbumPhotoPreviewPage(assignment: assignment, isActive: index == currentIndex) { zoomed in
@@ -77,14 +94,25 @@ struct AlbumPhotoPreviewView: View {
             .opacity(1 - dismissProgress)
             .gesture(verticalDismissGesture)
 
-            HStack(spacing: 10) {
-                editButton
-                closeButton
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, 54)
+            header
         }
         .background(Color(.systemBackground).ignoresSafeArea())
+        .task(id: currentIndex) {
+            currentPhotoDate = await Self.fetchCreationDate(for: currentAssignment.photo)
+        }
+        .confirmationDialog(
+            "album.photoPreview.hideConfirmTitle", isPresented: $showHideConfirmation, titleVisibility: .visible
+        ) {
+            Button("album.photoPreview.hideFromAlbum", role: .destructive) { hideCurrentPhoto() }
+            Button("common.action.cancel", role: .cancel) {}
+        } message: {
+            Text("album.photosRemainInLibrary")
+        }
+        .alert("album.edit.remove_last_photo_title", isPresented: $hideBlockedAlert) {
+            Button("common.action.cancel", role: .cancel) {}
+        } message: {
+            Text("album.eachPageNeedsPhoto")
+        }
         .fullScreenCover(item: $editorContext) { context in
             PhotoEditorView(
                 context: context,
@@ -114,22 +142,92 @@ struct AlbumPhotoPreviewView: View {
         }
     }
 
+    private var currentAssignment: AlbumPhotoAssignment {
+        photos[min(max(currentIndex, 0), photos.count - 1)]
+    }
+
+    /// X on the leading edge, this photo's capture date/time centered, "..." trailing — pinned
+    /// close to the very top (§ layout request) rather than the old `.padding(.top, 54)` gap that
+    /// used to sit under it; only the safe area itself (never ignored here, unlike the background)
+    /// separates it from the notch/Dynamic Island.
+    private var header: some View {
+        HStack(spacing: 12) {
+            closeButton
+            Spacer()
+            dateTimeInfo
+            Spacer()
+            moreOptionsMenu
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 8)
+    }
+
+    @ViewBuilder
+    private var dateTimeInfo: some View {
+        if let currentPhotoDate {
+            VStack(spacing: 2) {
+                Text(Self.dayFormatted(currentPhotoDate))
+                    .font(.system(size: 13, weight: .semibold))
+                Text(Self.timeFormatted(currentPhotoDate))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            .foregroundStyle(.primary)
+        }
+    }
+
     /// § 4.1 — opens Photo Editor on whichever photo is currently on screen, scoped to this whole
     /// Album (`allAlbumPhotoIds`), not just this Page's `photos`.
-    private var editButton: some View {
-        Button {
-            guard photos.indices.contains(currentIndex) else { return }
-            let photoId = photos[currentIndex].photo.sourceIdentifier
-            editorContext = EditorContext(sourceType: .album, sourceId: albumId, photoId: photoId, photoIds: allAlbumPhotoIds)
+    private func openEditor() {
+        guard photos.indices.contains(currentIndex) else { return }
+        let photoId = photos[currentIndex].photo.sourceIdentifier
+        editorContext = EditorContext(sourceType: .album, sourceId: albumId, photoId: photoId, photoIds: allAlbumPhotoIds)
+    }
+
+    private func hideCurrentPhoto() {
+        guard photos.indices.contains(currentIndex) else { return }
+        let slotId = photos[currentIndex].slotId
+        Task {
+            let succeeded = await onHidePhoto(pageId, slotId)
+            if succeeded {
+                onDismiss()
+            } else {
+                hideBlockedAlert = true
+            }
+        }
+    }
+
+    /// Replaces the old standalone Edit button — "Edit Photo" and "Hide from Album" (§ layout
+    /// request) live together behind one "..." menu instead, matching `AlbumDetailView.
+    /// albumOptionsMenu`'s own `Menu`/`ellipsis` convention.
+    private var moreOptionsMenu: some View {
+        Menu {
+            Button { openEditor() } label: {
+                Label("album.photoPreview.editPhoto", systemImage: "wand.and.stars")
+            }
+            Button(role: .destructive) { showHideConfirmation = true } label: {
+                Label("album.photoPreview.hideFromAlbum", systemImage: "eye.slash")
+            }
         } label: {
-            Image(systemName: "wand.and.stars")
+            Image(systemName: "ellipsis")
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.primary)
                 .frame(width: 38, height: 38)
                 .background(.ultraThinMaterial, in: Circle())
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(Text("photoEditor.editButton.accessibilityLabel"))
+    }
+
+    private static func fetchCreationDate(for photo: AlbumPhotoReference) async -> Date? {
+        guard photo.source == .applePhotos else { return nil }
+        return await PHAssetRepository().asset(localIdentifier: photo.sourceIdentifier)?.creationDate
+    }
+
+    private static func dayFormatted(_ date: Date) -> String {
+        date.formatted(.dateTime.day().month(.wide).year())
+    }
+
+    private static func timeFormatted(_ date: Date) -> String {
+        date.formatted(.dateTime.hour().minute())
     }
 
     /// Vertical-only, gated by `isZoomed` so it can never fire while the user is panning around a

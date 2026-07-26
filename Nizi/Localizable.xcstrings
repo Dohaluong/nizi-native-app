@@ -1301,6 +1301,57 @@
         }
       }
     },
+    "album.photoPreview.editPhoto" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Photo"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sửa ảnh"
+          }
+        }
+      }
+    },
+    "album.photoPreview.hideConfirmTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide this photo from the Album?"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ẩn ảnh này khỏi Album?"
+          }
+        }
+      }
+    },
+    "album.photoPreview.hideFromAlbum" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide from Album"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ẩn khỏi album"
+          }
+        }
+      }
+    },
     "album.photosCount" : {
       "extractionState" : "manual",
       "localizations" : {
