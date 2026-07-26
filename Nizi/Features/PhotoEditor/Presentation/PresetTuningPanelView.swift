@@ -41,36 +41,47 @@ struct PresetTuningPanelView: View {
 
     @ViewBuilder
     private func content(_ viewModel: PresetTuningViewModel) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                presetPicker(viewModel)
+        // Preview stays pinned above the scroll area — the whole point of a live-tuning tool is
+        // seeing the effect of a slider as you drag it, which a preview that scrolls out of view
+        // the moment you reach the Style section defeats.
+        VStack(spacing: 0) {
+            VStack(spacing: 8) {
                 previewArea(viewModel)
-                lutRow(viewModel)
-                intensityRow(viewModel)
-
-                ForEach(PresetTuningParameter.bySection, id: \.0) { section, parameters in
-                    sliderSection(section.rawValue, parameters, viewModel)
-                }
-
-                histogramView(viewModel)
-                jsonPanel(viewModel)
-                exportPanel(viewModel)
-                importPanel(viewModel)
-
-                HStack {
-                    Button("Reset Current Preset", role: .destructive) { viewModel.resetCurrentPreset() }
-                    Spacer()
-                    Button("Choose Photo…") { isPickingPhoto = true }
-                    Button("Next Sample") { viewModel.nextSample() }
-                }
-
-                if let statusMessage = viewModel.statusMessage {
-                    Text(statusMessage)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
             }
-            .padding()
+            .padding(.horizontal)
+            .padding(.top)
+            .background(.bar)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    presetPicker(viewModel)
+                    lutRow(viewModel)
+                    intensityRow(viewModel)
+
+                    ForEach(PresetTuningParameter.bySection, id: \.0) { section, parameters in
+                        sliderSection(section.rawValue, parameters, viewModel)
+                    }
+
+                    histogramView(viewModel)
+                    jsonPanel(viewModel)
+                    exportPanel(viewModel)
+                    importPanel(viewModel)
+
+                    HStack {
+                        Button("Reset Current Preset", role: .destructive) { viewModel.resetCurrentPreset() }
+                        Spacer()
+                        Button("Choose Photo…") { isPickingPhoto = true }
+                        Button("Next Sample") { viewModel.nextSample() }
+                    }
+
+                    if let statusMessage = viewModel.statusMessage {
+                        Text(statusMessage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding()
+            }
         }
         .fileImporter(isPresented: $isImportingLUT, allowedContentTypes: [.item]) { result in
             if case .success(let url) = result {

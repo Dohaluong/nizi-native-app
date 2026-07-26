@@ -16,6 +16,7 @@ import Foundation
 struct PresetTuningJSON: Codable, Equatable {
     var lut: String?
     var defaultIntensity: Double
+    var toneCurve: Double
     var exposure: Double
     var contrast: Double
     var highlights: Double
@@ -35,7 +36,7 @@ struct PresetTuningJSON: Codable, Equatable {
     var clarity: Double
 
     private enum CodingKeys: String, CodingKey {
-        case lut, defaultIntensity, exposure, contrast, highlights, shadows, whites, blacks,
+        case lut, defaultIntensity, toneCurve, exposure, contrast, highlights, shadows, whites, blacks,
              warmth, tint, saturation, vibrance, bloom, grain, vignette, sharpness, clarity
     }
 
@@ -43,6 +44,9 @@ struct PresetTuningJSON: Codable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         lut = try container.decodeIfPresent(String.self, forKey: .lut)
         defaultIntensity = try container.decode(Double.self, forKey: .defaultIntensity)
+        // Absent from the spec's own example JSON (written before toneCurveAmount existed) —
+        // decodeIfPresent so a pasted legacy snippet without this key still imports cleanly.
+        toneCurve = try container.decodeIfPresent(Double.self, forKey: .toneCurve) ?? 0
         exposure = try container.decode(Double.self, forKey: .exposure)
         contrast = try container.decode(Double.self, forKey: .contrast)
         highlights = try container.decode(Double.self, forKey: .highlights)
@@ -63,6 +67,7 @@ struct PresetTuningJSON: Codable, Equatable {
     init(preset: PresetDefinition) {
         lut = preset.lutResource
         defaultIntensity = Double(preset.defaultIntensity)
+        toneCurve = PresetTuningParameter.toneCurve.displayValue(in: preset)
         exposure = PresetTuningParameter.exposure.displayValue(in: preset)
         contrast = PresetTuningParameter.contrast.displayValue(in: preset)
         highlights = PresetTuningParameter.highlights.displayValue(in: preset)
@@ -86,6 +91,7 @@ struct PresetTuningJSON: Codable, Equatable {
         var updated = preset
         updated.lutResource = lut
         updated.defaultIntensity = Float(min(max(defaultIntensity, 0), 1))
+        PresetTuningParameter.toneCurve.setDisplayValue(toneCurve, in: &updated)
         PresetTuningParameter.exposure.setDisplayValue(exposure, in: &updated)
         PresetTuningParameter.contrast.setDisplayValue(contrast, in: &updated)
         PresetTuningParameter.highlights.setDisplayValue(highlights, in: &updated)

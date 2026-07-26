@@ -18,6 +18,7 @@ import Foundation
 /// doing the color grading, never shown to an end user, so the usual bilingual-catalog requirement
 /// is deliberately not applied here.
 enum PresetTuningParameter: String, CaseIterable, Identifiable {
+    case toneCurve
     case exposure, contrast, highlights, shadows, blacks, whites
     case saturation, vibrance, warmth, tint
     case bloom, grain, vignette, sharpness, clarity
@@ -25,12 +26,14 @@ enum PresetTuningParameter: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     enum Section: String, CaseIterable {
+        case toneCurve = "Tone Curve"
         case tone = "Tone"
         case color = "Color"
         case style = "Style"
     }
 
     static let bySection: [(Section, [PresetTuningParameter])] = [
+        (.toneCurve, [.toneCurve]),
         (.tone, [.exposure, .contrast, .highlights, .shadows, .blacks, .whites]),
         (.color, [.saturation, .vibrance, .warmth, .tint]),
         (.style, [.bloom, .grain, .vignette, .sharpness, .clarity]),
@@ -38,6 +41,7 @@ enum PresetTuningParameter: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .toneCurve: "Tone Curve (S-curve strength)"
         case .exposure: "Exposure"
         case .contrast: "Contrast"
         case .highlights: "Highlights"
@@ -62,7 +66,7 @@ enum PresetTuningParameter: String, CaseIterable, Identifiable {
     var displayRange: ClosedRange<Double> {
         switch self {
         case .exposure: -1.5...1.5
-        case .contrast, .highlights, .shadows, .blacks, .whites,
+        case .toneCurve, .contrast, .highlights, .shadows, .blacks, .whites,
              .saturation, .vibrance, .warmth, .tint, .clarity:
             -100...100
         case .bloom, .grain, .vignette, .sharpness:
@@ -74,6 +78,7 @@ enum PresetTuningParameter: String, CaseIterable, Identifiable {
 
     func displayValue(in preset: PresetDefinition) -> Double {
         switch self {
+        case .toneCurve: Double(preset.toneCurveAmount) * 100
         case .exposure: Double(preset.exposureOffset) * 2.0
         case .contrast: Double(preset.contrastOffset) * 100
         case .highlights: Double(preset.highlightsOffset) * 100
@@ -99,6 +104,7 @@ enum PresetTuningParameter: String, CaseIterable, Identifiable {
     /// these effects), so raising the slider doesn't silently produce a zero-radius no-op.
     func setDisplayValue(_ value: Double, in preset: inout PresetDefinition) {
         switch self {
+        case .toneCurve: preset.toneCurveAmount = Float(value / 100)
         case .exposure: preset.exposureOffset = Float(value / 2.0)
         case .contrast: preset.contrastOffset = Float(value / 100)
         case .highlights: preset.highlightsOffset = Float(value / 100)

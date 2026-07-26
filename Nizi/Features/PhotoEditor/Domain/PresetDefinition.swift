@@ -63,6 +63,12 @@ struct PresetDefinition: Codable, Identifiable, Equatable, Sendable {
     /// sets both from one filter invocation.
     var tintOffset: Float
 
+    /// A parametric film-style S-curve strength (`-1...1`; `0` = identity), applied by
+    /// `PresetRenderer.applyToneCurve` — a separate signature-strength stage from the six offsets
+    /// above, run *after* the LUT blend rather than folded into `PhotoToneAdjuster` (§ "Production
+    /// pipeline": `LUT blend → Tone Curve → signature adjustments → texture`).
+    var toneCurveAmount: Float
+
     var grainAmount: Float
     var grainSize: Float
     var bloomAmount: Float
@@ -110,6 +116,7 @@ struct PresetDefinition: Codable, Identifiable, Equatable, Sendable {
         exposureOffset: Float, contrastOffset: Float, saturationOffset: Float, warmthOffset: Float,
         highlightsOffset: Float, shadowsOffset: Float,
         blacksOffset: Float = 0, whitesOffset: Float = 0, vibranceOffset: Float = 0, tintOffset: Float = 0,
+        toneCurveAmount: Float = 0,
         grainAmount: Float, grainSize: Float, bloomAmount: Float, bloomRadius: Float,
         vignetteAmount: Float, vignetteRadius: Float, sharpnessAmount: Float = 0, clarityOffset: Float = 0,
         protectSkinTones: Bool, isMonochrome: Bool,
@@ -133,6 +140,7 @@ struct PresetDefinition: Codable, Identifiable, Equatable, Sendable {
         self.whitesOffset = whitesOffset
         self.vibranceOffset = vibranceOffset
         self.tintOffset = tintOffset
+        self.toneCurveAmount = toneCurveAmount
         self.grainAmount = grainAmount
         self.grainSize = grainSize
         self.bloomAmount = bloomAmount
@@ -175,6 +183,7 @@ struct PresetDefinition: Codable, Identifiable, Equatable, Sendable {
         whitesOffset = try container.decodeIfPresent(Float.self, forKey: .whitesOffset) ?? 0
         vibranceOffset = try container.decodeIfPresent(Float.self, forKey: .vibranceOffset) ?? 0
         tintOffset = try container.decodeIfPresent(Float.self, forKey: .tintOffset) ?? 0
+        toneCurveAmount = try container.decodeIfPresent(Float.self, forKey: .toneCurveAmount) ?? 0
         grainAmount = try container.decode(Float.self, forKey: .grainAmount)
         grainSize = try container.decode(Float.self, forKey: .grainSize)
         bloomAmount = try container.decode(Float.self, forKey: .bloomAmount)

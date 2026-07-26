@@ -8,10 +8,13 @@
 import CoreImage
 import CoreImage.CIFilterBuiltins
 
-/// Applies one `PresetDefinition` at a given intensity to a `CIImage` — ADDEDUM.md § 9's pipeline:
-/// base tone → optional LUT → linear blend against the original by intensity → texture (grain/
-/// bloom/vignette), which fades by its own, non-linear coefficients (§ 8.2), not the same curve
-/// the color blend uses.
+/// Applies one `PresetDefinition` at a given intensity to a `CIImage`:
+/// `LUT blend (0...100%, capped) → Tone Curve → signature adjustments (contrast/highlights/
+/// shadows/warmth/saturation/vibrance/blacks/whites/tint) → texture (grain/bloom/vignette/
+/// sharpness)`. The LUT's only job is the color transform itself; a preset's *strength*/character
+/// comes from the Tone Curve and signature adjustments layered after it, both of which scale
+/// cleanly with intensity — unlike a fixed 3D LUT, which has no well-defined meaning past "100% of
+/// what the vendor authored."
 protocol PresetRendering: Sendable {
     func applyPreset(_ preset: PresetDefinition, intensity: Float, to input: CIImage) -> CIImage
 }
@@ -19,42 +22,130 @@ protocol PresetRendering: Sendable {
 struct PresetRenderer: PresetRendering {
     let lutLoader: LUTLoading
 
-    /// User feedback (after shipping the 13 real LUTs): a plain 1:1 LUT application read as too
-    /// subtle. This amplifies the *color* blend past the raw LUT result — at UI intensity 100%,
-    /// the effective color-blend factor is 150% of a pure single LUT application, extrapolating
-    /// the color shift further in the same direction rather than capping at "however strong the
-    /// vendor's LUT alone is." Texture (grain/bloom/vignette) intentionally is not amplified by
-    /// this — none of the 13 shipped LUT presets uses texture, and over-driving grain/vignette the
-    /// same way tends to look broken rather than punchier.
-    static let colorIntensityAmplification: Float = 1.5
-
     init(lutLoader: LUTLoading = CubeLUTLoader()) {
         self.lutLoader = lutLoader
     }
 
+    /// `strength` drives the LUT blend, Tone Curve, and every signature adjustment uniformly —
+    /// production never extrapolates any of them past `intensity`'s own `0...1` range (a past
+    /// version amplified the LUT blend to 150% of `intensity`, which — combined with a linear-space
+    /// blend bug — made every preset render visibly darker than intended; see `blend`'s doc comment
+    /// and `docs/modules/photo-editor/` history). Texture keeps its own existing sub-curves
+    /// (`applyTexture`), unchanged.
     func applyPreset(_ preset: PresetDefinition, intensity: Float, to input: CIImage) -> CIImage {
         guard !preset.isOriginal, intensity > 0 else { return input }
+        let strength = min(max(intensity, 0), 1)
 
-        let styled = applyLUTIfNeeded(preset: preset, to: applyBaseTone(preset: preset, to: input))
-        let colorBlendFactor = intensity * Self.colorIntensityAmplification
-        let colorBlended = Self.blend(original: input, styled: styled, factor: colorBlendFactor)
-        return applyTexture(preset: preset, intensity: intensity, to: colorBlended)
+        let afterLUT = applyLUT(preset: preset, strength: strength, to: input)
+        let afterCurve = applyToneCurve(preset: preset, strength: strength, to: afterLUT)
+        let afterSignature = applySignatureAdjustments(preset: preset, strength: strength, to: afterCurve)
+        return applyTexture(preset: preset, intensity: strength, to: afterSignature)
     }
 
-    // MARK: - Color style (ADDEDUM § 8.1)
+    // MARK: - LUT (color transform only — no strength-scaling of the cube itself, just of the
+    // blend toward its result)
 
-    private func applyBaseTone(preset: PresetDefinition, to image: CIImage) -> CIImage {
+    private func applyLUT(preset: PresetDefinition, strength: Float, to image: CIImage) -> CIImage {
+        guard let lutResource = preset.lutResource, let dimension = preset.lutDimension else {
+            return image
+        }
+        guard let cube = try? lutLoader.loadCube(resourceName: lutResource, dimension: dimension) else {
+            // A missing/malformed LUT resource must not crash the render or drop the whole
+            // preset — fall back to the un-LUT'd image.
+            return image
+        }
+        let filter = CIFilter.colorCubeWithColorSpace()
+        filter.inputImage = image
+        filter.cubeDimension = Float(cube.dimension)
+        filter.cubeData = cube.data
+        filter.colorSpace = cube.colorSpace
+        let styled = filter.outputImage ?? image
+
+        // `strength` is already clamped to `0...1` by `applyPreset` — this is a plain crossfade,
+        // never an extrapolation past the vendor's own LUT result.
+        return Self.blend(original: image, styled: styled, factor: strength)
+    }
+
+    /// `Output = Original × (1 - factor) + Styled × factor`, `factor` always in `0...1` (never
+    /// extrapolated in production — `applyPreset` clamps `strength` before calling this).
+    ///
+    /// A standard alpha-composite crossfade — `styled`'s alpha channel scaled to `factor`, then
+    /// `CISourceOverCompositing` over the opaque `original` — not the per-channel RGB scaling +
+    /// `CIAdditionCompositing` approach a previous version used (which existed specifically to
+    /// support `factor > 1` extrapolation, a feature production no longer has any use for since
+    /// LUT strength is now always capped `0...1`). That approach is also the reason this reverted:
+    /// a standalone diagnostic (built while investigating a user-reported over-darkening bug) found
+    /// that `CIColorMatrix` scaling composed with `CIAdditionCompositing` introduces an *inconsistent*
+    /// implicit gamma round-trip when rendered — even a plain identity crossfade (`factor` values
+    /// nowhere near an edge case) came out roughly half brightness, regardless of whether the scale
+    /// math ran in Core Image's default linear working space or was wrapped in an explicit gamma
+    /// encode/decode. `CISourceOverCompositing`, by contrast, is Core Image's purpose-built
+    /// compositing primitive — verified via the same diagnostic to track a plain linear
+    /// interpolation between `original` and `styled` to within ~1% at every `factor` from `0` to
+    /// `1`, with no gamma wrapping needed at all.
+    private static func blend(original: CIImage, styled: CIImage, factor: Float) -> CIImage {
+        guard factor != 1 else { return styled }
+        guard factor != 0 else { return original }
+
+        let alphaMatrix = CIFilter.colorMatrix()
+        alphaMatrix.inputImage = styled
+        alphaMatrix.rVector = CIVector(x: 1, y: 0, z: 0, w: 0)
+        alphaMatrix.gVector = CIVector(x: 0, y: 1, z: 0, w: 0)
+        alphaMatrix.bVector = CIVector(x: 0, y: 0, z: 1, w: 0)
+        alphaMatrix.aVector = CIVector(x: 0, y: 0, z: 0, w: CGFloat(factor))
+        let styledWithAlpha = alphaMatrix.outputImage ?? styled
+
+        let over = CIFilter.sourceOverCompositing()
+        over.inputImage = styledWithAlpha
+        over.backgroundImage = original
+        return over.outputImage ?? styled
+    }
+
+    // MARK: - Tone Curve (signature strength, not a fixed per-preset LUT)
+
+    /// A parametric film-style S-curve, not 5 freely-authored control points — `toneCurveAmount`
+    /// (`-1...1`) scales how far quarter-/three-quarter-tone move from the identity diagonal, while
+    /// pure black/white (`point0`/`point4`) stay anchored so this only ever adds/removes midtone
+    /// contrast, never crushes/blows either endpoint on its own. Deliberately simple (same
+    /// "swappable heuristic, not final color science" spirit `PhotoToneAdjuster` already documents)
+    /// — a real curve editor with freely draggable points is future work, not V1.
+    private func applyToneCurve(preset: PresetDefinition, strength: Float, to image: CIImage) -> CIImage {
+        let amount = CGFloat(min(max(preset.toneCurveAmount, -1), 1)) * CGFloat(strength)
+        guard amount != 0 else { return image }
+
+        let filter = CIFilter.toneCurve()
+        filter.inputImage = image
+        let shift = amount * 0.12
+        filter.point0 = CGPoint(x: 0, y: 0)
+        filter.point1 = CGPoint(x: 0.25, y: min(max(0.25 - shift, 0), 1))
+        filter.point2 = CGPoint(x: 0.5, y: 0.5)
+        filter.point3 = CGPoint(x: 0.75, y: min(max(0.75 + shift, 0), 1))
+        filter.point4 = CGPoint(x: 1, y: 1)
+        return filter.outputImage ?? image
+    }
+
+    // MARK: - Signature adjustments (ADDEDUM § 8.1 — a preset's own baked-in tone, on top of the
+    // LUT + Tone Curve, not the six-parameter production Adjust feature)
+
+    /// Every offset is scaled by `strength` before reaching `PhotoToneAdjuster` — at 100% intensity
+    /// a signature adjustment applies exactly as authored; below that, it fades out proportionally,
+    /// same as texture already does.
+    private func applySignatureAdjustments(preset: PresetDefinition, strength: Float, to image: CIImage) -> CIImage {
         var result = PhotoToneAdjuster.apply(
-            exposure: preset.exposureOffset,
-            contrast: preset.contrastOffset,
-            highlights: preset.highlightsOffset,
-            shadows: preset.shadowsOffset,
-            warmth: preset.warmthOffset,
-            saturation: preset.saturationOffset,
-            blacks: preset.blacksOffset,
-            whites: preset.whitesOffset,
-            vibrance: preset.vibranceOffset,
-            tint: preset.tintOffset,
+            exposure: preset.exposureOffset * strength,
+            contrast: preset.contrastOffset * strength,
+            highlights: preset.highlightsOffset * strength,
+            shadows: preset.shadowsOffset * strength,
+            warmth: preset.warmthOffset * strength,
+            saturation: preset.saturationOffset * strength,
+            // "Fade" (spec: a lifted-shadows, lower-contrast matte look) maps onto the existing
+            // shadow-lift half of `blacksOffset`'s levels stretch — no separate `fadeAmount` field;
+            // a positive `blacksOffset` already lifts the black point exactly the way a classic
+            // film "fade" does.
+            blacks: preset.blacksOffset * strength,
+            whites: preset.whitesOffset * strength,
+            vibrance: preset.vibranceOffset * strength,
+            tint: preset.tintOffset * strength,
             to: image
         )
         if preset.isMonochrome {
@@ -64,113 +155,6 @@ struct PresetRenderer: PresetRendering {
             result = filter.outputImage ?? result
         }
         return result
-    }
-
-    private func applyLUTIfNeeded(preset: PresetDefinition, to image: CIImage) -> CIImage {
-        guard let lutResource = preset.lutResource, let dimension = preset.lutDimension else {
-            return image
-        }
-        guard let cube = try? lutLoader.loadCube(resourceName: lutResource, dimension: dimension) else {
-            // A missing/malformed LUT resource must not crash the render or drop the whole
-            // preset — fall back to whatever the base tone adjustments already produced.
-            return image
-        }
-        let filter = CIFilter.colorCubeWithColorSpace()
-        filter.inputImage = image
-        filter.cubeDimension = Float(cube.dimension)
-        filter.cubeData = cube.data
-        filter.colorSpace = cube.colorSpace
-        return filter.outputImage ?? image
-    }
-
-    /// `Output = Original × (1 - factor) + Styled × factor` (§ 7.3's formula), generalized to
-    /// `factor` values outside `0...1` — `PhotoEditRecipe.presetIntensity` itself always stays
-    /// `0...1` (§ 10), but `applyPreset` can hand this an amplified `factor` above `1` to
-    /// extrapolate the color shift further than a single LUT application, or (in principle) below
-    /// `0` to push in the opposite direction.
-    ///
-    /// Implemented via per-channel RGB scaling + `CIAdditionCompositing`, not alpha-channel
-    /// scaling + `over`-compositing (the previous approach) — alpha is only ever valid in
-    /// `0...1`, so it silently clamps `factor` right back to a plain LUT application above 100%,
-    /// which is exactly the amplification this exists to allow. `forceOpaqueAlpha` resets alpha to
-    /// a clean `1.0` afterward, since adding two alpha-1 layers would otherwise leave alpha at `2`,
-    /// which the texture stage's own `over`/blend-mode compositing depends on being correct.
-    ///
-    /// The scale+add math itself runs on `gammaSpace`-encoded values, not Core Image's default
-    /// (linear-light) working space — a real bug found via user report + a standalone diagnostic:
-    /// extrapolating `factor > 1` in *linear* light space clips shadows to black far more
-    /// aggressively than the same nominal amplification looks like in gamma/perceptual space
-    /// (linear values compress shadow detail into a tiny numeric range, so subtracting even a
-    /// modest `(1 - factor)`-scaled `original` term pushes them hard negative). Measured on the 4
-    /// most extreme shipped LUTs at 85% intensity (150% amplification): linear-space blending
-    /// darkened the output 20–27% versus the *pure*, unamplified LUT (which is itself 0–8%
-    /// *brighter* than the source) — gamma-space blending cuts that down to 5–14%. The direction of
-    /// `matchedToWorkingSpace(from:)`/`matchedFromWorkingSpace(to:)` below was picked by testing
-    /// both and keeping the one that actually reduced the darkening, not by relying on the API
-    /// names alone. A residual few-percent darkening still remains — extrapolation past 100%
-    /// clipped at `0...1` is inherently lossy in the shadows/highlights it clips, whichever space
-    /// it runs in.
-    private static let gammaSpace = CGColorSpace(name: CGColorSpace.sRGB)!
-
-    private static func blend(original: CIImage, styled: CIImage, factor: Float) -> CIImage {
-        guard factor != 1 else { return styled }
-        guard factor != 0 else { return original }
-
-        guard let originalGamma = original.matchedToWorkingSpace(from: gammaSpace),
-              let styledGamma = styled.matchedToWorkingSpace(from: gammaSpace) else {
-            // Color-space matching unavailable for this image — fall back to the plain linear-space
-            // blend rather than failing the render entirely.
-            let originalScaled = scaleRGB(original, by: 1 - factor)
-            let styledScaled = scaleRGB(styled, by: factor)
-            let add = CIFilter.additionCompositing()
-            add.inputImage = styledScaled
-            add.backgroundImage = originalScaled
-            return forceOpaqueAlpha(add.outputImage ?? styled)
-        }
-
-        let originalScaled = scaleRGB(originalGamma, by: 1 - factor)
-        let styledScaled = scaleRGB(styledGamma, by: factor)
-
-        let add = CIFilter.additionCompositing()
-        add.inputImage = styledScaled
-        add.backgroundImage = originalScaled
-        let summedGamma = forceOpaqueAlpha(add.outputImage ?? styledGamma)
-
-        return summedGamma.matchedFromWorkingSpace(to: gammaSpace) ?? summedGamma
-    }
-
-    /// Scales RGB by `factor` (which may be negative or greater than 1 — Core Image's internal
-    /// pipeline works in extended-range float and only clamps to `0...1` at final rasterization,
-    /// same as any other over-driven adjustment clipping at pure black/white), leaving alpha
-    /// untouched.
-    private static func scaleRGB(_ image: CIImage, by factor: Float) -> CIImage {
-        let matrix = CIFilter.colorMatrix()
-        matrix.inputImage = image
-        let f = CGFloat(factor)
-        matrix.rVector = CIVector(x: f, y: 0, z: 0, w: 0)
-        matrix.gVector = CIVector(x: 0, y: f, z: 0, w: 0)
-        matrix.bVector = CIVector(x: 0, y: 0, z: f, w: 0)
-        matrix.aVector = CIVector(x: 0, y: 0, z: 0, w: 1)
-        return matrix.outputImage ?? image
-    }
-
-    private static func forceOpaqueAlpha(_ image: CIImage) -> CIImage {
-        let matrix = CIFilter.colorMatrix()
-        matrix.inputImage = image
-        matrix.rVector = CIVector(x: 1, y: 0, z: 0, w: 0)
-        matrix.gVector = CIVector(x: 0, y: 1, z: 0, w: 0)
-        matrix.bVector = CIVector(x: 0, y: 0, z: 1, w: 0)
-        matrix.aVector = CIVector(x: 0, y: 0, z: 0, w: 0)
-        matrix.biasVector = CIVector(x: 0, y: 0, z: 0, w: 1)
-        // A non-zero `biasVector` makes Core Image treat the *entire infinite canvas* as
-        // non-transparent output (bias is added even where the source is conceptually clear
-        // outside `image.extent`), so `matrix.outputImage.extent` comes back as `CGRect.infinite`
-        // rather than the finite extent that went in. `PhotoRenderEngine.render` then calls
-        // `ciContext.createCGImage(image, from: image.extent)` with that infinite rect, which
-        // silently produces a blank/failed render — exactly why a selected preset never appeared
-        // to apply. Cropping back to the pre-bias extent is what `applyBloom` already does for
-        // the same underlying reason, just a much larger blow-up here.
-        return (matrix.outputImage ?? image).cropped(to: image.extent)
     }
 
     // MARK: - Texture style (ADDEDUM § 8.2 — non-linear vs. the color blend above)

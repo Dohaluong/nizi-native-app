@@ -18,6 +18,7 @@ struct PresetTuningJSONTests {
             exposureOffset: 0.025, contrastOffset: 0.12, saturationOffset: 0.04, warmthOffset: 0.08,
             highlightsOffset: -0.18, shadowsOffset: 0.10,
             blacksOffset: -0.05, whitesOffset: 0.03, vibranceOffset: 0.12, tintOffset: 0,
+            toneCurveAmount: 0.2,
             grainAmount: 0.08, grainSize: 1, bloomAmount: 0.04, bloomRadius: 8,
             vignetteAmount: 0.10, vignetteRadius: 1.5, sharpnessAmount: 0.06, clarityOffset: 0,
             protectSkinTones: true, isMonochrome: false,
@@ -37,9 +38,11 @@ struct PresetTuningJSONTests {
         #expect(abs(json.contrast - 12) < 0.01) // contrastOffset 0.12 * 100
         #expect(abs(json.highlights - (-18)) < 0.01)
         #expect(abs(json.exposure - 0.05) < 0.01) // exposureOffset 0.025 * 2.0 EV
+        #expect(abs(json.toneCurve - 20) < 0.01) // toneCurveAmount 0.2 * 100
 
         let restored = json.applying(to: preset)
         #expect(abs(restored.contrastOffset - preset.contrastOffset) < 0.0001)
+        #expect(abs(restored.toneCurveAmount - preset.toneCurveAmount) < 0.0001)
         #expect(abs(restored.exposureOffset - preset.exposureOffset) < 0.0001)
         #expect(abs(restored.vibranceOffset - preset.vibranceOffset) < 0.0001)
         #expect(restored.id == preset.id) // identity fields untouched by `applying(to:)`
@@ -71,6 +74,7 @@ struct PresetTuningJSONTests {
         """
         let decoded = try JSONDecoder().decode(PresetTuningJSON.self, from: Data(json.utf8))
         #expect(decoded.clarity == 0)
+        #expect(decoded.toneCurve == 0)
         #expect(decoded.lut == "Fuji.cube")
         #expect(decoded.vibrance == 12)
     }
