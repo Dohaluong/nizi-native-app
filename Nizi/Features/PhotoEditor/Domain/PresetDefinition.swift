@@ -80,7 +80,10 @@ struct PresetDefinition: Codable, Identifiable, Equatable, Sendable {
     let isMonochrome: Bool
 
     let thumbnailAssetName: String?
-    let sortOrder: Int
+    /// `var` — `PresetManaging.saveCustomPreset` assigns a fresh trailing `sortOrder` to a
+    /// Preset Tuning Panel-authored preset before persisting it, same mutability reasoning as
+    /// `isActive` below.
+    var sortOrder: Int
     /// `var` for the same reason `name`/`shortName` are — `PresetManaging` toggles this via an
     /// override row, never by rewriting `presets.json`.
     var isActive: Bool

@@ -32,6 +32,17 @@ protocol PresetManaging: Sendable {
     /// active preset.
     func addCustomPreset(fileURL: URL, name: String, shortName: String, defaultIntensity: Float) async throws -> PresetDefinition
 
+    /// Persists an already-fully-formed `PresetDefinition` as a new custom preset — unlike
+    /// `addCustomPreset(fileURL:...)`, this never touches the filesystem: `preset.lutResource` (if
+    /// any) is expected to already resolve via `CubeLUTLoader` (a bundled `.cube` name, or a
+    /// filename already copied into `DocumentsCustomLUTFileStore`'s directory). Exists for the
+    /// DEBUG-only Preset Tuning Panel's "Save as New Preset" — tuning an existing preset's
+    /// parameters never introduces a brand-new `.cube` file, only `addCustomPreset` handles that.
+    /// `preset.id` must not already exist among bundled or custom presets (throws `.duplicateId`);
+    /// `preset.sortOrder`/`preset.isActive` are overwritten (a fresh trailing sort position,
+    /// always active) regardless of what the caller passed in.
+    func saveCustomPreset(_ preset: PresetDefinition) async throws -> PresetDefinition
+
     /// Only valid for a custom preset — throws `.cannotDeleteBundledPreset` for a bundled one.
     /// Removes both the catalog row and its copied `.cube` file.
     func removeCustomPreset(id: String) async throws
@@ -41,4 +52,5 @@ enum PresetManagingError: Error, Equatable {
     case cannotDeleteBundledPreset
     case invalidLUTFile
     case presetNotFound
+    case duplicateId
 }

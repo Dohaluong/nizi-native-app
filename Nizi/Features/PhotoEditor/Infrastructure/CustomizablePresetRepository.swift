@@ -139,6 +139,26 @@ final class CustomizablePresetRepository: PresetRepository, PresetManaging, @unc
         return preset
     }
 
+    func saveCustomPreset(_ preset: PresetDefinition) async throws -> PresetDefinition {
+        lock.lock()
+        defer { lock.unlock() }
+
+        let bundledIds = Set(((try? bundleRepository.loadPresets()) ?? []).map(\.id))
+        let customIds = Set((try fetchCustomPresets()).map(\.id))
+        guard !bundledIds.contains(preset.id), !customIds.contains(preset.id) else {
+            throw PresetManagingError.duplicateId
+        }
+
+        var saved = preset
+        saved.sortOrder = try nextCustomSortOrder()
+        saved.isActive = true
+
+        modelContext.insert(try MDCustomPreset(preset: saved, createdAt: Date()))
+        try modelContext.save()
+        cachedPresets = nil
+        return saved
+    }
+
     func removeCustomPreset(id: String) async throws {
         guard !isBundledPreset(id: id) else { throw PresetManagingError.cannotDeleteBundledPreset }
 

@@ -172,4 +172,33 @@ struct CustomizablePresetRepositoryTests {
             try await repository.removeCustomPreset(id: "original")
         }
     }
+
+    /// The Preset Tuning Panel's "Save as New Preset" — persists an already-fully-tuned
+    /// `PresetDefinition` directly, no `.cube` file involved (unlike `addCustomPreset`).
+    @Test
+    func savingATunedPresetMakesItAppearInLoadPresets() async throws {
+        let bundled = [makePreset(id: "original", sortOrder: 0), makePreset(id: "brooklyn", sortOrder: 1)]
+        let repository = try makeRepository(bundled: bundled)
+        var tuned = makePreset(id: "warm-memory-v2", sortOrder: 999) // caller-supplied sortOrder must be overwritten
+        tuned.isActive = false // caller-supplied isActive must be overwritten to true
+
+        let saved = try await repository.saveCustomPreset(tuned)
+
+        #expect(saved.isActive)
+        #expect(saved.sortOrder != 999)
+        #expect(!repository.isBundledPreset(id: saved.id))
+
+        let loaded = try repository.loadPresets()
+        #expect(loaded.contains { $0.id == "warm-memory-v2" })
+    }
+
+    @Test
+    func savingATunedPresetWithADuplicateIdThrows() async throws {
+        let bundled = [makePreset(id: "original", sortOrder: 0)]
+        let repository = try makeRepository(bundled: bundled)
+
+        await #expect(throws: PresetManagingError.duplicateId) {
+            try await repository.saveCustomPreset(makePreset(id: "original", sortOrder: 0))
+        }
+    }
 }
