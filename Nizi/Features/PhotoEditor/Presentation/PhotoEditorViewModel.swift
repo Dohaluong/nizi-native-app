@@ -53,9 +53,6 @@ final class PhotoEditorViewModel {
     private(set) var isShowingOriginal = false
 
     private(set) var presets: [PresetDefinition] = []
-    /// Rendered from *this* photo, not a fixed asset (ADDEDUM.md § 11) — keyed by preset id,
-    /// session-lifetime only, never persisted to disk.
-    private(set) var presetThumbnails: [String: CGImage] = [:]
 
     private(set) var isAutoEnhanceRunning = false
     /// Snapshot taken right before Auto Enhance overwrites `adjustments` — the one-level undo
@@ -78,18 +75,12 @@ final class PhotoEditorViewModel {
     /// propagating through `PhotoRenderEngine`'s own PHImageManager cancellation: it's simpler to
     /// reason about and race-free even if the underlying cancellation is slow or best-effort.
     private var renderGeneration = 0
-    /// Same idea, scoped to the preset-thumbnail batch — bumped whenever thumbnails need
-    /// regenerating from scratch (never expected to happen twice per session in V1, but keeps the
-    /// same discard-stale-results guarantee `refreshPreview` has).
-    private var thumbnailGeneration = 0
 
     /// Matches the existing viewers' `displayPreview` ceiling (`EventDetailView.ImageSizing`) —
     /// deliberately capped well below full device resolution; requesting at full screen
     /// resolution was the documented cause of slow/failed iCloud-backed loads elsewhere in this
     /// app, and there is no reason Photo Editor's own preview would be exempt from that.
     static let previewTargetSize = CGSize(width: 1000, height: 1000)
-    /// ADDEDUM § 11 — "khoảng 100–160 px tùy màn hình."
-    static let presetThumbnailSize = CGSize(width: 160, height: 160)
 
     init(
         context: EditorContext,
@@ -142,7 +133,7 @@ final class PhotoEditorViewModel {
     /// Loads any previously saved recipe for this photo (so reopening the editor on an
     /// already-edited photo picks up where it left off, § 6.4's "phục hồi trạng thái đã lưu"),
     /// resolves this photo's Album/Event style if it belongs to one, then renders the first
-    /// preview and the preset thumbnail strip.
+    /// preview.
     func loadPreview() async {
         loadState = .loading
         presets = (try? presetRepository.loadPresets()) ?? []
@@ -173,7 +164,6 @@ final class PhotoEditorViewModel {
         }
 
         await refreshPreview()
-        await loadPresetThumbnails()
     }
 
     /// The press-and-hold entry point — never mutate `isShowingOriginal` directly, since the
@@ -298,44 +288,6 @@ final class PhotoEditorViewModel {
             // error screen — only the very first load surfaces `.failed`.
         } else {
             loadState = .failed
-        }
-    }
-
-    /// ADDEDUM § 11 — renders every preset at its own default intensity from the photo actually
-    /// being edited, in parallel, discarding results if a newer batch supersedes this one before
-    /// it finishes (e.g. the editor closed mid-render).
-    private func loadPresetThumbnails() async {
-        guard !presets.isEmpty else { return }
-        thumbnailGeneration += 1
-        let generation = thumbnailGeneration
-
-        let renderEngine = renderEngine
-        let photoId = context.photoId
-        let targetSize = Self.presetThumbnailSize
-        let presetsSnapshot = presets
-
-        let results = await withTaskGroup(of: (String, CGImage?).self) { group in
-            for preset in presetsSnapshot {
-                group.addTask {
-                    var recipe = PhotoEditRecipe.original(photoId: photoId)
-                    recipe.presetId = preset.isOriginal ? nil : preset.id
-                    recipe.presetIntensity = preset.isOriginal ? 0 : preset.defaultIntensity
-                    let image = try? await renderEngine.renderPreview(photoId: photoId, recipe: recipe, targetSize: targetSize)
-                    return (preset.id, image)
-                }
-            }
-            var collected: [(String, CGImage?)] = []
-            for await result in group {
-                collected.append(result)
-            }
-            return collected
-        }
-
-        guard generation == thumbnailGeneration else { return }
-        for (presetId, image) in results {
-            if let image {
-                presetThumbnails[presetId] = image
-            }
         }
     }
 
