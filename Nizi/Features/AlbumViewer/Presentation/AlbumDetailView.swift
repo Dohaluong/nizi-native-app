@@ -82,6 +82,16 @@ struct AlbumDetailView: View {
         return "\(photos) · \(spreads)"
     }
 
+    /// Every photo across every Page of this Album, in `AlbumDraft` order — what `EditorContext.
+    /// photoIds` needs for "apply style to whole Album" (§ 11.4), as opposed to `orderedAssignments`
+    /// below, which is deliberately scoped to a single Page.
+    private var allAlbumPhotoIds: [String] {
+        draft.spreads
+            .flatMap { [$0.leftPage, $0.rightPage] }
+            .flatMap(\.assignments)
+            .map(\.photo.sourceIdentifier)
+    }
+
     private func orderedAssignments(for viewerPage: AlbumViewerPage) -> [AlbumPhotoAssignment] {
         guard let layout = try? layoutRepository.layout(id: viewerPage.page.layoutId) else {
             return viewerPage.page.assignments
@@ -157,7 +167,9 @@ struct AlbumDetailView: View {
             .environment(\.albumPhotoProvider, ApplePhotosAlbumPhotoProvider())
         }
         .fullScreenCover(item: $photoPreviewTarget) { target in
-            AlbumPhotoPreviewView(photos: target.photos, startIndex: target.startIndex) {
+            AlbumPhotoPreviewView(
+                photos: target.photos, albumId: draft.id, allAlbumPhotoIds: allAlbumPhotoIds, startIndex: target.startIndex
+            ) {
                 photoPreviewTarget = nil
             }
             .environment(\.albumPhotoProvider, ApplePhotosAlbumPhotoProvider())

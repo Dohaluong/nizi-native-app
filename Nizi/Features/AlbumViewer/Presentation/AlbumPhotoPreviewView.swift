@@ -23,14 +23,29 @@ import SwiftUI
 ///   `.simultaneousGesture`.
 struct AlbumPhotoPreviewView: View {
     let photos: [AlbumPhotoAssignment]
+    /// This Album's own id and every photo in it (not just this Page's `photos`) — threaded
+    /// through so the `Edit` entry point below can build a real `EditorContext` (PHOTO-EDITOR.md
+    /// § 4.1). `AlbumDetailView` is the only caller and already has both on hand.
+    let albumId: String
+    let allAlbumPhotoIds: [String]
     let onDismiss: () -> Void
 
+    @Environment(\.modelContext) private var modelContext
     @State private var currentIndex: Int
     @State private var isZoomed = false
     @State private var verticalDragOffset: CGFloat = 0
+    @State private var editorContext: EditorContext?
 
-    init(photos: [AlbumPhotoAssignment], startIndex: Int, onDismiss: @escaping () -> Void) {
+    init(
+        photos: [AlbumPhotoAssignment],
+        albumId: String,
+        allAlbumPhotoIds: [String],
+        startIndex: Int,
+        onDismiss: @escaping () -> Void
+    ) {
         self.photos = photos
+        self.albumId = albumId
+        self.allAlbumPhotoIds = allAlbumPhotoIds
         self.onDismiss = onDismiss
         _currentIndex = State(initialValue: startIndex)
     }
@@ -54,11 +69,46 @@ struct AlbumPhotoPreviewView: View {
             .opacity(1 - dismissProgress)
             .gesture(verticalDismissGesture)
 
-            closeButton
-                .padding(.horizontal, 18)
-                .padding(.top, 54)
+            HStack(spacing: 10) {
+                editButton
+                closeButton
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 54)
         }
         .background(Color(.systemBackground).ignoresSafeArea())
+        .fullScreenCover(item: $editorContext) { context in
+            PhotoEditorView(
+                context: context,
+                repository: SwiftDataPhotoEditRepository(modelContainer: modelContext.container),
+                collectionStyleRepository: SwiftDataCollectionStyleRepository(modelContainer: modelContext.container)
+            ) { _ in
+                // § 19/§ 21 — the caller should refresh the displayed image for `affectedPhotoIds`
+                // once Album's own photo pipeline (`AlbumPhotoView`/`ApplePhotosAlbumPhotoProvider`)
+                // is recipe-aware; it isn't yet (that's Bước 9's collection-style/override
+                // resolution, not this sprint's Album/Event *entry point* integration), so this
+                // photo will keep showing its unedited pixels here until that lands.
+                editorContext = nil
+            }
+        }
+    }
+
+    /// § 4.1 — opens Photo Editor on whichever photo is currently on screen, scoped to this whole
+    /// Album (`allAlbumPhotoIds`), not just this Page's `photos`.
+    private var editButton: some View {
+        Button {
+            guard photos.indices.contains(currentIndex) else { return }
+            let photoId = photos[currentIndex].photo.sourceIdentifier
+            editorContext = EditorContext(sourceType: .album, sourceId: albumId, photoId: photoId, photoIds: allAlbumPhotoIds)
+        } label: {
+            Image(systemName: "wand.and.stars")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.primary)
+                .frame(width: 38, height: 38)
+                .background(.ultraThinMaterial, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("photoEditor.editButton.accessibilityLabel"))
     }
 
     /// Vertical-only, gated by `isZoomed` so it can never fire while the user is panning around a

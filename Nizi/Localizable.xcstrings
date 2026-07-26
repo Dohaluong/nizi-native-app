@@ -3845,6 +3845,159 @@
           }
         }
       }
+    },
+    "photoEditor.saveScope.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save Edit"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lưu chỉnh sửa"
+          }
+        }
+      }
+    },
+    "photoEditor.saveScope.thisPhotoOnly": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Just This Photo"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chỉ ảnh này"
+          }
+        }
+      }
+    },
+    "photoEditor.saveScope.applyToAlbum": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply Style to Whole Album"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Áp phong cách cho toàn bộ Album"
+          }
+        }
+      }
+    },
+    "photoEditor.saveScope.applyToEvent": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply Style to Whole Event"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Áp phong cách cho toàn bộ Event"
+          }
+        }
+      }
+    },
+    "photoEditor.saveScope.confirmApplyToAlbum": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply style to the whole Album?"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Áp phong cách cho toàn bộ Album?"
+          }
+        }
+      }
+    },
+    "photoEditor.saveScope.confirmApplyToEvent": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply style to the whole Event?"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Áp phong cách cho toàn bộ Event?"
+          }
+        }
+      }
+    },
+    "photoEditor.saveScope.adjustNotCopiedNotice": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This photo's own brightness and color adjustments will not be copied."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Các điều chỉnh sáng và màu riêng của ảnh này sẽ không được sao chép."
+          }
+        }
+      }
+    },
+    "photoEditor.saveScope.autoEnhanceEachPhoto": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-enhance each photo individually"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tự động cải thiện riêng từng ảnh"
+          }
+        }
+      }
+    },
+    "photoEditor.editButton.accessibilityLabel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit photo"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chỉnh sửa ảnh"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

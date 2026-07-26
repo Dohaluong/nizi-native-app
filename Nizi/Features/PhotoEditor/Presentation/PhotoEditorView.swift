@@ -13,10 +13,12 @@ import SwiftUI
 /// `CurationPreviewView` already use for their own full-screen presentation, and read the result
 /// back through `onClose`.
 ///
-/// Sprint 2–6 (Editor + Rendering foundation + Preset + Adjust + Auto Enhance) scope: load a real
-/// Core-Image-rendered preview, Cancel/Save, press-and-hold to view the original, unsaved-change
-/// detection, a Preset strip, the six Adjust sliders, and on-device Auto Enhance. No Album/Event
-/// integration or collection style yet (Bước 8–9).
+/// Sprint 2–8 scope: load a real Core-Image-rendered preview, Cancel/Save, press-and-hold to view
+/// the original, unsaved-change detection, a Preset strip, the six Adjust sliders, on-device Auto
+/// Enhance, and — when opened from an Album or Event — the save-scope choice (§ 11) between just
+/// this photo and applying the chosen style to the whole collection. No collection-style
+/// inheritance/override resolution for *displaying* already-styled photos outside the editor yet
+/// (Bước 9) — this sprint only covers the editor's own save flow and persistence.
 struct PhotoEditorView: View {
     /// Which tool tray is currently showing below the image (§ 6.4: Preset is always the default
     /// tab on open). Not part of `PhotoEditorViewModel` — which tab is selected is pure View state
@@ -40,6 +42,7 @@ struct PhotoEditorView: View {
 
     @State private var viewModel: PhotoEditorViewModel
     @State private var showDiscardConfirmation = false
+    @State private var showSaveScopeSheet = false
     @State private var selectedTool: EditorTool = .preset
 
     init(
@@ -48,6 +51,7 @@ struct PhotoEditorView: View {
         repository: PhotoEditRepository = InMemoryPhotoEditRepository(),
         presetRepository: PresetRepository = BundlePresetRepository(),
         autoEnhanceService: AutoEnhancing = AutoEnhanceService(),
+        collectionStyleRepository: CollectionStyleRepository = InMemoryCollectionStyleRepository(),
         onClose: @escaping (PhotoEditorResult) -> Void
     ) {
         self.onClose = onClose
@@ -57,7 +61,8 @@ struct PhotoEditorView: View {
         let resolvedRenderEngine = renderEngine ?? PhotoRenderEngine(presetRepository: presetRepository)
         _viewModel = State(initialValue: PhotoEditorViewModel(
             context: context, renderEngine: resolvedRenderEngine, repository: repository,
-            presetRepository: presetRepository, autoEnhanceService: autoEnhanceService
+            presetRepository: presetRepository, autoEnhanceService: autoEnhanceService,
+            collectionStyleRepository: collectionStyleRepository
         ))
     }
 
@@ -85,6 +90,22 @@ struct PhotoEditorView: View {
                 onClose(viewModel.discardChanges())
             }
         }
+        .sheet(isPresented: $showSaveScopeSheet) {
+            SaveScopeSheet(
+                sourceType: viewModel.context.sourceType,
+                presetName: selectedPresetDisplayName,
+                presetIntensityPercent: Int(viewModel.presetIntensityPercent.rounded()),
+                onSaveThisPhotoOnly: {
+                    showSaveScopeSheet = false
+                    Task { await finishSave(using: viewModel.saveThisPhotoOnly) }
+                },
+                onApplyToWholeCollection: { autoEnhanceEachPhoto in
+                    showSaveScopeSheet = false
+                    Task { await finishSave { await viewModel.saveWithCollectionStyle(autoEnhanceEachPhoto: autoEnhanceEachPhoto) } }
+                },
+                onCancel: { showSaveScopeSheet = false }
+            )
+        }
     }
 
     @ToolbarContentBuilder
@@ -93,7 +114,7 @@ struct PhotoEditorView: View {
             Button("common.action.cancel") { handleCancelTapped() }
         }
         ToolbarItem(placement: .confirmationAction) {
-            Button("album.save") { Task { await handleSaveTapped() } }
+            Button("album.save") { handleSaveTapped() }
                 .disabled(!viewModel.hasUnsavedChanges || viewModel.isSaving)
         }
     }
@@ -106,11 +127,30 @@ struct PhotoEditorView: View {
         }
     }
 
-    private func handleSaveTapped() async {
-        let result = await viewModel.save()
+    /// § 4.3 — the save-scope choice only exists when this editor was opened from an Album or
+    /// Event; a standalone edit saves immediately, exactly like Sprint 2's original single-photo
+    /// Save behavior.
+    private func handleSaveTapped() {
+        switch viewModel.context.sourceType {
+        case .standalone:
+            Task { await finishSave(using: viewModel.saveThisPhotoOnly) }
+        case .album, .event:
+            showSaveScopeSheet = true
+        }
+    }
+
+    private func finishSave(using saveAction: () async -> PhotoEditorResult) async {
+        let result = await saveAction()
         if result.didSave {
             onClose(result)
         }
+    }
+
+    private var selectedPresetDisplayName: String {
+        guard let preset = viewModel.presets.first(where: { $0.id == viewModel.selectedPresetId }) else {
+            return viewModel.selectedPresetId
+        }
+        return localizedString(dynamicKey: preset.nameKey, defaultValue: preset.name)
     }
 
     private var toolTray: some View {

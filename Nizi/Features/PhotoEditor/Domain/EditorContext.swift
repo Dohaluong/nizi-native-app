@@ -20,7 +20,7 @@ enum EditorSourceType: String, Codable, Equatable, Sendable {
 /// PHOTO-EDITOR.md § 5. `photoId`/`photoIds` are `PHAsset.localIdentifier`s, the same convention
 /// every other feature in this app already uses for photo identity (`AlbumPhotoReference.
 /// sourceIdentifier`, `PhotoEvent.assetIDs`) — no new photo-identity type is introduced.
-struct EditorContext: Codable, Equatable, Sendable {
+struct EditorContext: Codable, Equatable, Sendable, Identifiable {
     let sourceType: EditorSourceType
     /// The Album's or Event's own id when `sourceType` is `.album`/`.event`; `nil` for `.standalone`.
     let sourceId: String?
@@ -29,6 +29,11 @@ struct EditorContext: Codable, Equatable, Sendable {
     /// Every photo in scope — used when the user chooses "apply to the whole Album/Event"
     /// (§ 11.4) and, later, for in-editor photo-to-photo navigation (not part of V1).
     let photoIds: [String]
+
+    /// `Identifiable` purely so callers can drive `.fullScreenCover(item:)` directly off an
+    /// `EditorContext?` (the same idiom this app's other full-screen presentations already use for
+    /// their own item payloads) — `photoId` uniquely identifies one editing session.
+    var id: String { photoId }
 
     init(sourceType: EditorSourceType, sourceId: String?, photoId: String, photoIds: [String]) {
         self.sourceType = sourceType

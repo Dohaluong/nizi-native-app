@@ -43,6 +43,9 @@ private struct CurationPreviewPresentation: Identifiable {
     let items: [PhotoCurationItem]
     let openedAssetID: String
     let initialThumbnail: PlatformImage?
+    /// This Event's own id — threaded through so `CurationPreviewView`'s `Edit` entry point can
+    /// build a real `EditorContext` (PHOTO-EDITOR.md § 4.2).
+    let eventId: String
 }
 
 /// § 26.1 — "idle / planning / success / failure," nothing more granular (planning is local and
@@ -142,6 +145,7 @@ struct EventDetailView: View {
                 items: presentation.items,
                 openedAssetID: presentation.openedAssetID,
                 initialThumbnail: presentation.initialThumbnail,
+                eventId: presentation.eventId,
                 assetProvider: assetProvider,
                 onToggle: toggleSelection
             )
@@ -426,7 +430,8 @@ struct EventDetailView: View {
         previewPresentation = CurationPreviewPresentation(
             items: snapshot,
             openedAssetID: item.assetID,
-            initialThumbnail: initialThumbnail
+            initialThumbnail: initialThumbnail,
+            eventId: event.id.uuidString
         )
     }
 
@@ -665,6 +670,8 @@ private struct CurationPreviewView: View {
     @State private var currentIndex: Int = -1
     /// Only ever handed to the page the user actually tapped from the grid — see `openedAtIndex`.
     let initialThumbnail: PlatformImage?
+    /// This Event's own id — see `CurationPreviewPresentation.eventId`.
+    let eventId: String
     let assetProvider: PhotoAssetProvider
     let onToggle: (UUID) -> Void
 
@@ -674,11 +681,14 @@ private struct CurationPreviewView: View {
     private let openedAtIndex: Int
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @State private var verticalDragOffset: CGFloat = 0
     @State private var prefetchedAssetIDs: Set<String> = []
     /// True while the current page is pinch/double-tap zoomed in — gates the vertical
     /// swipe-to-dismiss gesture so panning around a zoomed photo can't be misread as a dismiss.
     @State private var isZoomed = false
+    /// Drives the `Edit` entry point's `.fullScreenCover` — see PHOTO-EDITOR.md § 4.2.
+    @State private var editorContext: EditorContext?
 
     // MARK: - viewerSeed preheat (guaranteed, not a caching hint — see `ImageSizing.viewerSeed`)
 
@@ -710,6 +720,7 @@ private struct CurationPreviewView: View {
         items: [PhotoCurationItem],
         openedAssetID: String,
         initialThumbnail: PlatformImage?,
+        eventId: String,
         assetProvider: PhotoAssetProvider,
         onToggle: @escaping (UUID) -> Void
     ) {
@@ -722,6 +733,7 @@ private struct CurationPreviewView: View {
         // this replaced, so a miss is `-1` (an explicit error state) instead.
         openedAtIndex = items.isEmpty ? -1 : (items.firstIndex(where: { $0.assetID == openedAssetID }) ?? -1)
         self.initialThumbnail = initialThumbnail
+        self.eventId = eventId
         self.assetProvider = assetProvider
         self.onToggle = onToggle
     }
@@ -780,7 +792,23 @@ private struct CurationPreviewView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("common.action.close") { dismiss() }
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    editButton
+                }
             }
+            }
+        }
+        .fullScreenCover(item: $editorContext) { context in
+            PhotoEditorView(
+                context: context,
+                repository: SwiftDataPhotoEditRepository(modelContainer: modelContext.container),
+                collectionStyleRepository: SwiftDataCollectionStyleRepository(modelContainer: modelContext.container)
+            ) { _ in
+                // § 19/§ 21 — same known gap noted on the Album side: refreshing the displayed
+                // image for `affectedPhotoIds` needs this event's own photo pipeline
+                // (`PhotoAssetProvider`/`PhotoKitAssetProvider`) to become recipe-aware, which is
+                // Bước 9's job, not this sprint's entry-point integration.
+                editorContext = nil
             }
         }
         .task {
@@ -818,6 +846,19 @@ private struct CurationPreviewView: View {
             for task in displayPreviewTasks.values { task.cancel() }
             displayPreviewTasks.removeAll()
         }
+    }
+
+    /// § 4.2 — opens Photo Editor on whichever photo is currently on screen, scoped to every
+    /// photo in this Event (`items`, the already-flattened full snapshot, not just one group).
+    private var editButton: some View {
+        Button {
+            guard items.indices.contains(currentIndex) else { return }
+            let photoId = items[currentIndex].assetID
+            editorContext = EditorContext(sourceType: .event, sourceId: eventId, photoId: photoId, photoIds: items.map(\.assetID))
+        } label: {
+            Image(systemName: "wand.and.stars")
+        }
+        .accessibilityLabel(Text("photoEditor.editButton.accessibilityLabel"))
     }
 
     private var emptyState: some View {

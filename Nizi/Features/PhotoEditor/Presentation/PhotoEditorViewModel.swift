@@ -66,6 +66,7 @@ final class PhotoEditorViewModel {
     private let repository: PhotoEditRepository
     private let presetRepository: PresetRepository
     private let autoEnhanceService: AutoEnhancing
+    private let collectionStyleRepository: CollectionStyleRepository
 
     /// Cancels/supersedes any preview render still in flight when a newer one is requested — see
     /// `refreshPreview()`. A monotonic counter rather than relying solely on `Task` cancellation
@@ -90,13 +91,15 @@ final class PhotoEditorViewModel {
         renderEngine: PhotoRendering,
         repository: PhotoEditRepository,
         presetRepository: PresetRepository,
-        autoEnhanceService: AutoEnhancing
+        autoEnhanceService: AutoEnhancing,
+        collectionStyleRepository: CollectionStyleRepository
     ) {
         self.context = context
         self.renderEngine = renderEngine
         self.repository = repository
         self.presetRepository = presetRepository
         self.autoEnhanceService = autoEnhanceService
+        self.collectionStyleRepository = collectionStyleRepository
         session = PhotoEditSession(photoId: context.photoId, existingRecipe: nil)
     }
 
@@ -304,11 +307,13 @@ final class PhotoEditorViewModel {
         }
     }
 
-    /// Persists `workingRecipe` for just this photo and returns the result the caller should act
-    /// on. Save-scope options ("apply to whole Album/Event") are Bước 8's job — this is always
-    /// the "chỉ ảnh này" path.
+    // MARK: - Save (Bước 8)
+
+    /// Persists `workingRecipe` for just this photo only — § 11.3's "Chỉ ảnh này" path, and the
+    /// only path available at all when `context.sourceType == .standalone` (§ 4.3: no save-scope
+    /// choice outside Album/Event).
     @discardableResult
-    func save() async -> PhotoEditorResult {
+    func saveThisPhotoOnly() async -> PhotoEditorResult {
         guard !isSaving else { return .cancelled(photoId: context.photoId) }
         isSaving = true
         defer { isSaving = false }
@@ -323,6 +328,78 @@ final class PhotoEditorViewModel {
         } catch {
             NiziLogger.photoEditor.error("photo_editor_save_failed photoId=\(self.context.photoId, privacy: .private) error=\(String(describing: error), privacy: .public)")
             return .cancelled(photoId: context.photoId)
+        }
+    }
+
+    /// § 11.4/§ 11.5 — saves this photo exactly like `saveThisPhotoOnly()`, then writes a
+    /// `CollectionEditStyle` for the Album/Event this editor was opened from, carrying only this
+    /// photo's *preset* and *intensity* — never its manual Adjust values (§ 3.4, § 11.4: "Các điều
+    /// chỉnh sáng và màu riêng của ảnh này sẽ không được sao chép"). When `autoEnhanceEachPhoto` is
+    /// true, every *other* photo in `context.photoIds` gets its own independent Auto Enhance
+    /// analysis and its own `PhotoEditRecipe` (§ 9.3: never one shared result copied to all of
+    /// them) — each inheriting the collection's preset rather than duplicating it.
+    @discardableResult
+    func saveWithCollectionStyle(autoEnhanceEachPhoto: Bool) async -> PhotoEditorResult {
+        guard let sourceId = context.sourceId, context.sourceType != .standalone else {
+            return await saveThisPhotoOnly()
+        }
+
+        let thisPhotoResult = await saveThisPhotoOnly()
+        guard thisPhotoResult.didSave else { return thisPhotoResult }
+
+        let collectionType: CollectionType = context.sourceType == .album ? .album : .event
+        let now = Date()
+        let style = CollectionEditStyle(
+            collectionType: collectionType,
+            collectionId: sourceId,
+            presetId: session.workingRecipe.presetId,
+            presetIntensity: session.workingRecipe.presetIntensity,
+            autoEnhanceEachPhoto: autoEnhanceEachPhoto,
+            createdAt: now,
+            updatedAt: now
+        )
+
+        do {
+            try await collectionStyleRepository.saveStyle(style)
+        } catch {
+            NiziLogger.photoEditor.error("photo_editor_collection_style_save_failed collectionId=\(sourceId, privacy: .private) error=\(String(describing: error), privacy: .public)")
+            return thisPhotoResult
+        }
+
+        var affectedPhotoIds = [context.photoId]
+        if autoEnhanceEachPhoto {
+            let siblingPhotoIds = context.photoIds.filter { $0 != context.photoId }
+            await enhanceEachPhotoIndividually(siblingPhotoIds)
+            affectedPhotoIds = context.photoIds
+        }
+
+        return PhotoEditorResult(photoId: context.photoId, didSave: true, collectionStyleChanged: true, affectedPhotoIds: affectedPhotoIds)
+    }
+
+    /// Runs Auto Enhance independently for each photo id and saves each result as its own
+    /// recipe that inherits the collection's preset rather than carrying a copy of it — never
+    /// mutates `session`/`loadState`, since none of these photos is the one currently on screen.
+    private func enhanceEachPhotoIndividually(_ photoIds: [String]) async {
+        guard !photoIds.isEmpty else { return }
+        let autoEnhanceService = autoEnhanceService
+        let repository = repository
+
+        await withTaskGroup(of: Void.self) { group in
+            for photoId in photoIds {
+                group.addTask {
+                    do {
+                        let adjustments = try await autoEnhanceService.analyze(photoId: photoId)
+                        var recipe = PhotoEditRecipe.original(photoId: photoId)
+                        recipe.adjustments = adjustments
+                        recipe.autoEnhanceApplied = true
+                        recipe.autoEnhanceVersion = AutoEnhanceRules.version
+                        recipe.inheritsCollectionStyle = true
+                        try await repository.saveRecipe(recipe)
+                    } catch {
+                        NiziLogger.photoEditor.error("photo_editor_batch_auto_enhance_failed photoId=\(photoId, privacy: .private) error=\(String(describing: error), privacy: .public)")
+                    }
+                }
+            }
         }
     }
 
