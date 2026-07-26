@@ -9,11 +9,11 @@ import SwiftUI
 import Photos
 
 /// Production Album Detail — a direct port of `AlbumDetailDesignPreview.swift`'s design (same
-/// colors, backgrounds, paddings, fonts throughout) wired to real data: a real cover photo, a
-/// real Page carousel (Cover first, then every Page), and a single pencil that opens the
-/// single-page Viewer in edit mode for whichever Page is currently shown. There is no separate
-/// "Open Album" screen to browse Pages. See docs/specs/SPEC-REAL-ALBUM.md § 12 and
-/// docs/specs/ADDENDUM-001.md § 21.
+/// colors, backgrounds, paddings, fonts throughout) wired to real data: a real cover photo, and
+/// every Page (Cover first, then Page 1, 2, 3…) stacked in one continuous vertical scroll below
+/// it — never a horizontal-swipe carousel. Each Page gets its own pencil to open the single-page
+/// Viewer in edit mode for that Page specifically. There is no separate "Open Album" screen to
+/// browse Pages. See docs/specs/SPEC-REAL-ALBUM.md § 12 and docs/specs/ADDENDUM-001.md § 21.
 struct AlbumDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -21,7 +21,6 @@ struct AlbumDetailView: View {
     let onUpdate: (AlbumDraft) async -> Void
     let onDelete: () async -> Void
 
-    @State private var currentPageIndex = 0
     @State private var editTarget: EditTarget?
     @State private var photoPreviewTarget: PhotoPreviewTarget?
     @State private var isEditingInfo = false
@@ -54,7 +53,7 @@ struct AlbumDetailView: View {
 
     // MARK: - Data
 
-    /// Cover first, then every Page — the single source of truth for the pages carousel.
+    /// Cover first, then every Page — the single source of truth for the vertical Pages scroll.
     private var pagerItems: [AlbumViewerItem] {
         itemBuilder.makeItems(from: draft)
     }
@@ -388,73 +387,70 @@ struct AlbumDetailView: View {
     private func albumPagesSection(width: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             pageSectionHeader
-            pageCarousel(width: width)
-            pageIndicator
+            pagesColumn(width: width)
         }
         .padding(.top, 26)
         .padding(.bottom, 48)
-        // Belt-and-suspenders alongside the hard clamp on `pageCarousel` below — a `VStack`
+        // Belt-and-suspenders alongside the hard clamp on `pagesColumn` below — a `VStack`
         // reports its own width as whatever its widest child needs, then *proposes that same
         // width back down* to every child (including `pageSectionHeader`, which is why its own
         // "Album"/page-count text was also seen sitting at the wrong width even though that text
         // itself is short). Clamping here too means nothing in this section can drift again even
-        // if some future child does the same thing `TabView` did.
+        // if some future child does the same thing `TabView` used to.
         .frame(width: width, alignment: .leading)
     }
 
-    // The per-Page number now lives on the Page itself (see `pagerItemView`, which slides with
-    // it), so this header only needs the section title/count and the edit entry point — showing
-    // the current position twice (once here, once on the Page) would be redundant.
+    // Just the section title/count — there is no single "current Page" anymore now that every
+    // Page sits in one continuous vertical scroll (§ layout request), so the old "edit whichever
+    // Page is currently shown" pencil moved to each Page's own number row instead (see
+    // `pagerItemView`).
     private var pageSectionHeader: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("album.detail.pages_section.title")
-                    .font(.system(size: 26, weight: .bold))
-                Text(localizedString("album.detail.page_count", defaultValue: "\(pagerItems.count) pages"))
-                    .font(.system(size: 15))
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Button {
-                guard pagerItems.indices.contains(currentPageIndex) else { return }
-                editTarget = EditTarget(itemId: pagerItems[currentPageIndex].id)
-            } label: {
-                Image(systemName: "pencil.circle.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(Color.accentColor)
-            }
-            .buttonStyle(.plain)
+        VStack(alignment: .leading, spacing: 4) {
+            Text("album.detail.pages_section.title")
+                .font(.system(size: 26, weight: .bold))
+            Text(localizedString("album.detail.page_count", defaultValue: "\(pagerItems.count) pages"))
+                .font(.system(size: 15))
+                .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 20)
     }
 
-    private func pageCarousel(width: CGFloat) -> some View {
-        TabView(selection: $currentPageIndex) {
-            ForEach(Array(pagerItems.enumerated()), id: \.element.id) { index, item in
+    /// Cover, then every Page, stacked vertically in one continuous scroll — the user swipes up
+    /// through Cover → Page 1 → Page 2 → … seamlessly, the same gesture that scrolls the rest of
+    /// this screen, instead of a horizontal-swipe carousel. `LazyVStack`, not a plain `VStack`, is
+    /// what makes "generate a Page only once it's about to be scrolled into view" real: each
+    /// Page's `AlbumPageCardView` (its photo loads included) is only actually built once it's near
+    /// the visible viewport, not all `pagerItems.count` of them the moment this Album opens — the
+    /// memory win the vertical-scroll request specifically asked for.
+    private func pagesColumn(width: CGFloat) -> some View {
+        LazyVStack(alignment: .leading, spacing: 36) {
+            ForEach(pagerItems) { item in
                 pagerItemView(item)
                     .padding(.horizontal, 20)
-                    .tag(index)
             }
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        // `TabView(.page)` is UIKit-backed (`UIPageViewController`) and, for this particular
-        // Album (33 pages), was measured reporting its own ideal width (~468pt) instead of
-        // respecting the width proposed to it by its SwiftUI parent — clamping an *ancestor*
-        // wasn't enough to override that, so it's clamped directly here, at the source.
-        .frame(width: width, height: 500)
+        .frame(width: width, alignment: .leading)
     }
 
-    // The page number sits *above* each Page's own content, not overlaid on top of it — but
-    // it's still part of what `TabView` pages (same item, same VStack), so dragging between
-    // Pages slides the label along with the Page it belongs to instead of it jumping in place.
+    // The page number and its own edit pencil sit *above* that Page's content, not overlaid on
+    // top of it — same item, same VStack, so they scroll together as one unit.
     @ViewBuilder
     private func pagerItemView(_ item: AlbumViewerItem) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(pageNumberText(for: item))
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.secondary)
+            HStack {
+                Text(pageNumberText(for: item))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    editTarget = EditTarget(itemId: item.id)
+                } label: {
+                    Image(systemName: "pencil.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(Color.accentColor)
+                }
+                .buttonStyle(.plain)
+            }
             pagerContent(item)
         }
     }
@@ -478,17 +474,5 @@ struct AlbumDetailView: View {
         case let .page(page):
             return localizedString("album.viewer.page_number_label", defaultValue: "Page \(page.pageNumber)")
         }
-    }
-
-    private var pageIndicator: some View {
-        HStack(spacing: 7) {
-            ForEach(pagerItems.indices, id: \.self) { index in
-                Capsule()
-                    .fill(currentPageIndex == index ? Color.primary : Color.secondary.opacity(0.25))
-                    .frame(width: currentPageIndex == index ? 20 : 7, height: 7)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .animation(.easeInOut(duration: 0.2), value: currentPageIndex)
     }
 }
