@@ -147,6 +147,42 @@ final class PhotoEditorViewModel {
         Task { await refreshPreview() }
     }
 
+    // MARK: - Adjust (Bước 5)
+
+    /// UI-facing `-100...+100` for one Adjust slider; the engine's own storage
+    /// (`PhotoAdjustments`) stays `-1...+1` (§ 8.3). Setting triggers a debounced re-render, same
+    /// as `presetIntensityPercent`.
+    func adjustPercent(for parameter: AdjustParameter) -> Double {
+        Double(parameter.value(in: session.workingRecipe.adjustments)) * 100
+    }
+
+    func setAdjustPercent(_ parameter: AdjustParameter, _ percent: Double) {
+        let clamped = min(max(percent, -100), 100)
+        parameter.setting(Float(clamped / 100), in: &session.workingRecipe.adjustments)
+        Task { await refreshPreview(debounced: true) }
+    }
+
+    /// § 8.4 — "Đặt lại thông số hiện tại": clears just the one field, leaves every other
+    /// Adjust value and the current preset untouched.
+    func resetAdjustParameter(_ parameter: AdjustParameter) {
+        parameter.setting(0, in: &session.workingRecipe.adjustments)
+        Task { await refreshPreview() }
+    }
+
+    /// § 8.4 — "Đặt lại toàn bộ Adjust": all six sliders back to zero, preset untouched.
+    func resetAllAdjustments() {
+        session.workingRecipe.adjustments = .identity
+        Task { await refreshPreview() }
+    }
+
+    /// § 8.4 / § 16.2 — "Đặt lại toàn bộ ảnh về Original": preset, intensity, and every Adjust
+    /// value all clear at once. Still just the in-session `workingRecipe` — Cancel would still
+    /// restore whatever this photo had before the editor opened.
+    func resetEntirePhoto() {
+        session.resetToOriginal()
+        Task { await refreshPreview() }
+    }
+
     /// Re-renders the preview for whatever `workingRecipe`/`isShowingOriginal` currently is,
     /// cancelling/discarding any still-in-flight render for a prior state. `debounced` coalesces a
     /// fast slider drag into a single render instead of one per tick (PHOTO-EDITOR.md § 18.1:

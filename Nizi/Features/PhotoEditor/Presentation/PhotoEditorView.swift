@@ -13,16 +13,32 @@ import SwiftUI
 /// `CurationPreviewView` already use for their own full-screen presentation, and read the result
 /// back through `onClose`.
 ///
-/// Sprint 2–4 (Editor + Rendering foundation + Preset) scope: load a real Core-Image-rendered
-/// preview, Cancel/Save, press-and-hold to view the original, unsaved-change detection, and a
-/// Preset strip (< 10 presets, 0–100% intensity, thumbnails rendered from this photo). No
-/// Adjust/Auto tools yet (Bước 5–6) — the tool tray below the image is Preset-only for now,
-/// rather than a multi-tab picker with two tabs showing nothing.
+/// Sprint 2–5 (Editor + Rendering foundation + Preset + Adjust) scope: load a real Core-Image-
+/// rendered preview, Cancel/Save, press-and-hold to view the original, unsaved-change detection,
+/// a Preset strip, and the six Adjust sliders. No Auto Enhance yet (Bước 6) — the tool tray is a
+/// two-tab Preset/Adjust switcher rather than a three-tab picker with one tab showing nothing.
 struct PhotoEditorView: View {
+    /// Which tool tray is currently showing below the image (§ 6.4: Preset is always the default
+    /// tab on open). Not part of `PhotoEditorViewModel` — which tab is selected is pure View state
+    /// with no bearing on the edit itself, unlike everything the view model owns.
+    private enum EditorTool: String, CaseIterable, Identifiable {
+        case preset
+        case adjust
+        var id: String { rawValue }
+
+        var titleKey: String {
+            switch self {
+            case .preset: "photoEditor.tool.preset"
+            case .adjust: "photoEditor.tool.adjust"
+            }
+        }
+    }
+
     let onClose: (PhotoEditorResult) -> Void
 
     @State private var viewModel: PhotoEditorViewModel
     @State private var showDiscardConfirmation = false
+    @State private var selectedTool: EditorTool = .preset
 
     init(
         context: EditorContext,
@@ -46,7 +62,7 @@ struct PhotoEditorView: View {
             VStack(spacing: 0) {
                 imageArea
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                PresetStripView(viewModel: viewModel)
+                toolTray
             }
             .background(Color.black.ignoresSafeArea())
             .toolbar { toolbarContent }
@@ -91,6 +107,36 @@ struct PhotoEditorView: View {
         if result.didSave {
             onClose(result)
         }
+    }
+
+    private var toolTray: some View {
+        VStack(spacing: 0) {
+            toolPicker
+            switch selectedTool {
+            case .preset:
+                PresetStripView(viewModel: viewModel)
+            case .adjust:
+                AdjustPanelView(viewModel: viewModel)
+            }
+        }
+    }
+
+    private var toolPicker: some View {
+        HStack(spacing: 0) {
+            ForEach(EditorTool.allCases) { tool in
+                Button {
+                    selectedTool = tool
+                } label: {
+                    Text(localizedString(dynamicKey: tool.titleKey))
+                        .font(.subheadline.weight(selectedTool == tool ? .semibold : .regular))
+                        .foregroundStyle(selectedTool == tool ? Color.primary : .secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .background(.ultraThinMaterial)
     }
 
     @ViewBuilder

@@ -61,19 +61,35 @@ final class PhotoRenderEngine: PhotoRendering, @unchecked Sendable {
 
     // MARK: - Pipeline
 
-    /// Bước 4 (Preset) — resolves `recipe.presetId` to its `PresetDefinition` and hands off to
-    /// `PresetRenderer`. Still a structural passthrough for everything else the pipeline diagram
-    /// (PHOTO-EDITOR.md § 10) calls for — Auto Enhance and manual Adjust are Bước 5/6, added here
-    /// the same way, without touching `renderPreview`/`renderFullResolution` or the PHAsset-
-    /// loading/orientation code above.
+    /// PHOTO-EDITOR.md § 10's pipeline order: Auto Enhance and manual Adjust are the same
+    /// "correction" stage (Bước 6 writes Auto Enhance's result into `recipe.adjustments` rather
+    /// than adding a separate stage here — see `AutoEnhanceService`), applied *before* Preset
+    /// (the "style" stage) — so a preset's own color blend correctly blends against the user's
+    /// already-adjusted image, not the raw original. Auto Enhance itself has no separate step
+    /// here because by the time a recipe reaches this pipeline, its suggested values are already
+    /// just ordinary `adjustments` — Bước 6 (Auto Enhance) is UI/analysis, not a new pipeline stage.
     private func applyRecipe(_ recipe: PhotoEditRecipe, to image: CIImage) -> CIImage {
-        guard let presetId = recipe.presetId,
-              recipe.presetIntensity > 0,
-              let preset = presetRepository.preset(id: presetId)
-        else {
-            return image
+        var result = image
+
+        if !recipe.adjustments.isIdentity {
+            result = PhotoToneAdjuster.apply(
+                exposure: recipe.adjustments.exposure,
+                contrast: recipe.adjustments.contrast,
+                highlights: recipe.adjustments.highlights,
+                shadows: recipe.adjustments.shadows,
+                warmth: recipe.adjustments.warmth,
+                saturation: recipe.adjustments.saturation,
+                to: result
+            )
         }
-        return presetRenderer.applyPreset(preset, intensity: recipe.presetIntensity, to: image)
+
+        if let presetId = recipe.presetId,
+           recipe.presetIntensity > 0,
+           let preset = presetRepository.preset(id: presetId) {
+            result = presetRenderer.applyPreset(preset, intensity: recipe.presetIntensity, to: result)
+        }
+
+        return result
     }
 
     private func render(_ image: CIImage) throws -> CGImage {
