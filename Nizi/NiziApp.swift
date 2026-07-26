@@ -31,7 +31,7 @@ struct NiziApp: App {
         .modelContainer(for: [
             MDLocalAsset.self, MDScanCheckpoint.self, MDPhotoSession.self, MDEventCandidate.self,
             MDEventCurationResult.self, MDPhotoCurationGroup.self, MDPhotoCurationItem.self,
-            MDAlbumDraft.self
+            MDAlbumDraft.self, MDPhotoEditRecipe.self
         ])
     }
 }

@@ -6,17 +6,19 @@
 //
 
 import SwiftUI
+import SwiftData
 
 /// Design-preview/manual-QA harness for opening Photo Editor with `.standalone` — the same role
 /// `AlbumDraftPlanningPreview` plays for the Album Draft Planner. There is no real single-photo
 /// caller anywhere in the app yet (Search/Favorites/Photobook are all future work per
 /// PHOTO-EDITOR.md § 4.4), so this is what exercises "mở độc lập với một ảnh" until one exists —
-/// entirely synthetic, no Photos Library access, safe to run in Xcode's canvas or the Simulator
-/// without granting photo permissions.
+/// synthetic pixels only (no Photos Library access), but Bước 7 onward this saves through the
+/// *real* `SwiftDataPhotoEditRepository`, so closing and reopening the editor here is an actual
+/// test of "mở lại recipe đã lưu" (§ 6.4), not just an in-memory simulation of it.
 struct PhotoEditorStandalonePreview: View {
+    @Environment(\.modelContext) private var modelContext
     @State private var isPresentingEditor = false
     @State private var lastResult: PhotoEditorResult?
-    private let repository = InMemoryPhotoEditRepository()
 
     var body: some View {
         VStack(spacing: 16) {
@@ -35,7 +37,7 @@ struct PhotoEditorStandalonePreview: View {
             PhotoEditorView(
                 context: .standalone(photoId: "preview-photo-1"),
                 renderEngine: MockPhotoRendering(),
-                repository: repository,
+                repository: SwiftDataPhotoEditRepository(modelContainer: modelContext.container),
                 autoEnhanceService: MockAutoEnhancing()
             ) { result in
                 lastResult = result
@@ -47,4 +49,5 @@ struct PhotoEditorStandalonePreview: View {
 
 #Preview {
     PhotoEditorStandalonePreview()
+        .modelContainer(for: [MDPhotoEditRecipe.self], inMemory: true)
 }
