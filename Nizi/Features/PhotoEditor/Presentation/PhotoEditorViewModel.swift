@@ -62,6 +62,11 @@ final class PhotoEditorViewModel {
     /// § 9.3 asks for. `nil` whenever there's nothing to undo (never run yet, or already undone).
     private var adjustmentsBeforeAutoEnhance: PhotoAdjustments?
 
+    /// This photo's Album/Event style, fetched once at `loadPreview()` — `nil` for `.standalone`
+    /// or a collection that has no style saved yet. Exposed (read-only) so the Preset tab can show
+    /// "inheriting the Album/Event style" (§ 12.3) when relevant.
+    private(set) var collectionStyle: CollectionEditStyle?
+
     private let renderEngine: PhotoRendering
     private let repository: PhotoEditRepository
     private let presetRepository: PresetRepository
@@ -113,6 +118,16 @@ final class PhotoEditorViewModel {
     /// Original is always a real, selectable entry, not the absence of one).
     var selectedPresetId: String { session.workingRecipe.presetId ?? PresetDefinition.originalId }
 
+    /// § 12.3 — true while this photo's current preset/intensity still match its Album/Event's
+    /// style exactly (whether because the user hasn't touched Preset at all, or changed it back
+    /// to match). Becomes false the moment the two diverge, which is what `saveThisPhotoOnly()`
+    /// uses to decide whether this save is a real photo override (§ 12.4).
+    var isInheritingCollectionStyle: Bool {
+        guard let collectionStyle else { return false }
+        return session.workingRecipe.presetId == collectionStyle.presetId
+            && session.workingRecipe.presetIntensity == collectionStyle.presetIntensity
+    }
+
     /// UI-facing `0...100` — the engine's own `presetIntensity` stays `0...1` (§ 10). Setting this
     /// triggers a debounced re-render; reading it never does.
     var presetIntensityPercent: Double {
@@ -126,14 +141,31 @@ final class PhotoEditorViewModel {
 
     /// Loads any previously saved recipe for this photo (so reopening the editor on an
     /// already-edited photo picks up where it left off, § 6.4's "phục hồi trạng thái đã lưu"),
-    /// then renders the first preview and the preset thumbnail strip.
+    /// resolves this photo's Album/Event style if it belongs to one, then renders the first
+    /// preview and the preset thumbnail strip.
     func loadPreview() async {
         loadState = .loading
         presets = (try? presetRepository.loadPresets()) ?? []
 
+        if let sourceId = context.sourceId, context.sourceType != .standalone {
+            let collectionType: CollectionType = context.sourceType == .album ? .album : .event
+            collectionStyle = try? await collectionStyleRepository.getStyle(type: collectionType, id: sourceId)
+        }
+
         do {
             let existingRecipe = try await repository.getRecipe(photoId: context.photoId)
-            session = PhotoEditSession(photoId: context.photoId, existingRecipe: existingRecipe)
+            if let existingRecipe {
+                session = PhotoEditSession(photoId: context.photoId, existingRecipe: existingRecipe)
+            } else if let collectionStyle {
+                // § 12.3 — "Ảnh A: Dùng style của Album": a photo with no recipe of its own opens
+                // already showing whatever the collection currently specifies, not a blank
+                // Original — `CollectionStyleResolver` resolves this the same way a future
+                // display pipeline would, so the editor and that pipeline never disagree.
+                let inherited = CollectionStyleResolver.resolvedRecipe(photoId: context.photoId, photoRecipe: nil, collectionStyle: collectionStyle)
+                session = PhotoEditSession(photoId: context.photoId, existingRecipe: inherited)
+            } else {
+                session = PhotoEditSession(photoId: context.photoId, existingRecipe: nil)
+            }
         } catch {
             NiziLogger.photoEditor.error("photo_editor_recipe_load_failed photoId=\(self.context.photoId, privacy: .private) error=\(String(describing: error), privacy: .public)")
             loadState = .failed
@@ -320,6 +352,10 @@ final class PhotoEditorViewModel {
 
         var recipe = session.workingRecipe
         recipe.updatedAt = Date()
+        // § 12.4 — a save whose preset/intensity still match the collection's style is still
+        // inheriting; one that doesn't (including an explicit reset to Original while a style
+        // exists) is a real photo override from this point on.
+        recipe.inheritsCollectionStyle = isInheritingCollectionStyle || collectionStyle == nil
 
         do {
             try await repository.saveRecipe(recipe)

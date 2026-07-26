@@ -3998,6 +3998,40 @@
           }
         }
       }
+    },
+    "photoEditor.preset.inheritingStyle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Using the collection style"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang dùng phong cách chung"
+          }
+        }
+      }
+    },
+    "photoEditor.preset.customStyle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom for this photo"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tùy chỉnh riêng cho ảnh này"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

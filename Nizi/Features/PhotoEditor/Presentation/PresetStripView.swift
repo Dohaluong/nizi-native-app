@@ -17,6 +17,10 @@ struct PresetStripView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if viewModel.collectionStyle != nil {
+                inheritanceIndicator
+            }
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(viewModel.presets) { preset in
@@ -38,6 +42,16 @@ struct PresetStripView: View {
         }
         .padding(.vertical, 12)
         .background(.ultraThinMaterial)
+    }
+
+    /// § 12.3 — makes the current inherit-vs-override state visible rather than a silent
+    /// implementation detail (only shown at all when this photo belongs to an Album/Event that
+    /// actually has a style saved).
+    private var inheritanceIndicator: some View {
+        Text(viewModel.isInheritingCollectionStyle ? "photoEditor.preset.inheritingStyle" : "photoEditor.preset.customStyle")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 16)
     }
 
     private var intensityRow: some View {
