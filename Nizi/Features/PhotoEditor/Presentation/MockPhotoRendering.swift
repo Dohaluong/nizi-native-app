@@ -21,15 +21,18 @@ struct MockPhotoRendering: PhotoRendering {
         return Self.placeholderImage(for: photoId, recipe: recipe, size: CGSize(width: 3000, height: 3000))
     }
 
-    /// A distinctly-colored square (derived from `photoId`) so different mock photo ids are
-    /// visually distinguishable — same idea, and same stable-hash requirement (never
-    /// `String.hashValue`, per docs/specs/SPEC-MODIFY-DRAFT.md § 11), as
+    /// A distinctly-colored square (derived from `photoId`, `recipe.presetId`, and
+    /// `recipe.presetIntensity`) so different mock photos *and* different presets/intensities are
+    /// all visually distinguishable in the standalone harness's preset strip — same stable-hash
+    /// requirement (never `String.hashValue`, per docs/specs/SPEC-MODIFY-DRAFT.md § 11) as
     /// `DistinguishableMockPhotoProvider` uses for Album's own previews. Original vs. edited is
     /// distinguished by brightness, so the hold-to-compare gesture has something visible to show
-    /// even with no real render pipeline behind it yet.
+    /// even with no real render pipeline behind it.
     private static func placeholderImage(for photoId: String, recipe: PhotoEditRecipe, size: CGSize) -> CGImage {
-        let hue = Double(stableHash(photoId) % 360) / 360
-        let brightness = recipe.isUnedited ? 0.55 : 0.7
+        let baseHue = Double(stableHash(photoId) % 360) / 360
+        let presetHueShift = recipe.presetId.map { Double(stableHash($0) % 360) / 360 } ?? 0
+        let hue = (baseHue + presetHueShift * Double(recipe.presetIntensity)).truncatingRemainder(dividingBy: 1)
+        let brightness = recipe.isUnedited ? 0.55 : 0.55 + Double(recipe.presetIntensity) * 0.25
         let color = UIColor(hue: hue, saturation: 0.45, brightness: brightness, alpha: 1)
         let renderer = UIGraphicsImageRenderer(size: size)
         let image = renderer.image { context in

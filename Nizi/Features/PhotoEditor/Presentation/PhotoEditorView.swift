@@ -13,10 +13,11 @@ import SwiftUI
 /// `CurationPreviewView` already use for their own full-screen presentation, and read the result
 /// back through `onClose`.
 ///
-/// Sprint 2/3 (Editor + Rendering foundation) scope only: load a real Core-Image-rendered
-/// preview, Cancel/Save, press-and-hold to view the original, unsaved-change detection. No
-/// Preset/Adjust/Auto tools yet (Bước 4–6) — this view intentionally has no tool tray below the
-/// image yet, so as not to build UI for features that don't exist.
+/// Sprint 2–4 (Editor + Rendering foundation + Preset) scope: load a real Core-Image-rendered
+/// preview, Cancel/Save, press-and-hold to view the original, unsaved-change detection, and a
+/// Preset strip (< 10 presets, 0–100% intensity, thumbnails rendered from this photo). No
+/// Adjust/Auto tools yet (Bước 5–6) — the tool tray below the image is Preset-only for now,
+/// rather than a multi-tab picker with two tabs showing nothing.
 struct PhotoEditorView: View {
     let onClose: (PhotoEditorResult) -> Void
 
@@ -25,23 +26,33 @@ struct PhotoEditorView: View {
 
     init(
         context: EditorContext,
-        renderEngine: PhotoRendering = PhotoRenderEngine(),
+        renderEngine: PhotoRendering? = nil,
         repository: PhotoEditRepository = InMemoryPhotoEditRepository(),
+        presetRepository: PresetRepository = BundlePresetRepository(),
         onClose: @escaping (PhotoEditorResult) -> Void
     ) {
         self.onClose = onClose
-        _viewModel = State(initialValue: PhotoEditorViewModel(context: context, renderEngine: renderEngine, repository: repository))
+        // `renderEngine` defaults through `presetRepository` (not its own separate default) so a
+        // caller overriding `presetRepository` — e.g. a future test double — doesn't end up with
+        // the render engine and the view model resolving presets from two different catalogs.
+        let resolvedRenderEngine = renderEngine ?? PhotoRenderEngine(presetRepository: presetRepository)
+        _viewModel = State(initialValue: PhotoEditorViewModel(
+            context: context, renderEngine: resolvedRenderEngine, repository: repository, presetRepository: presetRepository
+        ))
     }
 
     var body: some View {
         NavigationStack {
-            imageArea
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black.ignoresSafeArea())
-                .toolbar { toolbarContent }
-                .toolbarColorScheme(.dark, for: .navigationBar)
-                .navigationTitle(Text("photoEditor.title"))
-                .navigationBarTitleDisplayMode(.inline)
+            VStack(spacing: 0) {
+                imageArea
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                PresetStripView(viewModel: viewModel)
+            }
+            .background(Color.black.ignoresSafeArea())
+            .toolbar { toolbarContent }
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .navigationTitle(Text("photoEditor.title"))
+            .navigationBarTitleDisplayMode(.inline)
         }
         .task { await viewModel.loadPreview() }
         .confirmationDialog(

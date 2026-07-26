@@ -22,18 +22,27 @@ import Photos
 final class PhotoRenderEngine: PhotoRendering, @unchecked Sendable {
     private let imageManager: PHCachingImageManager
     private let ciContext: CIContext
+    private let presetRepository: PresetRepository
+    private let presetRenderer: PresetRendering
 
-    init(imageManager: PHCachingImageManager = PHCachingImageManager(), ciContext: CIContext? = nil) {
+    init(
+        imageManager: PHCachingImageManager = PHCachingImageManager(),
+        ciContext: CIContext? = nil,
+        presetRepository: PresetRepository = BundlePresetRepository(),
+        presetRenderer: PresetRendering = PresetRenderer()
+    ) {
         self.imageManager = imageManager
         // GPU-backed (Metal) by default — `ciContext` is only ever overridden in tests, where no
         // GPU is guaranteed to be available.
         self.ciContext = ciContext ?? CIContext(options: [.useSoftwareRenderer: false])
+        self.presetRepository = presetRepository
+        self.presetRenderer = presetRenderer
     }
 
     func renderPreview(photoId: String, recipe: PhotoEditRecipe, targetSize: CGSize) async throws -> CGImage {
         let sourceImage = try await requestBoundedImage(photoId: photoId, targetSize: targetSize)
         let ciImage = CIImage(cgImage: sourceImage)
-        let processed = Self.applyRecipe(recipe, to: ciImage)
+        let processed = applyRecipe(recipe, to: ciImage)
         return try render(processed)
     }
 
@@ -46,20 +55,25 @@ final class PhotoRenderEngine: PhotoRendering, @unchecked Sendable {
         // baked-in rotation, only a separate orientation tag — applying it here, once, immediately
         // after decode, is what keeps every later filter stage working in "already upright" space.
         let oriented = sourceImage.oriented(orientation)
-        let processed = Self.applyRecipe(recipe, to: oriented)
+        let processed = applyRecipe(recipe, to: oriented)
         return try render(processed)
     }
 
     // MARK: - Pipeline
 
-    /// Sprint 3 (Rendering foundation) ships this as a structural passthrough — there is no real
-    /// Preset/Adjust/Auto Enhance implementation yet (those are Bước 4–6), and `recipe` is always
-    /// content-equal to `.original` until a caller actually sets `presetId`/`adjustments`. Kept as
-    /// its own function, not inlined into `renderPreview`/`renderFullResolution`, specifically so
-    /// later sprints add filter stages here without touching either render entry point or their
-    /// PHAsset-loading/orientation code.
-    private static func applyRecipe(_ recipe: PhotoEditRecipe, to image: CIImage) -> CIImage {
-        image
+    /// Bước 4 (Preset) — resolves `recipe.presetId` to its `PresetDefinition` and hands off to
+    /// `PresetRenderer`. Still a structural passthrough for everything else the pipeline diagram
+    /// (PHOTO-EDITOR.md § 10) calls for — Auto Enhance and manual Adjust are Bước 5/6, added here
+    /// the same way, without touching `renderPreview`/`renderFullResolution` or the PHAsset-
+    /// loading/orientation code above.
+    private func applyRecipe(_ recipe: PhotoEditRecipe, to image: CIImage) -> CIImage {
+        guard let presetId = recipe.presetId,
+              recipe.presetIntensity > 0,
+              let preset = presetRepository.preset(id: presetId)
+        else {
+            return image
+        }
+        return presetRenderer.applyPreset(preset, intensity: recipe.presetIntensity, to: image)
     }
 
     private func render(_ image: CIImage) throws -> CGImage {
