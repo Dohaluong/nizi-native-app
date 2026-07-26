@@ -34,7 +34,11 @@ struct PresetRendererTests {
         return LUTCube(dimension: dimension, data: data, colorSpace: CGColorSpaceCreateDeviceRGB())
     }
 
-    private static func makePreset(intensity: Float = 0.85) -> PresetDefinition {
+    private static func makePreset(
+        intensity: Float = 0.85,
+        blacksOffset: Float = 0, whitesOffset: Float = 0, vibranceOffset: Float = 0, tintOffset: Float = 0,
+        sharpnessAmount: Float = 0
+    ) -> PresetDefinition {
         PresetDefinition(
             id: "test-preset", name: "Test", shortName: "Test",
             nameKey: "test.name", shortNameKey: "test.shortName",
@@ -42,8 +46,9 @@ struct PresetRendererTests {
             defaultIntensity: intensity,
             exposureOffset: 0, contrastOffset: 0, saturationOffset: 0, warmthOffset: 0,
             highlightsOffset: 0, shadowsOffset: 0,
+            blacksOffset: blacksOffset, whitesOffset: whitesOffset, vibranceOffset: vibranceOffset, tintOffset: tintOffset,
             grainAmount: 0, grainSize: 0, bloomAmount: 0, bloomRadius: 0,
-            vignetteAmount: 0, vignetteRadius: 0,
+            vignetteAmount: 0, vignetteRadius: 0, sharpnessAmount: sharpnessAmount,
             protectSkinTones: true, isMonochrome: false,
             thumbnailAssetName: nil, sortOrder: 1, isActive: true, isPrototype: false
         )
@@ -94,5 +99,30 @@ struct PresetRendererTests {
         context.render(output, toBitmap: &outputPixel, rowBytes: 4, bounds: CGRect(x: 0, y: 0, width: 1, height: 1), format: .RGBA8, colorSpace: CGColorSpaceCreateDeviceRGB())
 
         #expect(outputPixel != inputPixel)
+    }
+
+    /// The Preset Tuning Panel's new tone fields (`blacksOffset`/`whitesOffset`/`vibranceOffset`/
+    /// `tintOffset`) and texture field (`sharpnessAmount`) each route through a `CIColorMatrix` (or,
+    /// for `applyLevels`, one with a non-zero bias — the exact shape that caused the infinite-extent
+    /// bug above) or a filter that can expand its extent (`CISharpenLuminance`). Every one of them
+    /// must still produce a finite output extent on its own, with no LUT/blend involved.
+    @Test
+    func newToneAndTextureFieldsStayExtentSafe() {
+        let renderer = PresetRenderer(lutLoader: FakeLUTLoader(cube: Self.identityCube(dimension: 2)))
+        let input = CIImage(color: CIColor(red: 0.6, green: 0.3, blue: 0.2))
+            .cropped(to: CGRect(x: 0, y: 0, width: 8, height: 8))
+
+        let fields: [(String, PresetDefinition)] = [
+            ("blacks", Self.makePreset(blacksOffset: 1)),
+            ("whites", Self.makePreset(whitesOffset: -1)),
+            ("vibrance", Self.makePreset(vibranceOffset: 1)),
+            ("tint", Self.makePreset(tintOffset: 1)),
+            ("sharpness", Self.makePreset(sharpnessAmount: 1)),
+        ]
+
+        for (label, preset) in fields {
+            let output = renderer.applyPreset(preset, intensity: preset.defaultIntensity, to: input)
+            #expect(output.extent == input.extent, "\(label) produced extent \(output.extent)")
+        }
     }
 }

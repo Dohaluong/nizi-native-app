@@ -51,6 +51,10 @@ struct PresetRenderer: PresetRendering {
             shadows: preset.shadowsOffset,
             warmth: preset.warmthOffset,
             saturation: preset.saturationOffset,
+            blacks: preset.blacksOffset,
+            whites: preset.whitesOffset,
+            vibrance: preset.vibranceOffset,
+            tint: preset.tintOffset,
             to: image
         )
         if preset.isMonochrome {
@@ -145,12 +149,25 @@ struct PresetRenderer: PresetRendering {
         let grainIntensity = min(preset.grainAmount * (0.4 + intensity * 0.6), preset.grainAmount)
         let bloomIntensity = preset.bloomAmount * intensity
         let vignetteIntensity = preset.vignetteAmount * intensity
+        let sharpenIntensity = preset.sharpnessAmount * intensity
 
         var result = image
         result = Self.applyBloom(amount: bloomIntensity, radius: preset.bloomRadius, to: result)
         result = Self.applyVignette(amount: vignetteIntensity, radius: preset.vignetteRadius, to: result)
         result = Self.applyGrain(amount: grainIntensity, size: preset.grainSize, to: result)
+        result = Self.applySharpen(amount: sharpenIntensity, to: result)
         return result
+    }
+
+    private static func applySharpen(amount: Float, to image: CIImage) -> CIImage {
+        guard amount > 0 else { return image }
+        let filter = CIFilter.sharpenLuminance()
+        filter.inputImage = image
+        // `CISharpenLuminance`'s own default is `0.4` at a nominal "fully on" setting — `amount`
+        // here is already `0...1`-ish (`sharpnessAmount * intensity`), so `* 2` maps it onto
+        // roughly `0...2`, the filter's documented useful range.
+        filter.sharpness = amount * 2
+        return (filter.outputImage ?? image).cropped(to: image.extent)
     }
 
     private static func applyVignette(amount: Float, radius: Float, to image: CIImage) -> CIImage {

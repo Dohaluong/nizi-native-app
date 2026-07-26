@@ -21,6 +21,11 @@ import CoreImage.CIFilterBuiltins
 /// (ADDEDUM § 12: "Không dành quá nhiều thời gian cố mô phỏng" a specific film stock), not
 /// final-tuned color science.
 enum PhotoToneAdjuster {
+    /// `blacks`/`whites`/`vibrance`/`tint` default to `0` (no-op) — the production Adjust feature
+    /// (`PhotoRenderEngine.applyRecipe` → `PhotoAdjustments`) is deliberately locked to the
+    /// original six parameters (PHOTO-EDITOR.md V1 scope) and never passes these; only
+    /// `PresetRenderer.applyBaseTone` (a preset's own baked-in tone, tunable via the DEBUG-only
+    /// Preset Tuning Panel) supplies them.
     static func apply(
         exposure: Float,
         contrast: Float,
@@ -28,6 +33,10 @@ enum PhotoToneAdjuster {
         shadows: Float,
         warmth: Float,
         saturation: Float,
+        blacks: Float = 0,
+        whites: Float = 0,
+        vibrance: Float = 0,
+        tint: Float = 0,
         to image: CIImage
     ) -> CIImage {
         var result = image
@@ -48,14 +57,30 @@ enum PhotoToneAdjuster {
             result = filter.outputImage ?? result
         }
 
-        if warmth != 0 {
+        // `CIVibrance` boosts already-muted colors more than already-saturated ones (and is more
+        // skin-tone-safe) — a separate stage from the `saturation` above, not a replacement for it,
+        // so a preset can use either or both independently (ADDEDUM-adjacent Preset Tuning Panel
+        // spec: "Ưu tiên Vibrance hơn Saturation").
+        if vibrance != 0 {
+            let filter = CIFilter.vibrance()
+            filter.inputImage = result
+            filter.amount = vibrance
+            result = filter.outputImage ?? result
+        }
+
+        if warmth != 0 || tint != 0 {
             let filter = CIFilter.temperatureAndTint()
             filter.inputImage = result
             let neutralTemperature: CGFloat = 6500
             filter.neutral = CIVector(x: neutralTemperature, y: 0)
             // Positive warmth → lower target temperature than the neutral point → the filter
-            // shifts the image warmer (more orange); negative → cooler (more blue).
-            filter.targetNeutral = CIVector(x: neutralTemperature - CGFloat(warmth) * 1500, y: 0)
+            // shifts the image warmer (more orange); negative → cooler (more blue). `tint` is the
+            // same filter's other axis (green ↔ magenta) — positive shifts magenta, negative
+            // shifts green.
+            filter.targetNeutral = CIVector(
+                x: neutralTemperature - CGFloat(warmth) * 1500,
+                y: CGFloat(tint) * 100
+            )
             result = filter.outputImage ?? result
         }
 
@@ -71,6 +96,35 @@ enum PhotoToneAdjuster {
             result = filter.outputImage ?? result
         }
 
+        if blacks != 0 || whites != 0 {
+            result = applyLevels(blacks: blacks, whites: whites, to: result)
+        }
+
         return result
+    }
+
+    /// A coarse "endpoint" stretch, applied after highlight/shadow recovery — positive `blacks`
+    /// lifts the black point (brightens/flattens shadows), negative crushes it further; positive
+    /// `whites` extends the white point brighter (more blowout), negative pulls it down
+    /// (recovers). Implemented as `output = (input - lo) / (hi - lo)` via `CIColorMatrix`
+    /// scale+bias, same "deliberately simple, swappable heuristic" spirit as the rest of this
+    /// pipeline — not a real levels/curves engine.
+    private static func applyLevels(blacks: Float, whites: Float, to image: CIImage) -> CIImage {
+        let lo = CGFloat(-blacks * 0.25)
+        let hi = CGFloat(1 - whites * 0.25)
+        let scale = 1 / max(hi - lo, 0.01)
+        let bias = -lo * scale
+
+        let matrix = CIFilter.colorMatrix()
+        matrix.inputImage = image
+        matrix.rVector = CIVector(x: scale, y: 0, z: 0, w: 0)
+        matrix.gVector = CIVector(x: 0, y: scale, z: 0, w: 0)
+        matrix.bVector = CIVector(x: 0, y: 0, z: scale, w: 0)
+        matrix.aVector = CIVector(x: 0, y: 0, z: 0, w: 1)
+        matrix.biasVector = CIVector(x: bias, y: bias, z: bias, w: 0)
+        // Same infinite-extent pitfall `PresetRenderer.forceOpaqueAlpha` hit — a non-zero bias on
+        // `CIColorMatrix` makes Core Image report `CGRect.infinite`, since the bias would apply
+        // even to the conceptually-clear region outside the source. Crop back immediately.
+        return (matrix.outputImage ?? image).cropped(to: image.extent)
     }
 }
