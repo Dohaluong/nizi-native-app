@@ -19,6 +19,15 @@ protocol PresetRendering: Sendable {
 struct PresetRenderer: PresetRendering {
     let lutLoader: LUTLoading
 
+    /// User feedback (after shipping the 13 real LUTs): a plain 1:1 LUT application read as too
+    /// subtle. This amplifies the *color* blend past the raw LUT result — at UI intensity 100%,
+    /// the effective color-blend factor is 150% of a pure single LUT application, extrapolating
+    /// the color shift further in the same direction rather than capping at "however strong the
+    /// vendor's LUT alone is." Texture (grain/bloom/vignette) intentionally is not amplified by
+    /// this — none of the 13 shipped LUT presets uses texture, and over-driving grain/vignette the
+    /// same way tends to look broken rather than punchier.
+    static let colorIntensityAmplification: Float = 1.5
+
     init(lutLoader: LUTLoading = CubeLUTLoader()) {
         self.lutLoader = lutLoader
     }
@@ -27,7 +36,8 @@ struct PresetRenderer: PresetRendering {
         guard !preset.isOriginal, intensity > 0 else { return input }
 
         let styled = applyLUTIfNeeded(preset: preset, to: applyBaseTone(preset: preset, to: input))
-        let colorBlended = Self.blend(original: input, styled: styled, intensity: intensity)
+        let colorBlendFactor = intensity * Self.colorIntensityAmplification
+        let colorBlended = Self.blend(original: input, styled: styled, factor: colorBlendFactor)
         return applyTexture(preset: preset, intensity: intensity, to: colorBlended)
     }
 
@@ -69,17 +79,56 @@ struct PresetRenderer: PresetRendering {
         return filter.outputImage ?? image
     }
 
-    /// `Output = Original × (1 - intensity) + Styled × intensity` (§ 7.3's formula) — implemented
-    /// as alpha-scaling `styled` to `intensity` and compositing it *over* the fully-opaque
-    /// original, which is the exact linear cross-fade the formula describes (not a dissolve/
-    /// dither transition, which would not be linear).
-    private static func blend(original: CIImage, styled: CIImage, intensity: Float) -> CIImage {
-        guard intensity < 1 else { return styled }
+    /// `Output = Original × (1 - factor) + Styled × factor` (§ 7.3's formula), generalized to
+    /// `factor` values outside `0...1` — `PhotoEditRecipe.presetIntensity` itself always stays
+    /// `0...1` (§ 10), but `applyPreset` can hand this an amplified `factor` above `1` to
+    /// extrapolate the color shift further than a single LUT application, or (in principle) below
+    /// `0` to push in the opposite direction.
+    ///
+    /// Implemented via per-channel RGB scaling + `CIAdditionCompositing`, not alpha-channel
+    /// scaling + `over`-compositing (the previous approach) — alpha is only ever valid in
+    /// `0...1`, so it silently clamps `factor` right back to a plain LUT application above 100%,
+    /// which is exactly the amplification this exists to allow. `forceOpaqueAlpha` resets alpha to
+    /// a clean `1.0` afterward, since adding two alpha-1 layers would otherwise leave alpha at `2`,
+    /// which the texture stage's own `over`/blend-mode compositing depends on being correct.
+    private static func blend(original: CIImage, styled: CIImage, factor: Float) -> CIImage {
+        guard factor != 1 else { return styled }
+        guard factor != 0 else { return original }
+
+        let originalScaled = scaleRGB(original, by: 1 - factor)
+        let styledScaled = scaleRGB(styled, by: factor)
+
+        let add = CIFilter.additionCompositing()
+        add.inputImage = styledScaled
+        add.backgroundImage = originalScaled
+        let summed = add.outputImage ?? styled
+        return forceOpaqueAlpha(summed)
+    }
+
+    /// Scales RGB by `factor` (which may be negative or greater than 1 — Core Image's internal
+    /// pipeline works in extended-range float and only clamps to `0...1` at final rasterization,
+    /// same as any other over-driven adjustment clipping at pure black/white), leaving alpha
+    /// untouched.
+    private static func scaleRGB(_ image: CIImage, by factor: Float) -> CIImage {
         let matrix = CIFilter.colorMatrix()
-        matrix.inputImage = styled
-        matrix.aVector = CIVector(x: 0, y: 0, z: 0, w: CGFloat(intensity))
-        let alphaScaled = matrix.outputImage ?? styled
-        return alphaScaled.composited(over: original)
+        matrix.inputImage = image
+        let f = CGFloat(factor)
+        matrix.rVector = CIVector(x: f, y: 0, z: 0, w: 0)
+        matrix.gVector = CIVector(x: 0, y: f, z: 0, w: 0)
+        matrix.bVector = CIVector(x: 0, y: 0, z: f, w: 0)
+        matrix.aVector = CIVector(x: 0, y: 0, z: 0, w: 1)
+        return matrix.outputImage ?? image
+    }
+
+    private static func forceOpaqueAlpha(_ image: CIImage) -> CIImage {
+        let matrix = CIFilter.colorMatrix()
+        matrix.inputImage = image
+        matrix.rVector = CIVector(x: 1, y: 0, z: 0, w: 0)
+        matrix.gVector = CIVector(x: 0, y: 1, z: 0, w: 0)
+        matrix.bVector = CIVector(x: 0, y: 0, z: 1, w: 0)
+        matrix.aVector = CIVector(x: 0, y: 0, z: 0, w: 0)
+        matrix.biasVector = CIVector(x: 0, y: 0, z: 0, w: 1)
+        return matrix.outputImage ?? image
     }
 
     // MARK: - Texture style (ADDEDUM § 8.2 — non-linear vs. the color blend above)
