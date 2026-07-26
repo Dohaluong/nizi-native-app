@@ -80,6 +80,17 @@ final class PresetTuningViewModel {
 
     func loadInitial() async {
         sampleAssetIds = Self.fetchRandomSampleAssetIds(limit: 12)
+
+        // "Sticky" sample photo — whichever photo was on screen last time (via `nextSample()` or
+        // `useSample(assetId:)`) reopens the panel already showing it, rather than a fresh random
+        // pick every time, so a tuning session doesn't lose its reference photo just from
+        // navigating away and back.
+        if let pinnedId = UserDefaults.standard.string(forKey: Self.pinnedPhotoIdKey) {
+            insertOrSelectSample(assetId: pinnedId)
+        } else if let firstId = sampleAssetIds.first {
+            persistCurrentPhotoId(firstId)
+        }
+
         do {
             presetOptions = try await presetManager.allPresets()
         } catch {
@@ -161,14 +172,22 @@ final class PresetTuningViewModel {
     func nextSample() {
         guard !sampleAssetIds.isEmpty else { return }
         currentSampleIndex = (currentSampleIndex + 1) % sampleAssetIds.count
+        persistCurrentPhotoId(sampleAssetIds[currentSampleIndex])
         Task { await refreshPreview() }
     }
 
     /// "Choose Photo" — tunes against one specific, developer-picked photo instead of only the
-    /// shuffled "Next Sample" rotation. Inserted right before the current position (not appended
-    /// at the end) so it becomes the very next `nextSample()` neighbor too, and reused in place if
-    /// already present rather than duplicated.
+    /// shuffled "Next Sample" rotation.
     func useSample(assetId: String) {
+        insertOrSelectSample(assetId: assetId)
+        persistCurrentPhotoId(assetId)
+        Task { await refreshPreview() }
+    }
+
+    /// Shared by `useSample(assetId:)` and the "sticky photo" restore in `loadInitial()` — inserted
+    /// right before the current position (not appended at the end) so it becomes the very next
+    /// `nextSample()` neighbor too, and reused in place if already present rather than duplicated.
+    private func insertOrSelectSample(assetId: String) {
         if let existingIndex = sampleAssetIds.firstIndex(of: assetId) {
             currentSampleIndex = existingIndex
         } else {
@@ -176,7 +195,12 @@ final class PresetTuningViewModel {
             sampleAssetIds.insert(assetId, at: insertionIndex)
             currentSampleIndex = insertionIndex
         }
-        Task { await refreshPreview() }
+    }
+
+    private static let pinnedPhotoIdKey = "presetTuning.pinnedPhotoAssetId"
+
+    private func persistCurrentPhotoId(_ assetId: String) {
+        UserDefaults.standard.set(assetId, forKey: Self.pinnedPhotoIdKey)
     }
 
     func setShowingOriginal(_ showingOriginal: Bool) {
