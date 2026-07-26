@@ -18,7 +18,7 @@ struct PresetStripView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if viewModel.collectionStyle != nil {
+            if viewModel.isInheritingCollectionStyle {
                 inheritanceIndicator
             }
 
@@ -46,11 +46,11 @@ struct PresetStripView: View {
         .padding(.vertical, 12)
     }
 
-    /// § 12.3 — makes the current inherit-vs-override state visible rather than a silent
-    /// implementation detail (only shown at all when this photo belongs to an Album/Event that
-    /// actually has a style saved).
+    /// § 12.3 — only ever shown while this photo's preset still matches its Album/Event's saved
+    /// style; the moment the two diverge this photo is just editing its own preset like any other,
+    /// so there's no "custom for this photo" state left to call out separately.
     private var inheritanceIndicator: some View {
-        Text(viewModel.isInheritingCollectionStyle ? "photoEditor.preset.inheritingStyle" : "photoEditor.preset.customStyle")
+        Text("photoEditor.preset.inheritingStyle")
             .font(.caption2)
             .foregroundStyle(.white.opacity(0.7))
             .padding(.horizontal, 16)

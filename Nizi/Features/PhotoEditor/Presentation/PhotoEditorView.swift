@@ -136,10 +136,6 @@ struct PhotoEditorView: View {
                     showSaveScopeSheet = false
                     Task { await finishSave { await viewModel.saveAsNewAsset(overwrite: overwrite) } }
                 },
-                onApplyToWholeCollection: { overwrite, autoEnhanceEachPhoto in
-                    showSaveScopeSheet = false
-                    Task { await finishSave { await viewModel.saveWithCollectionStyle(autoEnhanceEachPhoto: autoEnhanceEachPhoto, overwrite: overwrite) } }
-                },
                 onCancel: { showSaveScopeSheet = false }
             )
             .frame(maxWidth: 340)

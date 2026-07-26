@@ -4,9 +4,6 @@
     "" : {
 
     },
-    "—" : {
-
-    },
     "[%@] %@: %@" : {
       "localizations" : {
         "en" : {
@@ -46,9 +43,6 @@
           }
         }
       }
-    },
-    "%lld" : {
-
     },
     "%lld / %lld" : {
       "localizations" : {
@@ -119,9 +113,6 @@
 
     },
     "• %@" : {
-
-    },
-    "+%lld" : {
 
     },
     "0 Album · %lld photos surveyed" : {
@@ -3712,23 +3703,6 @@
         }
       }
     },
-    "photoEditor.preset.customStyle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Custom for this photo"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tùy chỉnh riêng cho ảnh này"
-          }
-        }
-      }
-    },
     "photoEditor.preset.inheritingStyle" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4035,57 +4009,6 @@
         }
       }
     },
-    "photoEditor.saveScope.adjustNotCopiedNotice" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This photo's own brightness and color adjustments will not be copied."
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Các điều chỉnh sáng và màu riêng của ảnh này sẽ không được sao chép."
-          }
-        }
-      }
-    },
-    "photoEditor.saveScope.applyToAlbum" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apply Style to Whole Album"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Áp phong cách cho toàn bộ Album"
-          }
-        }
-      }
-    },
-    "photoEditor.saveScope.applyToEvent" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apply Style to Whole Event"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Áp phong cách cho toàn bộ Event"
-          }
-        }
-      }
-    },
     "photoEditor.saveScope.assetHandling" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4099,57 +4022,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lưu dưới dạng"
-          }
-        }
-      }
-    },
-    "photoEditor.saveScope.autoEnhanceEachPhoto" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auto-enhance each photo individually"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tự động cải thiện riêng từng ảnh"
-          }
-        }
-      }
-    },
-    "photoEditor.saveScope.confirmApplyToAlbum" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apply style to the whole Album?"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Áp phong cách cho toàn bộ Album?"
-          }
-        }
-      }
-    },
-    "photoEditor.saveScope.confirmApplyToEvent" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apply style to the whole Event?"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Áp phong cách cho toàn bộ Event?"
           }
         }
       }
@@ -4201,23 +4073,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tạo bản copy"
-          }
-        }
-      }
-    },
-    "photoEditor.saveScope.thisPhotoOnly" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Just This Photo"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chỉ ảnh này"
           }
         }
       }

@@ -7,23 +7,24 @@
 
 import SwiftUI
 
-/// The save-scope choice (PHOTO-EDITOR.md § 11.2/§ 11.4) — only ever presented when Photo Editor
-/// was opened from an Album or Event (§ 4.3: a standalone edit has no scope choice at all).
-/// Presented by `PhotoEditorView` as a small, centered modal card sized to fit its own content
-/// (never a bottom sheet) — this view has no opinion on its own presentation chrome, just its
-/// content. Two steps in one view: the initial choice, then (only if "apply to whole" is picked)
-/// a confirmation showing exactly what will be applied, with the optional per-photo Auto Enhance
-/// toggle (§ 11.5).
+/// The save-scope choice (PHOTO-EDITOR.md § 11.2) — only ever presented when Photo Editor was
+/// opened from an Album or Event (§ 4.3: a standalone edit has no scope choice at all). Presented
+/// by `PhotoEditorView` as a small, centered modal card sized to fit its own content (never a
+/// bottom sheet) — this view has no opinion on its own presentation chrome, just its content.
+///
+/// Only ever saves this one photo (as a brand-new asset, § 11.3) — there is no "apply this style
+/// to the whole Album/Event" option here; that whole-collection flow was removed because it added
+/// a second confirmation step and an Auto Enhance toggle for a use case that wasn't earning its
+/// keep. `presetName`/`presetIntensityPercent` are unused now that the confirmation step showing
+/// them is gone but are kept as parameters so the caller doesn't need its own conditional wiring —
+/// harmless to keep passing.
 struct SaveScopeSheet: View {
     let sourceType: EditorSourceType
     let presetName: String
     let presetIntensityPercent: Int
     let onSaveThisPhotoOnly: (_ overwrite: Bool) -> Void
-    let onApplyToWholeCollection: (_ overwrite: Bool, _ autoEnhanceEachPhoto: Bool) -> Void
     let onCancel: () -> Void
 
-    @State private var isShowingWholeCollectionConfirmation = false
-    @State private var autoEnhanceEachPhoto = false
     /// Defaults to "save as copy" (`false`) — the non-destructive, easily-reversible choice. Photo
     /// Editor's own edits are always non-destructive right up until this exact moment; overwriting
     /// is the one action here that deletes something real from the user's library, so it should
@@ -31,14 +32,6 @@ struct SaveScopeSheet: View {
     @State private var overwriteOriginal = false
 
     var body: some View {
-        if isShowingWholeCollectionConfirmation {
-            confirmationStep
-        } else {
-            choiceStep
-        }
-    }
-
-    private var choiceStep: some View {
         VStack(spacing: 14) {
             Text("photoEditor.saveScope.title")
                 .font(.headline)
@@ -48,18 +41,10 @@ struct SaveScopeSheet: View {
             Button {
                 onSaveThisPhotoOnly(overwriteOriginal)
             } label: {
-                Text("photoEditor.saveScope.thisPhotoOnly")
+                Text("album.save")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-
-            Button {
-                isShowingWholeCollectionConfirmation = true
-            } label: {
-                wholeCollectionLabel
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
 
             Button("common.action.cancel", role: .cancel) {
                 onCancel()
@@ -68,11 +53,9 @@ struct SaveScopeSheet: View {
         .padding(20)
     }
 
-    /// § — new "Lưu đè / Tạo bản copy" choice: saving now always writes the currently-edited photo
-    /// as a brand-new asset (preserving EXIF) rather than just a recipe, so the user needs to say
-    /// up front whether the original asset should be deleted afterward or kept alongside the new
-    /// one. Shown once, above both save-scope buttons, since it applies the same way regardless of
-    /// "this photo only" vs "whole collection."
+    /// § — "Lưu đè / Tạo bản copy" choice: saving now always writes the currently-edited photo as
+    /// a brand-new asset (preserving EXIF) rather than just a recipe, so the user needs to say up
+    /// front whether the original asset should be deleted afterward or kept alongside the new one.
     private var assetHandlingPicker: some View {
         VStack(alignment: .leading, spacing: 6) {
             Picker("photoEditor.saveScope.assetHandling", selection: $overwriteOriginal) {
@@ -86,58 +69,6 @@ struct SaveScopeSheet: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-        }
-    }
-
-    @ViewBuilder
-    private var wholeCollectionLabel: some View {
-        switch sourceType {
-        case .album:
-            Text("photoEditor.saveScope.applyToAlbum")
-        case .event:
-            Text("photoEditor.saveScope.applyToEvent")
-        case .standalone:
-            EmptyView() // never reached — this sheet is never presented for `.standalone`.
-        }
-    }
-
-    private var confirmationStep: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            confirmationTitle
-                .font(.headline)
-
-            LabeledContent("photoEditor.tool.preset", value: presetName)
-            LabeledContent("photoEditor.preset.intensity", value: "\(presetIntensityPercent)%")
-
-            Text("photoEditor.saveScope.adjustNotCopiedNotice")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Toggle("photoEditor.saveScope.autoEnhanceEachPhoto", isOn: $autoEnhanceEachPhoto)
-
-            HStack {
-                Button("common.action.cancel") {
-                    isShowingWholeCollectionConfirmation = false
-                }
-                Spacer()
-                Button("photoEditor.autoEnhance.apply") {
-                    onApplyToWholeCollection(overwriteOriginal, autoEnhanceEachPhoto)
-                }
-                .buttonStyle(.borderedProminent)
-            }
-        }
-        .padding(20)
-    }
-
-    @ViewBuilder
-    private var confirmationTitle: some View {
-        switch sourceType {
-        case .album:
-            Text("photoEditor.saveScope.confirmApplyToAlbum")
-        case .event:
-            Text("photoEditor.saveScope.confirmApplyToEvent")
-        case .standalone:
-            EmptyView()
         }
     }
 }
