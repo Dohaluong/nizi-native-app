@@ -109,7 +109,25 @@ struct PhotoEditorView: View {
                 onClose(viewModel.discardChanges())
             }
         }
-        .sheet(isPresented: $showSaveScopeSheet) {
+        .overlay {
+            if showSaveScopeSheet {
+                saveScopeOverlay
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: showSaveScopeSheet)
+    }
+
+    /// § 11.2/11.4's save-scope choice, as a small modal card centered on screen — not a bottom
+    /// sheet. `SaveScopeSheet` only ever contains a handful of buttons/a picker, so a half-screen
+    /// `.presentationDetents([.medium])` sheet left most of its own sheet empty; a card sized to
+    /// its own content and dimmed-background-dismissible reads as the deliberate, small choice it
+    /// actually is.
+    private var saveScopeOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.45)
+                .ignoresSafeArea()
+                .onTapGesture { showSaveScopeSheet = false }
+
             SaveScopeSheet(
                 sourceType: viewModel.context.sourceType,
                 presetName: selectedPresetDisplayName,
@@ -124,7 +142,11 @@ struct PhotoEditorView: View {
                 },
                 onCancel: { showSaveScopeSheet = false }
             )
+            .frame(maxWidth: 340)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+            .padding(24)
         }
+        .transition(.opacity.combined(with: .scale(scale: 0.95)))
     }
 
     @ToolbarContentBuilder
@@ -175,12 +197,19 @@ struct PhotoEditorView: View {
     private var toolTray: some View {
         VStack(spacing: 0) {
             toolPicker
-            switch selectedTool {
-            case .preset:
-                PresetStripView(viewModel: viewModel)
-            case .adjust:
-                AdjustPanelView(viewModel: viewModel)
+            // Background and height are applied exactly once, here, never inside
+            // `PresetStripView`/`AdjustPanelView` themselves — that's what makes switching tabs
+            // change only the content, never the surrounding color or height.
+            Group {
+                switch selectedTool {
+                case .preset:
+                    PresetStripView(viewModel: viewModel)
+                case .adjust:
+                    AdjustPanelView(viewModel: viewModel)
+                }
             }
+            .frame(height: PhotoEditorToolTrayMetrics.contentHeight)
+            .background(PhotoEditorToolTrayMetrics.background)
         }
     }
 

@@ -7,10 +7,11 @@
 
 import SwiftUI
 
-/// The Adjust tool tray (PHOTO-EDITOR.md § 8.2) — an icon-only row (Auto Enhance first, the six
-/// parameters, Reset last) plus a slider for whichever parameter icon is currently selected. No
-/// numeric label lives on the icons themselves — the value is already visible on the slider below,
-/// so restating it a second time on every icon was pure duplication.
+/// The Adjust tool tray (PHOTO-EDITOR.md § 8.2) — a row of icon buttons (Auto Enhance first, the
+/// six parameters, Reset last), each with a caption below matching the Preset tab's own thumbnail-
+/// plus-caption cells exactly (`PhotoEditorToolTrayMetrics`), plus a slider for whichever parameter
+/// is currently selected. No numeric value sits on the icons themselves — it's already visible
+/// beside the slider below, so restating it a second time on every icon was pure duplication.
 struct AdjustPanelView: View {
     let viewModel: PhotoEditorViewModel
     @State private var selectedParameter: AdjustParameter = .exposure
@@ -21,17 +22,16 @@ struct AdjustPanelView: View {
             sliderRow
         }
         .padding(.vertical, 12)
-        .background(.ultraThinMaterial)
     }
 
     private var iconRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
+            HStack(spacing: PhotoEditorToolTrayMetrics.cellSpacing) {
                 autoButton
                 ForEach(AdjustParameter.allCases) { parameter in
                     AdjustIconButton(
                         systemImage: parameter.systemImage,
-                        accessibilityLabel: localizedString(dynamicKey: parameter.titleKey),
+                        caption: localizedString(dynamicKey: parameter.titleKey),
                         isSelected: parameter == selectedParameter,
                         isActive: viewModel.adjustPercent(for: parameter) != 0
                     ) {
@@ -40,7 +40,7 @@ struct AdjustPanelView: View {
                 }
                 resetButton
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, PhotoEditorToolTrayMetrics.horizontalPadding)
         }
     }
 
@@ -53,7 +53,7 @@ struct AdjustPanelView: View {
         let canUndo = viewModel.canUndoAutoEnhance
         return AdjustIconButton(
             systemImage: "sparkles",
-            accessibilityLabel: localizedString(dynamicKey: canUndo ? "photoEditor.autoEnhance.undo" : "photoEditor.tool.auto"),
+            caption: localizedString(dynamicKey: "photoEditor.tool.auto"),
             isSelected: false,
             isActive: isApplied,
             isLoading: viewModel.isAutoEnhanceRunning
@@ -74,7 +74,7 @@ struct AdjustPanelView: View {
     private var resetButton: some View {
         AdjustIconButton(
             systemImage: "arrow.counterclockwise",
-            accessibilityLabel: localizedString(dynamicKey: "photoEditor.adjust.resetAll"),
+            caption: localizedString(dynamicKey: "photoEditor.adjust.resetAll"),
             isSelected: false,
             isActive: false
         ) {
@@ -82,17 +82,10 @@ struct AdjustPanelView: View {
         }
     }
 
+    /// No title — the parameter is already identified by which icon is selected above; just the
+    /// slider and its live percentage, side by side (never stacked with a label above it).
     private var sliderRow: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Text(localizedString(dynamicKey: selectedParameter.titleKey))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(Self.formattedValue(viewModel.adjustPercent(for: selectedParameter)))
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
+        HStack(spacing: 10) {
             Slider(
                 value: Binding(
                     get: { viewModel.adjustPercent(for: selectedParameter) },
@@ -100,19 +93,23 @@ struct AdjustPanelView: View {
                 ),
                 in: -100...100
             )
+            Text(Self.formattedValue(viewModel.adjustPercent(for: selectedParameter)))
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.white.opacity(0.7))
+                .frame(width: 44, alignment: .trailing)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, PhotoEditorToolTrayMetrics.horizontalPadding)
     }
 
     private static func formattedValue(_ percent: Double) -> String {
         let rounded = Int(percent.rounded())
-        return rounded > 0 ? "+\(rounded)" : "\(rounded)"
+        return rounded > 0 ? "+\(rounded)%" : "\(rounded)%"
     }
 }
 
 private struct AdjustIconButton: View {
     let systemImage: String
-    let accessibilityLabel: String
+    let caption: String
     let isSelected: Bool
     let isActive: Bool
     var isLoading: Bool = false
@@ -120,20 +117,31 @@ private struct AdjustIconButton: View {
 
     var body: some View {
         Button(action: action) {
-            ZStack {
-                Circle()
-                    .fill(isSelected ? Color.accentColor.opacity(0.18) : Color.clear)
-                if isLoading {
-                    ProgressView()
-                } else {
-                    Image(systemName: systemImage)
-                        .font(.system(size: 18))
-                        .foregroundStyle(isSelected || isActive ? Color.accentColor : Color.secondary)
+            VStack(spacing: 6) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.white.opacity(isSelected ? 0.16 : 0.08))
+                    if isLoading {
+                        ProgressView().tint(.white)
+                    } else {
+                        Image(systemName: systemImage)
+                            .font(.system(size: 24))
+                            .foregroundStyle(isSelected || isActive ? Color.accentColor : .white.opacity(0.85))
+                    }
                 }
+                .frame(width: PhotoEditorToolTrayMetrics.cellSize, height: PhotoEditorToolTrayMetrics.cellSize)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(isSelected ? Color.accentColor : .clear, lineWidth: 2)
+                )
+
+                Text(caption)
+                    .font(.caption2)
+                    .foregroundStyle(isSelected ? Color.white : .white.opacity(0.6))
+                    .lineLimit(1)
+                    .frame(maxWidth: PhotoEditorToolTrayMetrics.captionMaxWidth)
             }
-            .frame(width: 40, height: 40)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(accessibilityLabel)
     }
 }

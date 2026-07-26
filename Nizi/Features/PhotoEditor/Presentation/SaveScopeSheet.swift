@@ -7,10 +7,12 @@
 
 import SwiftUI
 
-/// The save-scope bottom sheet (PHOTO-EDITOR.md § 11.2/§ 11.4) — only ever presented when Photo
-/// Editor was opened from an Album or Event (§ 4.3: a standalone edit has no scope choice at all).
-/// Two steps in one view: the initial choice, then (only if "apply to whole" is picked) a
-/// confirmation showing exactly what will be applied, with the optional per-photo Auto Enhance
+/// The save-scope choice (PHOTO-EDITOR.md § 11.2/§ 11.4) — only ever presented when Photo Editor
+/// was opened from an Album or Event (§ 4.3: a standalone edit has no scope choice at all).
+/// Presented by `PhotoEditorView` as a small, centered modal card sized to fit its own content
+/// (never a bottom sheet) — this view has no opinion on its own presentation chrome, just its
+/// content. Two steps in one view: the initial choice, then (only if "apply to whole" is picked)
+/// a confirmation showing exactly what will be applied, with the optional per-photo Auto Enhance
 /// toggle (§ 11.5).
 struct SaveScopeSheet: View {
     let sourceType: EditorSourceType
@@ -64,7 +66,6 @@ struct SaveScopeSheet: View {
             }
         }
         .padding(20)
-        .presentationDetents([.medium])
     }
 
     /// § — new "Lưu đè / Tạo bản copy" choice: saving now always writes the currently-edited photo
@@ -126,7 +127,6 @@ struct SaveScopeSheet: View {
             }
         }
         .padding(20)
-        .presentationDetents([.medium])
     }
 
     @ViewBuilder

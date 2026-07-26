@@ -23,7 +23,7 @@ struct PresetStripView: View {
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+                HStack(spacing: PhotoEditorToolTrayMetrics.cellSpacing) {
                     ForEach(viewModel.presets) { preset in
                         PresetThumbnailButton(
                             preset: preset,
@@ -33,7 +33,7 @@ struct PresetStripView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, PhotoEditorToolTrayMetrics.horizontalPadding)
             }
 
             // Always present (never conditionally omitted) so the tray's height stays constant
@@ -44,7 +44,6 @@ struct PresetStripView: View {
                 .allowsHitTesting(viewModel.selectedPresetId != PresetDefinition.originalId)
         }
         .padding(.vertical, 12)
-        .background(Color.black.opacity(0.85))
     }
 
     /// § 12.3 — makes the current inherit-vs-override state visible rather than a silent
@@ -57,17 +56,10 @@ struct PresetStripView: View {
             .padding(.horizontal, 16)
     }
 
+    /// No title — just the slider and its live percentage, side by side (never stacked with a
+    /// label above it), matching Adjust's own slider row exactly.
     private var intensityRow: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Text("photoEditor.preset.intensity")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.7))
-                Spacer()
-                Text("\(Int(viewModel.presetIntensityPercent.rounded()))%")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.white.opacity(0.7))
-            }
+        HStack(spacing: 10) {
             Slider(
                 value: Binding(
                     get: { viewModel.presetIntensityPercent },
@@ -75,8 +67,12 @@ struct PresetStripView: View {
                 ),
                 in: 0...100
             )
+            Text("\(Int(viewModel.presetIntensityPercent.rounded()))%")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.white.opacity(0.7))
+                .frame(width: 44, alignment: .trailing)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, PhotoEditorToolTrayMetrics.horizontalPadding)
     }
 }
 
@@ -124,7 +120,7 @@ private struct PresetThumbnailButton: View {
                             .foregroundStyle(preset.isOriginal ? Color.secondary : .white.opacity(0.85))
                     }
                 }
-                .frame(width: 64, height: 64)
+                .frame(width: PhotoEditorToolTrayMetrics.cellSize, height: PhotoEditorToolTrayMetrics.cellSize)
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
                         .stroke(isSelected ? Color.accentColor : .clear, lineWidth: 2)
@@ -134,7 +130,7 @@ private struct PresetThumbnailButton: View {
                     .font(.caption2)
                     .foregroundStyle(isSelected ? Color.white : .white.opacity(0.6))
                     .lineLimit(1)
-                    .frame(maxWidth: 72)
+                    .frame(maxWidth: PhotoEditorToolTrayMetrics.captionMaxWidth)
             }
         }
         .buttonStyle(.plain)
