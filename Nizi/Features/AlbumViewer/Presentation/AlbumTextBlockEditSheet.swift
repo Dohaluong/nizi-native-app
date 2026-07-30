@@ -97,7 +97,7 @@ struct AlbumTextBlockEditSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("album.textBlock.edit.done") {
-                        onSave(text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontStyle)
+                        onSave(text, horizontalAlignment, verticalAlignment, fontFamily, sanitizedFontSize, fontStyle)
                     }
                     .fontWeight(.semibold)
                 }
@@ -116,7 +116,7 @@ struct AlbumTextBlockEditSheet: View {
     /// so this can never silently drift from what Done will actually produce.
     private var previewBox: some View {
         Text(text.isEmpty ? localizedString("album.textBlock.placeholder", defaultValue: "Write here") : text)
-            .font(albumTextFont(family: fontFamily, size: fontSize, style: fontStyle))
+            .font(albumTextFont(family: fontFamily, size: safeFontSize, style: fontStyle))
             .multilineTextAlignment(textAlignment)
             .opacity(text.isEmpty ? 0.35 : 1)
             .lineLimit(3)
@@ -261,6 +261,15 @@ struct AlbumTextBlockEditSheet: View {
     // § user request — "Ô cỡ chữ cho phép gõ số": lets the user type an exact size directly,
     // instead of only nudging it up/down one step at a time via the Stepper's own +/- buttons
     // (kept alongside, for quick small adjustments).
+    //
+    // § user report — "Tôi gõ luôn bị số 8 ở đầu": this used to re-clamp `fontSize` into
+    // `8...200` on *every* keystroke (`.onChange(of: fontSize)`). While the field is momentarily
+    // empty/incomplete mid-typing (e.g. backspacing "24" down to nothing before typing a new
+    // number), `TextField(value:format:)` briefly binds `fontSize` to something below 8 (or an
+    // invalid value entirely) — which that live clamp immediately snapped back to exactly `8` and
+    // wrote back into the field, so the *next* digit typed landed after that stray "8" instead of
+    // replacing it. Free typing is never touched now — the valid range is only enforced once, at
+    // Done (`sanitizedFontSize`), never mid-edit.
     private var fontSizeField: some View {
         Stepper(value: $fontSize, in: 8...200, step: 2) {
             HStack {
@@ -270,11 +279,22 @@ struct AlbumTextBlockEditSheet: View {
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 50)
-                    .onChange(of: fontSize) { _, newValue in
-                        let clamped = min(max(newValue, 8), 200)
-                        if clamped != newValue { fontSize = clamped }
-                    }
             }
         }
+    }
+
+    /// § user report — the CoreGraphics "invalid numeric value (NaN...)" console warning: the same
+    /// momentarily-empty/invalid `TextField` state above was being fed straight into
+    /// `albumTextFont`/CoreText for the live preview. Never renders with a non-finite or
+    /// non-positive size, regardless of what `fontSize` transiently holds mid-edit.
+    private var safeFontSize: CGFloat {
+        fontSize.isFinite && fontSize > 0 ? fontSize : 32
+    }
+
+    /// The one point the valid `8...200` range is actually enforced — once, at Done — rather than
+    /// continuously while the user is still typing (see `fontSizeField`'s own doc comment).
+    private var sanitizedFontSize: Double {
+        let base = fontSize.isFinite ? fontSize : 32
+        return min(max(base, 8), 200)
     }
 }
