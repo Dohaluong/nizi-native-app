@@ -36,6 +36,14 @@ struct AlbumPhotoView: View {
     /// real Page slot, every preview/swatch) — those all still want the normal "clip to my own
     /// bounds" behavior, unchanged.
     var clipsToFrame: Bool = true
+    /// § user report — `AlbumPhotoCropSheet`'s pan clamp needs the photo's own real aspect ratio,
+    /// not just the frame's: `.aspectRatio(contentMode: .fill)` only makes ONE axis match the
+    /// frame exactly (whichever axis is the tighter constraint for *this specific photo's*
+    /// dimensions) — the other axis already overflows the frame even before `crop.scale` is
+    /// applied, by an amount that depends entirely on the photo's own pixel dimensions, which
+    /// nothing outside this view (still loading the image asynchronously) has access to otherwise.
+    /// Reported once per newly-loaded image; `nil` everywhere else, so unused.
+    var onImageSizeChanged: ((CGSize) -> Void)? = nil
 
     @Environment(\.albumPhotoProvider) private var provider
     @State private var state: AlbumPhotoLoadState = .idle
@@ -139,6 +147,12 @@ struct AlbumPhotoView: View {
             if Task.isCancelled { return }
             withAnimation(.easeOut(duration: 0.15)) {
                 state = newState
+            }
+            switch newState {
+            case let .degraded(image), let .success(image):
+                onImageSizeChanged?(image.size)
+            default:
+                break
             }
         }
     }

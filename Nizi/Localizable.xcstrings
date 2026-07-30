@@ -221,6 +221,23 @@
         }
       }
     },
+    "album.crop.changePhoto" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Photo"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đổi ảnh"
+          }
+        }
+      }
+    },
     "album.crop.done" : {
       "extractionState" : "manual",
       "localizations" : {

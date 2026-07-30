@@ -35,6 +35,11 @@ enum AlbumEditAction {
     /// `AlbumPhotoAssignment.crop` (scale/offset) — never touches the underlying `AlbumPhotoReference`
     /// or the original asset itself.
     case updatePhotoCrop(assignmentId: String, crop: AlbumPhotoCrop)
+    /// § user request — "đổi ảnh" from the crop screen: replaces one assignment's photo with a
+    /// different one already in the Album (picked via `AlbumPhotoPickerSheet`, same as
+    /// `changeCover`). Unlike `swapPhotos` this doesn't need a second assignment to swap with —
+    /// the old photo just stops being used anywhere via this slot.
+    case assignPhoto(assignmentId: String, photo: AlbumPhotoReference)
     case removePhoto(pageId: String, slotId: String)
     case removeSpread(spreadId: String)
 }

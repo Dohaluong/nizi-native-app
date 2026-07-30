@@ -52,49 +52,18 @@ struct AlbumPageViewer: View {
     private var items: [AlbumViewerItem] { itemBuilder.makeItems(from: activeDraft) }
 
     var body: some View {
-        NavigationStack {
-            TabView(selection: $selectedItemId) {
-                ForEach(items) { item in
-                    itemView(item)
-                        .tag(Optional(item.id))
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
+        // § build note — this used to be one single `NavigationStack { ... } .onChange(...) ...`
+        // expression; adding `.navigationDestination` pushed it over the type checker's "unable to
+        // type-check in reasonable time" threshold. Splitting the `NavigationStack` itself out into
+        // its own `some View` property gives the checker two smaller expressions to solve instead
+        // of one large one — behaviorally identical, just faster to compile.
+        navigationContent
+            .onChange(of: activeDraft.spreads) { _, _ in
+                if let selectedItemId {
+                    let resolved = AlbumViewerSelection(itemId: selectedItemId).resolved(against: items)
+                    self.selectedItemId = resolved?.itemId
                 }
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .background(Color(.systemGroupedBackground))
-            .safeAreaInset(edge: .top) {
-                if isEditing {
-                    layoutPickerHeader
-                }
-            }
-            .safeAreaInset(edge: .bottom) {
-                if isEditing { editToolbar }
-            }
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    if isEditing {
-                        Button("album.cancel") { cancelEditing() }
-                    } else {
-                        Button("common.action.close") { dismiss() }
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    if isEditing {
-                        Button("album.save") { Task { await saveEditing() } }
-                            .disabled(isSaving)
-                    } else {
-                        Button("album.edit") { beginEditing() }
-                    }
-                }
-            }
-        }
-        .onChange(of: activeDraft.spreads) { _, _ in
-            if let selectedItemId {
-                let resolved = AlbumViewerSelection(itemId: selectedItemId).resolved(against: items)
-                self.selectedItemId = resolved?.itemId
-            }
-        }
         .task {
             if selectedItemId == nil {
                 selectedItemId = items.first?.id
@@ -140,15 +109,55 @@ struct AlbumPageViewer: View {
                 removePhotoTarget = nil
             }
         }
-        .sheet(item: $cropTarget) { target in
-            AlbumPhotoCropSheet(
-                assignment: target.assignment, frameAspectRatio: target.frameAspectRatio,
-                onSave: { crop in
-                    apply(.updatePhotoCrop(assignmentId: target.assignment.id, crop: crop))
-                    cropTarget = nil
-                },
-                onCancel: { cropTarget = nil }
-            )
+    }
+
+    private var navigationContent: some View {
+        NavigationStack {
+            TabView(selection: $selectedItemId) {
+                ForEach(items) { item in
+                    itemView(item)
+                        .tag(Optional(item.id))
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .background(Color(.systemGroupedBackground))
+            .safeAreaInset(edge: .top) {
+                if isEditing {
+                    layoutPickerHeader
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if isEditing { editToolbar }
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    if isEditing {
+                        Button("album.cancel") { cancelEditing() }
+                    } else {
+                        Button("common.action.close") { dismiss() }
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if isEditing {
+                        Button("album.save") { Task { await saveEditing() } }
+                            .disabled(isSaving)
+                    } else {
+                        Button("album.edit") { beginEditing() }
+                    }
+                }
+            }
+            // § user report — was `.sheet(item:)`; a modal sheet's own interactive drag-to-dismiss
+            // fought with panning the photo toward the bottom of the frame (a drag that couldn't
+            // pan any further closed the whole screen instead of just stopping there). Pushed onto
+            // this `NavigationStack` instead — a real screen, not a modal, so there's no competing
+            // dismiss gesture at all. Must live *inside* the `NavigationStack` (unlike the `.sheet`s
+            // on `body` itself, which don't care) — `.navigationDestination` only registers against
+            // the enclosing stack's own push mechanism if it's actually part of that stack's content.
+            .navigationDestination(item: $cropTarget) { target in
+                cropDestination(target)
+            }
         }
     }
 
@@ -167,6 +176,27 @@ struct AlbumPageViewer: View {
         }
     }
 
+    /// Broken out from `body`'s `.navigationDestination` closure — inlined there, the whole
+    /// `body` expression became too large for the type checker to resolve in reasonable time.
+    private func cropDestination(_ target: AlbumPhotoCropTarget) -> some View {
+        AlbumPhotoCropSheet(
+            assignment: target.assignment, frameAspectRatio: target.frameAspectRatio, draft: activeDraft,
+            onSave: { crop in
+                apply(.updatePhotoCrop(assignmentId: target.assignment.id, crop: crop))
+                cropTarget = nil
+            },
+            onCancel: { cropTarget = nil },
+            onRemove: {
+                apply(.removePhoto(pageId: target.pageId, slotId: target.assignment.slotId))
+                cropTarget = nil
+            },
+            onChangePhoto: { photo in
+                apply(.assignPhoto(assignmentId: target.assignment.id, photo: photo))
+                cropTarget = nil
+            }
+        )
+    }
+
     private func pageView(_ viewerPage: AlbumViewerPage) -> some View {
         VStack(spacing: 6) {
             AlbumPageCardView(
@@ -178,7 +208,9 @@ struct AlbumPageViewer: View {
                     ? { from, to in apply(.swapPhotos(firstAssignmentId: from.id, secondAssignmentId: to.id)) }
                     : nil,
                 onCropPhoto: isEditing
-                    ? { assignment, aspectRatio in cropTarget = AlbumPhotoCropTarget(assignment: assignment, frameAspectRatio: aspectRatio) }
+                    ? { assignment, aspectRatio in
+                        cropTarget = AlbumPhotoCropTarget(assignment: assignment, frameAspectRatio: aspectRatio, pageId: viewerPage.page.id)
+                    }
                     : nil,
                 onDragActiveChanged: { isPhotoDragActive = $0 }
             )
