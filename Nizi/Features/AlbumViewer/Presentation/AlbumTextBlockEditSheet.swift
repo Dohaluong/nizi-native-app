@@ -68,25 +68,36 @@ struct AlbumTextBlockEditSheet: View {
 
     var body: some View {
         NavigationStack {
+            // § user request — "Giao diện tôi cần gọn hơn 1 chút ... Không cần các tiêu đề. Người
+            // dùng nhìn biểu tượng là hiểu": every `Section` below dropped its title text — still
+            // visually grouped by the Form's own row dividers, just without a caption explaining
+            // what's obvious from the icons themselves (Preview/Content are the two exceptions
+            // that stay recognizable purely from their own content/position, same reasoning).
             Form {
-                // § user request — "Cần có phần Preview ở phía trên cùng editor, trên phần input
-                // text" — the very first section, above Content.
-                Section("album.textBlock.edit.preview_section") {
+                Section {
                     previewBox
                 }
 
-                Section("album.textBlock.edit.content_section") {
+                Section {
                     textEditorField
                 }
 
-                Section("album.textBlock.edit.alignment_section") {
+                // § "6 icon căn lề cho vào 1 hàng" — horizontal (3) + vertical (3) alignment now
+                // share one row instead of two stacked ones.
+                Section {
                     alignmentControls
                 }
 
-                Section("album.textBlock.edit.style_section") {
+                // § "1 hàng có các loại font chữ" — the swipeable family strip, alone in its own
+                // row (no caption above it anymore).
+                Section {
                     fontFamilyStrip
-                    styleControl
-                    fontSizeField
+                }
+
+                // § "1 hàng cho kiểu chữ và cỡ chữ" — style (Regular/Italic/Bold/BoldItalic) and
+                // size share one row instead of two stacked ones.
+                Section {
+                    styleAndSizeRow
                 }
             }
             .navigationTitle("album.textBlock.edit.title")
@@ -174,10 +185,11 @@ struct AlbumTextBlockEditSheet: View {
 
     // MARK: - Alignment
 
-    /// § user request — "Các phần căn lề, độ đậm sử dụng icon": icon-only segmented controls
-    /// instead of text pickers — alignment glyphs are self-explanatory without a label.
+    /// § user request — "6 icon căn lề cho vào 1 hàng": horizontal (3) and vertical (3) alignment
+    /// are still two independent `Picker`s (two different axes, two different bindings) but now
+    /// sit side by side in one `HStack` instead of stacked — reads as one row of 6 icons.
     private var alignmentControls: some View {
-        VStack(spacing: 12) {
+        HStack(spacing: 8) {
             Picker("album.textBlock.edit.horizontal_alignment", selection: $horizontalAlignment) {
                 Image(systemName: "text.alignleft").tag(AlbumTextHorizontalAlignment.left)
                 Image(systemName: "text.aligncenter").tag(AlbumTextHorizontalAlignment.center)
@@ -203,24 +215,23 @@ struct AlbumTextBlockEditSheet: View {
     /// `ScrollViewReader` + auto-center-on-appear shape), each showing its own family name rendered
     /// *in* that family, so picking a font previews it directly in the chip itself.
     private var fontFamilyStrip: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("album.textBlock.edit.font_family")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            ScrollViewReader { scrollProxy in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 8) {
-                        ForEach(AlbumTextFontFamily.allCases, id: \.self) { family in
-                            fontFamilyChip(family).id(family)
-                        }
+        ScrollViewReader { scrollProxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 8) {
+                    ForEach(AlbumTextFontFamily.allCases, id: \.self) { family in
+                        fontFamilyChip(family).id(family)
                     }
-                    .padding(.vertical, 4)
                 }
-                .onAppear {
-                    scrollProxy.scrollTo(fontFamily, anchor: .center)
-                }
+                .padding(.vertical, 4)
+            }
+            .onAppear {
+                scrollProxy.scrollTo(fontFamily, anchor: .center)
             }
         }
+        // § "Không cần các tiêu đề" — no visible caption above the strip anymore, but VoiceOver
+        // still needs to know what this row of chips actually is (unlike the alignment/style
+        // icons, plain family-name chips have no icon of their own to intuit from).
+        .accessibilityLabel(Text("album.textBlock.edit.font_family"))
         .listRowInsets(EdgeInsets())
         .padding(.horizontal, 4)
     }
@@ -244,41 +255,51 @@ struct AlbumTextBlockEditSheet: View {
         .buttonStyle(.plain)
     }
 
-    /// § user request — "font-weight sẽ thay bằng các định dạng cơ bản: Regular, Italic, Bold,
-    /// Italic-Bold (sử dụng icon)": an icon-only segmented control over the 4 basic style
-    /// permutations, replacing the previous thickness-scale weight picker entirely.
-    private var styleControl: some View {
-        Picker("album.textBlock.edit.font_style", selection: $fontStyle) {
-            Image(systemName: "textformat").tag(AlbumTextFontStyle.regular)
-            Image(systemName: "italic").tag(AlbumTextFontStyle.italic)
-            Image(systemName: "bold").tag(AlbumTextFontStyle.bold)
-            Image(systemName: "bold.italic").tag(AlbumTextFontStyle.boldItalic)
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-    }
-
-    // § user request — "Ô cỡ chữ cho phép gõ số": lets the user type an exact size directly,
-    // instead of only nudging it up/down one step at a time via the Stepper's own +/- buttons
-    // (kept alongside, for quick small adjustments).
-    //
-    // § user report — "Tôi gõ luôn bị số 8 ở đầu": this used to re-clamp `fontSize` into
-    // `8...200` on *every* keystroke (`.onChange(of: fontSize)`). While the field is momentarily
-    // empty/incomplete mid-typing (e.g. backspacing "24" down to nothing before typing a new
-    // number), `TextField(value:format:)` briefly binds `fontSize` to something below 8 (or an
-    // invalid value entirely) — which that live clamp immediately snapped back to exactly `8` and
-    // wrote back into the field, so the *next* digit typed landed after that stray "8" instead of
-    // replacing it. Free typing is never touched now — the valid range is only enforced once, at
-    // Done (`sanitizedFontSize`), never mid-edit.
-    private var fontSizeField: some View {
-        Stepper(value: $fontSize, in: 8...200, step: 2) {
-            HStack {
-                Text("album.textBlock.edit.font_size")
-                Spacer()
+    /// § user request — "1 hàng cho kiểu chữ và cỡ chữ": style and size now share one row.
+    private var styleAndSizeRow: some View {
+        HStack(spacing: 12) {
+            styleControl
+            Stepper(value: $fontSize, in: 8...200, step: 2) {
+                // § "Ô cỡ chữ cho phép gõ số": typing an exact value directly, alongside the
+                // Stepper's own +/- for quick nudges — see `fontSizeField`'s own history (moved
+                // into this combined row, unchanged otherwise) for why nothing here clamps live.
                 TextField("", value: $fontSize, format: .number)
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
-                    .frame(width: 50)
+                    .frame(width: 44)
+                    .accessibilityLabel(Text("album.textBlock.edit.font_size"))
+            }
+            .fixedSize()
+            Spacer()
+        }
+    }
+
+    /// § user request — "font-weight sẽ thay bằng các định dạng cơ bản: Regular, Italic, Bold,
+    /// Italic-Bold (sử dụng icon)" + user report — "icon cho kiểu Italic Bold không có": the SF
+    /// Symbol `"bold.italic"` doesn't actually exist/render on this device, so every option here
+    /// renders as an "A" glyph styled *in* that actual style instead of a symbol — guaranteed to
+    /// display correctly for all 4 (and, like the font-family strip's own chips, doubles as a tiny
+    /// live sample of the style itself rather than an abstract icon).
+    private var styleControl: some View {
+        Picker("album.textBlock.edit.font_style", selection: $fontStyle) {
+            ForEach(AlbumTextFontStyle.allCases, id: \.self) { style in
+                styleGlyph(style).tag(style)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .fixedSize()
+    }
+
+    private func styleGlyph(_ style: AlbumTextFontStyle) -> some View {
+        let isBold = style == .bold || style == .boldItalic
+        let isItalic = style == .italic || style == .boldItalic
+        let glyph = Text("A").font(.system(size: 16, weight: isBold ? .bold : .regular))
+        return Group {
+            if isItalic {
+                glyph.italic()
+            } else {
+                glyph
             }
         }
     }
