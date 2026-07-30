@@ -1580,6 +1580,40 @@
         }
       }
     },
+    "album.textBlock.edit.done" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xong"
+          }
+        }
+      }
+    },
+    "album.textBlock.edit.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Text"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sửa chữ"
+          }
+        }
+      }
+    },
     "album.textBlock.placeholder" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4705,6 +4739,9 @@
           }
         }
       }
+    },
+    "Write here" : {
+
     },
     "Xóa dữ liệu khám phá trên thiết bị?" : {
 

@@ -7,18 +7,42 @@
 
 import SwiftUI
 
-/// Renders one `AlbumTextBlock` — always its localized placeholder text (§ "Placeholder đều có
-/// dạng: Viết ở đây hoặc Write here"), since there is no per-Album, user-authored text content yet
-/// (see `AlbumTextBlock`'s own doc comment). `AlbumPageRenderer` sizes/positions this exactly like
-/// a photo slot; this view only needs to know its own pixel `frame` and style.
+/// Renders one `AlbumTextBlock` — either the real per-Page content typed into it (`content`,
+/// crisp/full-opacity) or, while that's still empty, its own localized placeholder (§ "Placeholder
+/// đều có dạng: Viết ở đây hoặc Write here", dimmed — § "Nếu là placeholder thì chữ sẽ bị mờ. Nếu
+/// là nội dung user nhập vào thì chữ mới rõ nét"). `AlbumPageRenderer` sizes/positions this exactly
+/// like a photo slot; this view only needs its own pixel `frame`, style, and already-scaled font
+/// size (see `scaledFontSize`'s own doc comment for why the caller computes that, not this view).
 struct AlbumTextBlockView: View {
     let textBlock: AlbumTextBlock
     let frame: CGRect
+    /// § user report — "Tỷ lệ chữ to so với cả trang": `AlbumTextBlock.fontSize` is in the
+    /// layout's own `referenceCanvas` units, exactly like `frame`/`AlbumLayoutSlot.cornerRadius` —
+    /// it must be scaled the same way those already are (by the canvas→screen scale factor)
+    /// before use as an actual on-screen point size, matching how the Studio's own canvas preview
+    /// already scales it (`fontSizePx = (textBlock.fontSize / canvas.width) * stagePixelSize.
+    /// width`). Rendering `textBlock.fontSize` unscaled (the previous bug) made text huge on any
+    /// canvas bigger than the device's own point size — which every real `referenceCanvas` is
+    /// (e.g. `1000×1000` against a page that's only a few hundred points on screen).
+    let scaledFontSize: CGFloat
+    /// The real, user-typed content for this Page's copy of this text block — `nil`/empty means
+    /// "nothing typed yet," which shows the placeholder instead.
+    let content: String?
+
+    private var isPlaceholder: Bool { content?.isEmpty ?? true }
+
+    private var displayText: String {
+        if let content, !content.isEmpty { return content }
+        return localizedString("album.textBlock.placeholder", defaultValue: "Write here")
+    }
 
     var body: some View {
-        Text(localizedString("album.textBlock.placeholder", defaultValue: "Write here"))
+        Text(displayText)
             .font(font)
             .multilineTextAlignment(textAlignment)
+            // § "Nếu là placeholder thì chữ sẽ bị mờ. Nếu là nội dung user nhập vào thì chữ mới rõ
+            // nét" — dimmed for the placeholder, full opacity for real content.
+            .opacity(isPlaceholder ? 0.35 : 1)
             .frame(width: frame.width, height: frame.height, alignment: containerAlignment)
             // § "Chữ sẽ hiển thị trong khối đó, không tràn ra ngoài" — hard clip regardless of how
             // much text there is, on top of whatever wrapping `.frame`'s proposed width already
@@ -52,9 +76,9 @@ struct AlbumTextBlockView: View {
 
     private var font: Font {
         guard textBlock.fontFamily != .system else {
-            return .system(size: textBlock.fontSize, weight: textBlock.fontWeight.swiftUIWeight)
+            return .system(size: scaledFontSize, weight: textBlock.fontWeight.swiftUIWeight)
         }
-        return .custom(Self.bestMatchingFontName(family: textBlock.fontFamily.rawValue, weight: textBlock.fontWeight), size: textBlock.fontSize)
+        return .custom(Self.bestMatchingFontName(family: textBlock.fontFamily.rawValue, weight: textBlock.fontWeight), size: scaledFontSize)
     }
 
     /// `Font.custom` needs an exact PostScript font name, not a family display name (e.g.

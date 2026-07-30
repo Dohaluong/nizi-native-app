@@ -33,6 +33,68 @@ struct AlbumDraftPage: Identifiable, Codable, Hashable {
     var primaryPlace: PhotoPlace?
     var layoutScore: Double?
     var assignmentScore: Double?
+
+    /// § user request "Thêm chữ" — real, user-typed content for this Page's layout's text blocks
+    /// (keyed by `AlbumTextAssignment.textBlockId`). Decoded via `decodeIfPresent(...) ?? []` (not
+    /// `Optional` like the fields above — an empty array is already exactly "nothing typed yet,"
+    /// no separate `nil` state needed) so a draft encoded before this feature existed still
+    /// decodes cleanly, the same posture `AlbumPageLayout.textBlocks` already takes.
+    var textAssignments: [AlbumTextAssignment]
+
+    init(
+        id: String, order: Int, layoutId: String, format: AlbumPageFormat,
+        assignments: [AlbumPhotoAssignment], sourceEventIds: [String],
+        heroPhotoId: String? = nil, primaryPlace: PhotoPlace? = nil,
+        layoutScore: Double? = nil, assignmentScore: Double? = nil,
+        textAssignments: [AlbumTextAssignment] = []
+    ) {
+        self.id = id
+        self.order = order
+        self.layoutId = layoutId
+        self.format = format
+        self.assignments = assignments
+        self.sourceEventIds = sourceEventIds
+        self.heroPhotoId = heroPhotoId
+        self.primaryPlace = primaryPlace
+        self.layoutScore = layoutScore
+        self.assignmentScore = assignmentScore
+        self.textAssignments = textAssignments
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, order, layoutId, format, assignments, sourceEventIds
+        case heroPhotoId, primaryPlace, layoutScore, assignmentScore, textAssignments
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        order = try container.decode(Int.self, forKey: .order)
+        layoutId = try container.decode(String.self, forKey: .layoutId)
+        format = try container.decode(AlbumPageFormat.self, forKey: .format)
+        assignments = try container.decode([AlbumPhotoAssignment].self, forKey: .assignments)
+        sourceEventIds = try container.decode([String].self, forKey: .sourceEventIds)
+        heroPhotoId = try container.decodeIfPresent(String.self, forKey: .heroPhotoId)
+        primaryPlace = try container.decodeIfPresent(PhotoPlace.self, forKey: .primaryPlace)
+        layoutScore = try container.decodeIfPresent(Double.self, forKey: .layoutScore)
+        assignmentScore = try container.decodeIfPresent(Double.self, forKey: .assignmentScore)
+        textAssignments = try container.decodeIfPresent([AlbumTextAssignment].self, forKey: .textAssignments) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(order, forKey: .order)
+        try container.encode(layoutId, forKey: .layoutId)
+        try container.encode(format, forKey: .format)
+        try container.encode(assignments, forKey: .assignments)
+        try container.encode(sourceEventIds, forKey: .sourceEventIds)
+        try container.encodeIfPresent(heroPhotoId, forKey: .heroPhotoId)
+        try container.encodeIfPresent(primaryPlace, forKey: .primaryPlace)
+        try container.encodeIfPresent(layoutScore, forKey: .layoutScore)
+        try container.encodeIfPresent(assignmentScore, forKey: .assignmentScore)
+        try container.encode(textAssignments, forKey: .textAssignments)
+    }
 }
 
 /// Two consecutive pages the planner reasons about together (§ 2.3) — never fewer, never more.

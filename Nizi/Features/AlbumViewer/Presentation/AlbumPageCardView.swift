@@ -23,17 +23,22 @@ struct AlbumPageCardView: View {
     /// § user request — reports whenever a drag-to-swap is picked up/released, so the Viewer can
     /// lock page-turning out for the duration (see `AlbumPagingLockView`).
     var onDragActiveChanged: ((Bool) -> Void)? = nil
+    /// § user request — quick-tap to edit a text block's real content. `nil` outside edit mode,
+    /// same convention `onCropPhoto` already uses.
+    var onTapTextBlock: ((_ textBlock: AlbumTextBlock, _ currentText: String) -> Void)? = nil
 
     var body: some View {
         Group {
             if let layout = try? layoutRepository.layout(id: viewerPage.page.layoutId) {
                 AlbumPageRenderer(
                     layout: layout, assignments: viewerPage.page.assignments,
+                    textAssignments: viewerPage.page.textAssignments,
                     photoProvider: ProductionAlbumSlotPhotoProvider(),
                     onTapPhoto: onTapPhoto,
                     onSwapPhotos: onSwapPhotos,
                     onCropPhoto: onCropPhoto,
-                    onDragActiveChanged: onDragActiveChanged
+                    onDragActiveChanged: onDragActiveChanged,
+                    onTapTextBlock: onTapTextBlock
                 )
             } else {
                 Color(.secondarySystemFill)

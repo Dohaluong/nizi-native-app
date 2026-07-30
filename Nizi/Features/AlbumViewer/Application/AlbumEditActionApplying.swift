@@ -65,6 +65,8 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
             return try await removePhoto(pageId: pageId, slotId: slotId, in: draft)
         case let .removeSpread(spreadId):
             return try removeSpread(spreadId: spreadId, in: draft)
+        case let .updateTextBlockContent(pageId, textBlockId, text):
+            return try updateTextBlockContent(pageId: pageId, textBlockId: textBlockId, text: text, in: draft)
         }
     }
 
@@ -109,6 +111,11 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
             page.assignmentScore = result.score
             page.heroPhotoId = newLayout.slots.first { $0.role == .hero }
                 .flatMap { heroSlot in page.assignments.first { $0.slotId == heroSlot.id }?.photoId }
+            // § user request "Thêm chữ" — a text block's `id` is only unique within its own
+            // layout (not stable across a layout swap the way a photo's own id is), so there's no
+            // equivalent to "preserve by photo id" here: every text block on the new layout starts
+            // fresh/empty, and any content typed into the old layout's blocks is discarded.
+            page.textAssignments = freshTextAssignments(for: newLayout, pageId: page.id)
         }
         return updated
     }
@@ -215,6 +222,7 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
             page.assignmentScore = result.score
             page.heroPhotoId = newLayout.slots.first { $0.role == .hero }
                 .flatMap { heroSlot in page.assignments.first { $0.slotId == heroSlot.id }?.photoId }
+            page.textAssignments = freshTextAssignments(for: newLayout, pageId: page.id)
         }
         return updated
     }
@@ -242,6 +250,33 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
             }
         }
         return updated
+    }
+
+    // MARK: - Update Text Block Content
+
+    /// § user request — "tap vào chữ để sửa nội dung": the only mutation that ever touches
+    /// `AlbumDraftPage.textAssignments`' actual `text` (as opposed to resetting the whole array,
+    /// which only `changePageLayout`/`removePhoto` do, when the set of text blocks itself changes).
+    /// Inserts a fresh assignment if this text block somehow doesn't have one yet (e.g. a Page
+    /// whose Draft predates this feature) rather than silently no-op'ing.
+    private func updateTextBlockContent(pageId: String, textBlockId: String, text: String, in draft: AlbumDraft) throws -> AlbumDraft {
+        guard let location = locatePage(pageId, in: draft) else { throw AlbumEditError.pageNotFound }
+        var updated = draft
+        location.mutate(&updated) { page in
+            if let index = page.textAssignments.firstIndex(where: { $0.textBlockId == textBlockId }) {
+                page.textAssignments[index].text = text
+            } else {
+                page.textAssignments.append(AlbumTextAssignment(id: "\(page.id)-\(textBlockId)", textBlockId: textBlockId, text: text))
+            }
+        }
+        return updated
+    }
+
+    /// One empty-content `AlbumTextAssignment` per `layout.textBlocks` — see the call sites'
+    /// own doc comments (`changePageLayout`/`removePhoto`) for why this always starts fresh
+    /// rather than trying to carry anything over from the Page's previous layout.
+    private func freshTextAssignments(for layout: AlbumPageLayout, pageId: String) -> [AlbumTextAssignment] {
+        layout.textBlocks.map { AlbumTextAssignment(id: "\(pageId)-\($0.id)", textBlockId: $0.id, text: "") }
     }
 
     // MARK: - § 23 Remove Spread

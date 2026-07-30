@@ -42,6 +42,12 @@ enum AlbumEditAction {
     case assignPhoto(assignmentId: String, photo: AlbumPhotoReference)
     case removePhoto(pageId: String, slotId: String)
     case removeSpread(spreadId: String)
+    /// § user request — quick-tap a text block to type/edit its real content. `pageId` (not just
+    /// `textBlockId`) is needed because `AlbumTextBlock.id` is only unique within its own layout —
+    /// the same id could in principle appear on more than one Page (every Page using that same
+    /// layout), so the target Page must be identified explicitly, unlike `updatePhotoCrop`/
+    /// `assignPhoto` which can find their target via the globally-unique `assignmentId` alone.
+    case updateTextBlockContent(pageId: String, textBlockId: String, text: String)
 }
 
 enum AlbumEditError: Error, Equatable {

@@ -26,6 +26,7 @@ struct AlbumPageViewer: View {
     @State private var changeCoverTarget: Bool = false
     @State private var swapSourcePage: AlbumViewerPage?
     @State private var cropTarget: AlbumPhotoCropTarget?
+    @State private var textBlockEditTarget: AlbumTextBlockEditTarget?
     @State private var removePhotoTarget: AlbumViewerPage?
     @State private var removeSpreadConfirmation: AlbumViewerPage?
     @State private var removePhotoBlockedAlert = false
@@ -108,6 +109,16 @@ struct AlbumPageViewer: View {
                 apply(.removePhoto(pageId: targetPage.page.id, slotId: slotId))
                 removePhotoTarget = nil
             }
+        }
+        .sheet(item: $textBlockEditTarget) { target in
+            AlbumTextBlockEditSheet(
+                initialText: target.currentText,
+                onSave: { text in
+                    apply(.updateTextBlockContent(pageId: target.pageId, textBlockId: target.textBlockId, text: text))
+                    textBlockEditTarget = nil
+                },
+                onCancel: { textBlockEditTarget = nil }
+            )
         }
     }
 
@@ -212,7 +223,12 @@ struct AlbumPageViewer: View {
                         cropTarget = AlbumPhotoCropTarget(assignment: assignment, frameAspectRatio: aspectRatio, pageId: viewerPage.page.id)
                     }
                     : nil,
-                onDragActiveChanged: { isPhotoDragActive = $0 }
+                onDragActiveChanged: { isPhotoDragActive = $0 },
+                onTapTextBlock: isEditing
+                    ? { textBlock, currentText in
+                        textBlockEditTarget = AlbumTextBlockEditTarget(pageId: viewerPage.page.id, textBlockId: textBlock.id, currentText: currentText)
+                    }
+                    : nil
             )
             Text(localizedString("album.viewer.page_indicator", defaultValue: "Page \(viewerPage.pageNumber) / \(viewerPage.totalPageCount)"))
                 .font(.caption2)

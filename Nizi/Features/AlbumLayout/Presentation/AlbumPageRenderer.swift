@@ -22,6 +22,11 @@ import SwiftUI
 struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
     let layout: AlbumPageLayout
     let assignments: [AlbumPhotoAssignment]
+    /// § user request "Thêm chữ" — real, per-Page content for the layout's text blocks (keyed by
+    /// `AlbumTextAssignment.textBlockId`). Defaults to `[]` so every existing caller (gallery/
+    /// layout previews, layout-picker swatches) is unaffected — a layout with no text blocks never
+    /// reads this at all, and even a layout that does just shows every block's own placeholder.
+    var textAssignments: [AlbumTextAssignment] = []
     let photoProvider: Provider
     /// § 12.4 — debug/preview only.
     var showsDebugSlotIds: Bool = false
@@ -48,6 +53,10 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
     /// can't retroactively steal a touch already being tracked by `UIPageViewController`'s own
     /// internal pan recognizer, so that lock has to reach into UIKit directly instead).
     var onDragActiveChanged: ((Bool) -> Void)? = nil
+    /// § user request — quick-tap a text block to edit its content, reported alongside its current
+    /// text (empty string if it's still showing its placeholder). `nil` (the default) attaches no
+    /// tap-detection at all; same opt-in shape as `onCropPhoto`.
+    var onTapTextBlock: ((_ textBlock: AlbumTextBlock, _ currentText: String) -> Void)? = nil
 
     @State private var dragState: AlbumSlotDragState?
     @State private var pendingPress: AlbumSlotPendingPress?
@@ -61,6 +70,7 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
             let scaleY = proxy.size.height / layout.referenceCanvas.height
             // Built once per render pass, not re-searched per slot (§ Performance).
             let assignmentsBySlotId = Dictionary(uniqueKeysWithValues: assignments.map { ($0.slotId, $0) })
+            let textAssignmentsByBlockId = Dictionary(uniqueKeysWithValues: textAssignments.map { ($0.textBlockId, $0) })
             let slotFrames = slotFrames(scaleX: scaleX, scaleY: scaleY)
             // The swap gesture reports `.global` drag locations (see `albumSlotSwapGesture`'s own
             // doc comment for why not a named coordinate space) — this is what converts them back
@@ -86,12 +96,13 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
                     )
                 }
 
-                // § user request "Thêm chữ" — decorative only (always shows its own placeholder,
-                // never a real photo/assignment), so unlike slots there's nothing here that needs
-                // to survive a layout change's animation or participate in the swap/crop gestures
-                // above; a plain `ForEach` keyed by the block's own id is enough.
+                // § user request "Thêm chữ" — unlike slots there's nothing here that needs to
+                // survive a layout change's animation or participate in the swap/crop gestures
+                // above (a text block's content is looked up fresh by id every render, not
+                // preserved/animated across a layout swap), so a plain `ForEach` keyed by the
+                // block's own id is enough.
                 ForEach(layout.textBlocks) { textBlock in
-                    AlbumTextBlockView(textBlock: textBlock, frame: textBlockFrame(textBlock, scaleX: scaleX, scaleY: scaleY))
+                    textBlockView(textBlock, textAssignmentsByBlockId: textAssignmentsByBlockId, scaleX: scaleX, scaleY: scaleY)
                 }
 
                 if let dragState {
@@ -145,6 +156,29 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
             x: textBlock.frame.x * scaleX, y: textBlock.frame.y * scaleY,
             width: textBlock.frame.width * scaleX, height: textBlock.frame.height * scaleY
         )
+    }
+
+    private func textBlockView(
+        _ textBlock: AlbumTextBlock,
+        textAssignmentsByBlockId: [String: AlbumTextAssignment],
+        scaleX: CGFloat,
+        scaleY: CGFloat
+    ) -> some View {
+        let rect = textBlockFrame(textBlock, scaleX: scaleX, scaleY: scaleY)
+        // Uniform scale, same reasoning `scaledCornerRadius` already uses for slots — never
+        // stretch the text unevenly on a non-uniformly scaled canvas.
+        let scaledFontSize = textBlock.fontSize * min(scaleX, scaleY)
+        let currentText = textAssignmentsByBlockId[textBlock.id]?.text
+
+        return Group {
+            if let onTapTextBlock {
+                AlbumTextBlockView(textBlock: textBlock, frame: rect, scaledFontSize: scaledFontSize, content: currentText)
+                    .contentShape(Rectangle())
+                    .onTapGesture { onTapTextBlock(textBlock, currentText ?? "") }
+            } else {
+                AlbumTextBlockView(textBlock: textBlock, frame: rect, scaledFontSize: scaledFontSize, content: currentText)
+            }
+        }
     }
 
     private func slotView(
