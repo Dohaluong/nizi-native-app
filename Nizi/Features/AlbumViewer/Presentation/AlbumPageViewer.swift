@@ -155,7 +155,15 @@ struct AlbumPageViewer: View {
 
     private func pageView(_ viewerPage: AlbumViewerPage) -> some View {
         VStack(spacing: 6) {
-            AlbumPageCardView(viewerPage: viewerPage, layoutRepository: layoutRepository)
+            AlbumPageCardView(
+                viewerPage: viewerPage, layoutRepository: layoutRepository,
+                // § user request — drag-to-swap only while actively editing; outside edit mode
+                // `apply(_:)` would silently no-op anyway (no `editingSession`), which would
+                // leave the ripple's "new photo" reveal showing the same old photo underneath.
+                onSwapPhotos: isEditing
+                    ? { from, to in apply(.swapPhotos(firstAssignmentId: from.id, secondAssignmentId: to.id)) }
+                    : nil
+            )
             Text(localizedString("album.viewer.page_indicator", defaultValue: "Page \(viewerPage.pageNumber) / \(viewerPage.totalPageCount)"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)

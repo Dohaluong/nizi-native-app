@@ -14,6 +14,9 @@ struct AlbumPageCardView: View {
     let viewerPage: AlbumViewerPage
     let layoutRepository: AlbumLayoutRepository
     var onTapPhoto: ((AlbumPhotoAssignment) -> Void)? = nil
+    /// § user request — drag-to-swap between two slots on this same Page. `nil` outside edit
+    /// mode, same convention `onTapPhoto` already uses.
+    var onSwapPhotos: ((_ from: AlbumPhotoAssignment, _ to: AlbumPhotoAssignment) -> Void)? = nil
 
     var body: some View {
         Group {
@@ -21,7 +24,8 @@ struct AlbumPageCardView: View {
                 AlbumPageRenderer(
                     layout: layout, assignments: viewerPage.page.assignments,
                     photoProvider: ProductionAlbumSlotPhotoProvider(),
-                    onTapPhoto: onTapPhoto
+                    onTapPhoto: onTapPhoto,
+                    onSwapPhotos: onSwapPhotos
                 )
             } else {
                 Color(.secondarySystemFill)
