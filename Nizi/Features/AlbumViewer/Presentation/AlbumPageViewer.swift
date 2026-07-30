@@ -28,6 +28,9 @@ struct AlbumPageViewer: View {
     @State private var removePhotoTarget: AlbumViewerPage?
     @State private var removeSpreadConfirmation: AlbumViewerPage?
     @State private var removePhotoBlockedAlert = false
+    /// § user request — locks `TabView(.page)`'s own page-swiping out for as long as a
+    /// drag-to-swap is actively picked up on the current Page (see `AlbumPagingLockView`).
+    @State private var isPhotoDragActive = false
 
     private let itemBuilder: AlbumViewerItemBuilding = DefaultAlbumViewerItemBuilder()
     private let actionApplier: AlbumEditActionApplying = DefaultAlbumEditActionApplying()
@@ -162,12 +165,17 @@ struct AlbumPageViewer: View {
                 // leave the ripple's "new photo" reveal showing the same old photo underneath.
                 onSwapPhotos: isEditing
                     ? { from, to in apply(.swapPhotos(firstAssignmentId: from.id, secondAssignmentId: to.id)) }
-                    : nil
+                    : nil,
+                onDragActiveChanged: { isPhotoDragActive = $0 }
             )
             Text(localizedString("album.viewer.page_indicator", defaultValue: "Page \(viewerPage.pageNumber) / \(viewerPage.totalPageCount)"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
+        // Must be a genuine descendant of this Page's own `TabView` item (see
+        // `AlbumPagingLockView`'s own doc comment) so walking `superview` from it resolves to
+        // *this* Page's own `UIPageViewController`-backed `UIScrollView`, not some unrelated one.
+        .background(AlbumPagingLockView(isLocked: isPhotoDragActive))
     }
 
     // MARK: - Edit mode

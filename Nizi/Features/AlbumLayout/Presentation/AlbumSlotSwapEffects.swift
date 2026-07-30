@@ -161,8 +161,13 @@ extension View {
             // never blocks `TabView(.page)`'s own pan recognizer from *also* tracking the same
             // touch — a quick swipe still pages normally, since nothing here ever promotes for one
             // (the timer either never fires before release, or the movement tolerance check below
-            // fails). A *separate* blocker gesture (attached below, after this one) locks page
-            // paging out entirely for the rest of the touch once a drag actually is promoted.
+            // fails). Locking `TabView(.page)`'s own paging out once a drag is actually promoted is
+            // handled separately, at the UIKit level (`AlbumPagingLockView`) — a second SwiftUI
+            // `.highPriorityGesture` blocker was tried here first and confirmed NOT to work: it
+            // can't retroactively steal a touch already being tracked by
+            // `UIPageViewController`'s own internal `UIScrollView` pan recognizer, since that
+            // recognizer began tracking the touch from the very first instant, before this
+            // gesture's mask ever had a reason to flip to `.all`.
             simultaneousGesture(
                 DragGesture(minimumDistance: 0, coordinateSpace: .global)
                     .onChanged { drag in
@@ -223,24 +228,6 @@ extension View {
                         )
                         onDropped(sourceEndpoint, targetEndpoint)
                     }
-            )
-            // § user request — once actually picked up (not before), lock page-swiping entirely
-            // until the swap finishes. This is a *second*, separate gesture whose only job is
-            // claiming priority — it does nothing itself — masked `.none` (fully disabled) while
-            // `dragState` is nil and `.all` (claims priority over `TabView(.page)`'s own pan
-            // recognizer, for the *same* touch already in progress) once it isn't. Splitting this
-            // out from the tracking gesture above matters: that one *must* keep running the whole
-            // time to detect the hold in the first place, but `GestureMask.none` disables a
-            // gesture's `onChanged` entirely, not just its priority — masking the tracking gesture
-            // itself this way (an earlier attempt) meant it could never observe the hold that was
-            // supposed to promote it, so it never could. This blocker gesture has nothing to lose
-            // by being fully off before promotion, and dynamically re-masking mid-touch to claim
-            // priority once promoted is the same technique `AlbumPhotoPreviewView`'s own
-            // pan-while-zoomed gesture already relies on (there, `scale > minScale` flips mid-pinch
-            // the same way `dragState != nil` flips mid-press here).
-            .highPriorityGesture(
-                DragGesture(minimumDistance: 0, coordinateSpace: .global),
-                including: dragState.wrappedValue != nil ? .all : .none
             )
         } else {
             self

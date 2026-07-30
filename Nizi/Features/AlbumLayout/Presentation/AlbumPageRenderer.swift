@@ -36,6 +36,12 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
     /// already uses; the caller is responsible for the actual data mutation (e.g.
     /// `AlbumEditAction.swapPhotos`) and for only ever passing this while actively editing.
     var onSwapPhotos: ((_ from: AlbumPhotoAssignment, _ to: AlbumPhotoAssignment) -> Void)? = nil
+    /// § user request — reports whenever a drag-to-swap goes from not-picked-up to picked-up (or
+    /// back). The caller uses this to lock `TabView(.page)`'s own paging out for as long as a
+    /// drag is actually in flight (see `AlbumPagingLockView` — SwiftUI-level gesture priority
+    /// can't retroactively steal a touch already being tracked by `UIPageViewController`'s own
+    /// internal pan recognizer, so that lock has to reach into UIKit directly instead).
+    var onDragActiveChanged: ((Bool) -> Void)? = nil
 
     @State private var dragState: AlbumSlotDragState?
     @State private var pendingPress: AlbumSlotPendingPress?
@@ -79,6 +85,9 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .onChange(of: dragState != nil) { _, isActive in
+            onDragActiveChanged?(isActive)
         }
     }
 

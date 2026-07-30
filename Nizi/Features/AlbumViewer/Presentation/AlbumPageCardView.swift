@@ -17,6 +17,9 @@ struct AlbumPageCardView: View {
     /// § user request — drag-to-swap between two slots on this same Page. `nil` outside edit
     /// mode, same convention `onTapPhoto` already uses.
     var onSwapPhotos: ((_ from: AlbumPhotoAssignment, _ to: AlbumPhotoAssignment) -> Void)? = nil
+    /// § user request — reports whenever a drag-to-swap is picked up/released, so the Viewer can
+    /// lock page-turning out for the duration (see `AlbumPagingLockView`).
+    var onDragActiveChanged: ((Bool) -> Void)? = nil
 
     var body: some View {
         Group {
@@ -25,7 +28,8 @@ struct AlbumPageCardView: View {
                     layout: layout, assignments: viewerPage.page.assignments,
                     photoProvider: ProductionAlbumSlotPhotoProvider(),
                     onTapPhoto: onTapPhoto,
-                    onSwapPhotos: onSwapPhotos
+                    onSwapPhotos: onSwapPhotos,
+                    onDragActiveChanged: onDragActiveChanged
                 )
             } else {
                 Color(.secondarySystemFill)
