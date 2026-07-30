@@ -166,6 +166,15 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
         // fills or fits it, never the reverse (§ Container owns size).
         .frame(width: rect.width, height: rect.height)
         .position(x: rect.midX, y: rect.midY)
+        // § user report — position wasn't animating at all, and size only animated growing, not
+        // shrinking: relying solely on the *caller's* `withAnimation` (in `AlbumPageViewer.apply`)
+        // to propagate all the way down through this `GeometryReader` → `ZStack` → `ForEach` →
+        // conditional `@ViewBuilder` branches → custom gesture-modifier chain was unreliable in
+        // practice. An explicit, local `.animation(_:value:)` tied directly to `rect` guarantees
+        // both `.frame` and `.position` always animate together whenever this slot's own target
+        // geometry actually changes, independent of whether an ambient transaction survived that
+        // whole chain intact.
+        .animation(.easeInOut(duration: 0.35), value: rect)
         .albumSlotSwapGesture(
             isEnabled: onSwapPhotos != nil,
             slot: slot, assignment: assignment, slotRect: rect, slotFrames: slotFrames,
