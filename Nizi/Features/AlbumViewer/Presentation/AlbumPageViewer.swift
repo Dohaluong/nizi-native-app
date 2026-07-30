@@ -178,41 +178,58 @@ struct AlbumPageViewer: View {
     }
 
     /// § layout request — replaces the old "Change Layout" sheet with an always-visible picker at
-    /// the top of the screen: 2 rows of every layout that matches the *current* Page's own photo
-    /// count (never a mismatched count — same filter `AlbumLayoutPickerSheet` used to apply),
-    /// re-filtering automatically as `currentViewerPage` changes while swiping between Pages.
-    /// Tapping a swatch applies it immediately, no confirmation step. Empty (no picker at all)
-    /// while the Cover is showing, since a Cover has no interchangeable Page layout.
-    private static let layoutSwatchSize: CGFloat = 56
-    private static let layoutSwatchRowSpacing: CGFloat = 8
-    private static let layoutPickerVerticalPadding: CGFloat = 10
-    /// Explicit, computed height — `LazyHGrid` inside a `ScrollView` with no bounded height left
-    /// `.safeAreaInset` to size this however it liked (observed: it claimed nearly the whole
-    /// screen, pushing the actual Page content out and leaving the 2 short rows of swatches
-    /// vertically centered in all that extra space instead of forming a compact bar). A `LazyHGrid`
-    /// needs a definite cross-axis size from its container to lay out predictably; this supplies
-    /// exactly the 2 rows' own height (+ the padding below) instead of leaving it ambiguous.
+    /// the top of the screen: one horizontal row (free to run wider than the screen — pan to see
+    /// the rest) of every layout that matches the *current* Page's own photo count (never a
+    /// mismatched count — same filter `AlbumLayoutPickerSheet` used to apply), re-filtering
+    /// automatically as `currentViewerPage` changes while swiping between Pages. Tapping a swatch
+    /// applies it immediately, no confirmation step, and re-centers the row on it. Empty (no
+    /// picker at all) while the Cover is showing, since a Cover has no interchangeable Page layout.
+    private static let layoutSwatchSize: CGFloat = 64
+    private static let layoutPickerVerticalPadding: CGFloat = 12
+    /// Explicit, computed height — a `ScrollView` with no bounded height left `.safeAreaInset` to
+    /// size this however it liked (observed: it claimed nearly the whole screen, pushing the
+    /// actual Page content out). This supplies exactly the row's own height (+ the padding around
+    /// it) instead of leaving it ambiguous.
     private static var layoutPickerHeight: CGFloat {
-        layoutSwatchSize * 2 + layoutSwatchRowSpacing + layoutPickerVerticalPadding * 2
+        layoutSwatchSize + layoutPickerVerticalPadding * 2
     }
 
     @ViewBuilder
     private var layoutPickerHeader: some View {
         if let viewerPage = currentViewerPage {
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHGrid(
-                    rows: [GridItem(.fixed(Self.layoutSwatchSize), spacing: Self.layoutSwatchRowSpacing), GridItem(.fixed(Self.layoutSwatchSize), spacing: Self.layoutSwatchRowSpacing)],
-                    spacing: 10
-                ) {
-                    ForEach(candidateLayouts(for: viewerPage)) { candidate in
-                        layoutSwatchButton(candidate, currentPage: viewerPage)
+            ScrollViewReader { scrollProxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 10) {
+                        ForEach(candidateLayouts(for: viewerPage)) { candidate in
+                            layoutSwatchButton(candidate, currentPage: viewerPage)
+                                .id(candidate.id)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, Self.layoutPickerVerticalPadding)
+                }
+                .frame(height: Self.layoutPickerHeight)
+                // § "Nền khối bar sẫm hơn nền chính 1 chút, để các layout nổi phần viền trắng" —
+                // a touch darker than the Page area's own `.systemGroupedBackground`, in both
+                // light and dark mode, so each swatch's white border reads clearly against it
+                // instead of blending in.
+                .background(Color(.systemGroupedBackground).overlay(Color.black.opacity(0.06)))
+                .onAppear {
+                    scrollProxy.scrollTo(viewerPage.page.layoutId, anchor: .center)
+                }
+                .onChange(of: viewerPage.id) { _, _ in
+                    // Switched to a different Page — snap to *that* Page's own current layout,
+                    // no animation (it wasn't visible a moment ago anyway).
+                    scrollProxy.scrollTo(viewerPage.page.layoutId, anchor: .center)
+                }
+                .onChange(of: viewerPage.page.layoutId) { _, newLayoutId in
+                    // § "Layout được chọn sẽ căn giữa màn" — re-center on whichever layout just
+                    // became selected for this same Page (a tap on a swatch elsewhere in the row).
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        scrollProxy.scrollTo(newLayoutId, anchor: .center)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, Self.layoutPickerVerticalPadding)
             }
-            .frame(height: Self.layoutPickerHeight)
-            .background(.bar)
         }
     }
 
@@ -222,15 +239,17 @@ struct AlbumPageViewer: View {
     }
 
     private func layoutSwatchButton(_ candidate: AlbumPageLayout, currentPage: AlbumViewerPage) -> some View {
-        Button {
+        let isSelected = candidate.id == currentPage.page.layoutId
+        return Button {
             apply(.changePageLayout(pageId: currentPage.page.id, layoutId: candidate.id))
         } label: {
             AlbumPageRenderer(layout: candidate, assignments: Self.swatchAssignments(for: candidate), photoProvider: LayoutSwatchPhotoProvider())
-                .frame(width: 56, height: 56)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .frame(width: Self.layoutSwatchSize, height: Self.layoutSwatchSize)
+                // § "Các layout không để border-radius" — square corners, no clipping/rounding.
+                .clipShape(Rectangle())
                 .overlay {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(candidate.id == currentPage.page.layoutId ? Color.accentColor : .clear, lineWidth: 3)
+                    Rectangle()
+                        .stroke(isSelected ? Color.accentColor : Color.white, lineWidth: isSelected ? 3 : 1.5)
                 }
         }
         .buttonStyle(.plain)
