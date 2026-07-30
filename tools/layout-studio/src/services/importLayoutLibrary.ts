@@ -14,9 +14,15 @@ export interface ImportResult {
   issues: ValidationIssue[];
 }
 
-/** File → JSON.parse → Zod → semantic validation → Studio state, exactly the flow in § 19.
+/** File → JSON.parse → Zod → semantic validation, exactly the first half of the flow in § 19.
  * Preserves layout IDs, slot IDs, order, orientation, and geometry verbatim — nothing here
- * rewrites a single field, only wraps each `AlbumPageLayout` in a fresh `StudioLayoutMeta`. */
+ * rewrites a single field, only wraps each `AlbumPageLayout` in a fresh `StudioLayoutMeta`.
+ *
+ * This only parses *this one file* in isolation — it doesn't know about (and can't merge with)
+ * whatever's already in the Studio. That merge (keep any Studio-only layout this file doesn't
+ * mention, refresh anything it does) happens one layer up, in `store/layoutStudioStore.ts`'s
+ * `importLibraryFromText`, specifically so importing the production JSON can never silently
+ * delete a layout you've already started building in the Studio. */
 export function importLayoutLibrary(rawText: string): ImportResult {
   let json: unknown;
   try {

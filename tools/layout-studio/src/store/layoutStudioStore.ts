@@ -131,18 +131,42 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
 
   selectedLayout: () => get().layouts.find((l) => l.layout.id === get().selectedLayoutId),
 
+  /** Merges into whatever's already in the Studio — never a blind replace. A layout id already
+   * present in the file being imported is refreshed from that file (the file is the source of
+   * truth for anything it actually contains), but keeps its existing Studio-only `meta` (notes/
+   * favorite) rather than resetting it. Any layout that only exists in the Studio so far (newly
+   * created, not yet part of the imported file) is kept untouched. Without this, importing the
+   * current production `album-layouts.json` *after* creating a new layout in the Studio would
+   * silently wipe that new layout back out — exactly the "chỉ thêm chứ không xoá cái cũ" case
+   * this exists to prevent, in both directions. */
   importLibraryFromText: (rawText) => {
     const result = importLayoutLibrary(rawText);
     if (result.parseError) {
       set({ importError: result.parseError });
       return;
     }
+
+    const state = get();
+    const existingById = new Map(state.layouts.map((l) => [l.layout.id, l]));
+    const merged: StudioLayout[] = [];
+    const importedIds = new Set<string>();
+
+    for (const incoming of result.studioLayouts) {
+      const priorMeta = existingById.get(incoming.layout.id)?.meta;
+      merged.push({ layout: incoming.layout, meta: priorMeta ?? incoming.meta });
+      importedIds.add(incoming.layout.id);
+    }
+    for (const existingLayout of state.layouts) {
+      if (!importedIds.has(existingLayout.layout.id)) merged.push(existingLayout);
+    }
+
+    const keepsCurrentSelection = state.selectedLayoutId !== null && merged.some((l) => l.layout.id === state.selectedLayoutId);
     set({
-      layouts: result.studioLayouts,
-      issues: result.issues,
+      layouts: merged,
+      issues: validateLibrary({ schemaVersion: 1, layouts: merged.map((l) => l.layout) }),
       importError: null,
-      selectedLayoutId: result.studioLayouts[0]?.layout.id ?? null,
-      selectedSlotId: null,
+      selectedLayoutId: keepsCurrentSelection ? state.selectedLayoutId : merged[0]?.layout.id ?? null,
+      selectedSlotId: keepsCurrentSelection ? state.selectedSlotId : null,
     });
     scheduleAutosave(get);
   },
