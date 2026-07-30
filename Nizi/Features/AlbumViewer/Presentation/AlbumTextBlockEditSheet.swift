@@ -94,7 +94,7 @@ struct AlbumTextBlockEditSheet: View {
                     fontFamilyStrip
                 }
 
-                // § "1 hàng cho kiểu chữ và cỡ chữ" — style (Regular/Italic/Bold/BoldItalic) and
+                // § "1 hàng cho kiểu chữ và cỡ chữ" — style (Regular/Italic/Bold/Underline) and
                 // size share one row instead of two stacked ones.
                 Section {
                     styleAndSizeRow
@@ -255,10 +255,13 @@ struct AlbumTextBlockEditSheet: View {
         .buttonStyle(.plain)
     }
 
-    /// § user request — "1 hàng cho kiểu chữ và cỡ chữ": style and size now share one row.
+    /// § user request — "1 hàng cho kiểu chữ và cỡ chữ": style and size share one row. Style
+    /// expands to fill the remaining width (§ "icon button cần đủ to để bấm" — bigger segments,
+    /// bigger tap targets), size stays compact on the trailing edge.
     private var styleAndSizeRow: some View {
         HStack(spacing: 12) {
             styleControl
+                .frame(maxWidth: .infinity)
             // § user report — "cỡ chữ giờ hơi bé so với trang ... 1 trang ảnh vuông khi in ra thực
             // tế sẽ tương đương 20x20cm, nên tôi cần cỡ chữ thể hiện tương ứng": `fontSize` is
             // stored/rendered in the layout's own `referenceCanvas` units (same space as `frame`),
@@ -279,7 +282,6 @@ struct AlbumTextBlockEditSheet: View {
                     .accessibilityLabel(Text("album.textBlock.edit.font_size"))
             }
             .fixedSize()
-            Spacer()
         }
     }
 
@@ -303,41 +305,36 @@ struct AlbumTextBlockEditSheet: View {
     /// in canvas units throughout (unchanged storage/rendering unit, same space `AlbumPageRenderer`
     /// already scales against), so this is purely a presentation-layer conversion, not a schema
     /// change.
+    ///
+    /// § user report — "Phần hiển thị cỡ chữ đang bị lẻ???: 26,07878 là sao?": `canvasUnitsPerPoint`
+    /// is an irrational-ish ratio (`50 / 28.3465`), so dividing by it directly produced a long,
+    /// meaningless decimal the instant `fontSize` wasn't an exact multiple of it (which is
+    /// essentially always). Font sizes are conventionally whole points anyway — rounding here means
+    /// the field only ever shows/holds a clean integer; `set` still converts back to the precise
+    /// (non-integer) canvas-unit equivalent underneath, same as before.
     private var fontSizeInPoints: Binding<Double> {
         Binding(
-            get: { safeFontSize / Self.canvasUnitsPerPoint },
+            get: { (safeFontSize / Self.canvasUnitsPerPoint).rounded() },
             set: { fontSize = $0 * Self.canvasUnitsPerPoint }
         )
     }
 
-    /// § user request — "font-weight sẽ thay bằng các định dạng cơ bản: Regular, Italic, Bold,
-    /// Italic-Bold (sử dụng icon)" + user report — "icon cho kiểu Italic Bold không có": the SF
-    /// Symbol `"bold.italic"` doesn't actually exist/render on this device, so every option here
-    /// renders as an "A" glyph styled *in* that actual style instead of a symbol — guaranteed to
-    /// display correctly for all 4 (and, like the font-family strip's own chips, doubles as a tiny
-    /// live sample of the style itself rather than an abstract icon).
+    /// § user request — "tôi cần điều chỉnh về 4 kiểu Cơ bản hơn, dùng icon đúng: Regular, Italic,
+    /// Bold, Underline. icon button cần đủ to để bấm": real SF Symbols (all 4 confirmed to render,
+    /// unlike the earlier `"bold.italic"` combo icon that didn't) instead of the previous "A" glyph
+    /// approach, at a bigger point size and with `.controlSize(.large)` so each segment is an
+    /// actually comfortable tap target — not just visually distinct.
     private var styleControl: some View {
         Picker("album.textBlock.edit.font_style", selection: $fontStyle) {
-            ForEach(AlbumTextFontStyle.allCases, id: \.self) { style in
-                styleGlyph(style).tag(style)
-            }
+            Image(systemName: "textformat").tag(AlbumTextFontStyle.regular)
+            Image(systemName: "italic").tag(AlbumTextFontStyle.italic)
+            Image(systemName: "bold").tag(AlbumTextFontStyle.bold)
+            Image(systemName: "underline").tag(AlbumTextFontStyle.underline)
         }
         .pickerStyle(.segmented)
+        .controlSize(.large)
+        .imageScale(.large)
         .labelsHidden()
-        .fixedSize()
-    }
-
-    private func styleGlyph(_ style: AlbumTextFontStyle) -> some View {
-        let isBold = style == .bold || style == .boldItalic
-        let isItalic = style == .italic || style == .boldItalic
-        let glyph = Text("A").font(.system(size: 16, weight: isBold ? .bold : .regular))
-        return Group {
-            if isItalic {
-                glyph.italic()
-            } else {
-                glyph
-            }
-        }
     }
 
     /// § user report — the CoreGraphics "invalid numeric value (NaN...)" console warning: the same

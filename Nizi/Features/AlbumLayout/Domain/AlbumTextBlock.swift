@@ -62,6 +62,15 @@ struct AlbumTextBlock: Identifiable, Codable, Hashable {
     /// (`AlbumPageLayout.textBlocks`, `AlbumTextAssignment`) already had this same defensive
     /// posture; `AlbumTextBlock` itself was still relying on synthesized (all-fields-required)
     /// `Codable`.
+    ///
+    /// § lesson learned from that same bug — decoding `fontStyle` straight as `AlbumTextFontStyle`
+    /// via `decodeIfPresent` is *not* enough on its own: `decodeIfPresent` only skips a *missing*
+    /// key gracefully — a key that's *present* but holds a raw value this enum no longer
+    /// recognizes (e.g. `"boldItalic"`, valid while that case briefly existed) still throws
+    /// `dataCorrupted`, which would fail the whole `AlbumLayoutLibrary` decode exactly the same way
+    /// the missing-`fontStyle` bug did. Decoding the raw `String` first and switching over it by
+    /// hand means an unrecognized value degrades to `.regular` instead of taking every Album page
+    /// down with it.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
@@ -71,8 +80,8 @@ struct AlbumTextBlock: Identifiable, Codable, Hashable {
         verticalAlignment = try container.decode(AlbumTextVerticalAlignment.self, forKey: .verticalAlignment)
         fontFamily = try container.decode(AlbumTextFontFamily.self, forKey: .fontFamily)
         fontSize = try container.decode(Double.self, forKey: .fontSize)
-        if let style = try container.decodeIfPresent(AlbumTextFontStyle.self, forKey: .fontStyle) {
-            fontStyle = style
+        if let rawStyle = try container.decodeIfPresent(String.self, forKey: .fontStyle) {
+            fontStyle = AlbumTextFontStyle(legacyRawValue: rawStyle)
         } else if let legacyWeight = try container.decodeIfPresent(String.self, forKey: .legacyFontWeight) {
             fontStyle = legacyWeight == "bold" ? .bold : .regular
         } else {
@@ -141,13 +150,26 @@ enum AlbumTextFontFamily: String, Codable, Hashable, CaseIterable {
 }
 
 /// § user request — "font-weight sẽ thay bằng các định dạng cơ bản: Regular, Italic, Bold,
-/// Italic-Bold": the 4 basic style permutations most fonts actually ship as distinct named faces
-/// (not a thickness scale like the previous `medium`/`semibold` steps — those rarely resolved to a
-/// visibly different face for most of the curated families below anyway; italic is a genuinely
-/// different, commonly-available axis instead).
+/// Italic-Bold" — later refined to "Regular, Italic, Bold, Underline" (§ user report: the
+/// Bold-Italic icon didn't reliably render, and 4 simple, single-attribute options with correct
+/// icons matter more than every permutation). `.regular`/`.italic`/`.bold` are font-*face* choices
+/// (resolved against the family's own named faces in Presentation); `.underline` is not a face at
+/// all — it's a text decoration applied on top of the regular face (see `AlbumTextBlockView`'s own
+/// `.underline(_:)` modifier).
 enum AlbumTextFontStyle: String, Codable, Hashable, CaseIterable {
     case regular
     case italic
     case bold
-    case boldItalic
+    case underline
+
+    /// § lesson learned from the "mất hết ảnh" bug — a plain `init?(rawValue:)` (the synthesized
+    /// one) returns `nil` for any string this enum doesn't currently recognize, which upstream
+    /// (`AlbumTextBlock`/`AlbumTextAssignment`'s own custom `init(from decoder:)`) would otherwise
+    /// have to `decodeIfPresent` the enum directly and let a *present-but-unrecognized* raw value
+    /// throw `dataCorrupted` — exactly the failure mode that took every Album page down before.
+    /// This degrades any unrecognized value (including `"boldItalic"`, valid while that case
+    /// briefly existed before being replaced with `.underline`) to `.regular` instead.
+    init(legacyRawValue: String) {
+        self = AlbumTextFontStyle(rawValue: legacyRawValue) ?? .regular
+    }
 }

@@ -28,13 +28,21 @@ const KONVA_VERTICAL_ALIGN: Record<AlbumTextBlock["verticalAlignment"], string> 
   bottom: "bottom",
 };
 
-/** Konva's own `<Text fontStyle>` accepts exactly these 4 strings — a direct match for our own
- * 4-case `AlbumTextFontStyle`, § user request "Regular, Italic, Bold, Italic-Bold". */
+/** § user request — "Regular, Italic, Bold, Underline": `"underline"` is a text *decoration*, not
+ * a font style at all — Konva's own `<Text fontStyle>` only understands "normal"/"italic"/"bold"/
+ * "italic bold", so underline goes through the separate `textDecoration` prop below instead. */
 const KONVA_FONT_STYLE: Record<AlbumTextBlock["fontStyle"], string> = {
   regular: "normal",
   italic: "italic",
   bold: "bold",
-  boldItalic: "italic bold",
+  underline: "normal",
+};
+
+const KONVA_TEXT_DECORATION: Record<AlbumTextBlock["fontStyle"], string> = {
+  regular: "",
+  italic: "",
+  bold: "",
+  underline: "underline",
 };
 
 /** § user request "Thêm chữ" — a text block's canvas presence, sibling to `LayoutSlot`. Always
@@ -82,6 +90,7 @@ export const TextBlockElement = forwardRef<Konva.Group, Props>(function TextBloc
         fontSize={fontSizePx}
         fontFamily={textBlock.fontFamily === "System" ? undefined : textBlock.fontFamily}
         fontStyle={KONVA_FONT_STYLE[textBlock.fontStyle]}
+        textDecoration={KONVA_TEXT_DECORATION[textBlock.fontStyle]}
         fill="#333"
         padding={4}
         wrap="word"

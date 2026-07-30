@@ -139,13 +139,14 @@ export const ALBUM_TEXT_FONT_FAMILIES: AlbumTextFontFamily[] = [
 ];
 
 /** § user request — "font-weight sẽ thay bằng các định dạng cơ bản: Regular, Italic, Bold,
- * Italic-Bold": the 4 basic style permutations most fonts actually ship as distinct named faces —
- * mirrors `Nizi/Features/AlbumLayout/Domain/AlbumTextBlock.swift`'s own `AlbumTextFontStyle`
- * exactly (this replaced an earlier `AlbumTextFontWeight` thickness scale — medium/semibold rarely
- * resolved to a visibly different face for most of the curated families above anyway). */
-export type AlbumTextFontStyle = "regular" | "italic" | "bold" | "boldItalic";
+ * Italic-Bold" — later refined to "Regular, Italic, Bold, Underline" (§ user report: the
+ * Bold-Italic icon didn't reliably render, and 4 simple, single-attribute options with correct
+ * icons matter more than every permutation) — mirrors `Nizi/Features/AlbumLayout/Domain/
+ * AlbumTextBlock.swift`'s own `AlbumTextFontStyle` exactly. `"underline"` is a text *decoration*,
+ * not a font face at all (see `TextBlockElement.tsx`'s own handling). */
+export type AlbumTextFontStyle = "regular" | "italic" | "bold" | "underline";
 
-export const ALBUM_TEXT_FONT_STYLES: AlbumTextFontStyle[] = ["regular", "italic", "bold", "boldItalic"];
+export const ALBUM_TEXT_FONT_STYLES: AlbumTextFontStyle[] = ["regular", "italic", "bold", "underline"];
 
 export interface AlbumTextBlock {
   id: string;

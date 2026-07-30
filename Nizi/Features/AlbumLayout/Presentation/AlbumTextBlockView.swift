@@ -17,7 +17,20 @@ import SwiftUI
 /// own pixel `frame` and already-resolved style — it doesn't know or care whether that style came
 /// from an assignment or a block default.
 struct AlbumTextBlockView: View {
-    let frame: CGRect
+    /// § bug report — "khi ấn vào ảnh cũng ra editor text": this used to take the whole `CGRect`
+    /// and call `.position(x:y:)` as its own *last* modifier internally. `AlbumPageRenderer` then
+    /// attached its `.contentShape(Rectangle()).onTapGesture` *outside*, wrapping this already-
+    /// positioned view — but `.position()` reports a flexible ("fill whatever space my parent
+    /// gives me") size to its own parent, and a gesture/content-shape attached *after* `.position()`
+    /// sizes itself to that reported flexible size, not the view's actual visible bounds. In
+    /// practice that meant the text block's tap target silently expanded to cover the entire
+    /// canvas (this view sits inside the same `ZStack` as every photo slot, so nothing else with a
+    /// gesture on top ever blocked it) — any tap anywhere, including squarely on a photo, hit the
+    /// text block's `onTapGesture` first. Fixed by taking only `size` here (never doing its own
+    /// `.position()` at all) — `AlbumPageRenderer.textBlockView` now attaches the gesture to this
+    /// properly-*bounded* view first and applies `.position()` itself afterward, exactly mirroring
+    /// how `slotView` already correctly handles photo slots.
+    let size: CGSize
     let horizontalAlignment: AlbumTextHorizontalAlignment
     let verticalAlignment: AlbumTextVerticalAlignment
     let fontFamily: AlbumTextFontFamily
@@ -46,17 +59,19 @@ struct AlbumTextBlockView: View {
     var body: some View {
         Text(displayText)
             .font(font)
+            // § "Regular, Italic, Bold, Underline" — underline is a text *decoration*, not a font
+            // face choice at all, so it's a separate modifier rather than something `font` itself
+            // could ever express (`Font` has no underline concept).
+            .underline(fontStyle == .underline)
             .multilineTextAlignment(textAlignment)
             // § "Nếu là placeholder thì chữ sẽ bị mờ. Nếu là nội dung user nhập vào thì chữ mới rõ
             // nét" — dimmed for the placeholder, full opacity for real content.
             .opacity(isPlaceholder ? 0.35 : 1)
-            .frame(width: frame.width, height: frame.height, alignment: containerAlignment)
+            .frame(width: size.width, height: size.height, alignment: containerAlignment)
             // § "Chữ sẽ hiển thị trong khối đó, không tràn ra ngoài" — hard clip regardless of how
             // much text there is, on top of whatever wrapping `.frame`'s proposed width already
-            // encourages.
+            // encourages. Deliberately *no* `.position()` here — see this type's own doc comment.
             .clipped()
-            .frame(width: frame.width, height: frame.height)
-            .position(x: frame.midX, y: frame.midY)
     }
 
     private var textAlignment: TextAlignment {
@@ -97,21 +112,23 @@ struct AlbumTextBlockView: View {
 func albumTextFont(family: AlbumTextFontFamily, size: CGFloat, style: AlbumTextFontStyle) -> Font {
     guard family != .system else {
         var font = Font.system(size: size)
-        if style == .bold || style == .boldItalic { font = font.bold() }
-        if style == .italic || style == .boldItalic { font = font.italic() }
+        if style == .bold { font = font.bold() }
+        if style == .italic { font = font.italic() }
         return font
     }
     return .custom(albumTextBestMatchingFontName(family: family.rawValue, style: style), size: size)
 }
 
 /// `Font.custom` needs an exact PostScript font name, not a family display name (e.g.
-/// `"HelveticaNeue-BoldItalic"`, not `"Helvetica Neue"`) — and which PostScript names exist, and
-/// which one corresponds to which style, differs per family and isn't something worth hardcoding
-/// (and risking a typo silently falling back to the system font for one family). `UIFont.fontNames
+/// `"HelveticaNeue-Bold"`, not `"Helvetica Neue"`) — and which PostScript names exist, and which
+/// one corresponds to which style, differs per family and isn't something worth hardcoding (and
+/// risking a typo silently falling back to the system font for one family). `UIFont.fontNames
 /// (forFamilyName:)` asks iOS itself, which is the only reliable source. Deliberately doesn't just
 /// apply SwiftUI's own `.bold()`/`.italic()` on top of a resolved custom face — those synthesize a
 /// faux slant/weight algorithmically, which looks worse than an actual hand-designed italic/bold
 /// face the family already ships (exactly what this look-up finds instead, when one exists).
+/// `.underline` needs no face lookup at all — it's just the regular face plus a separate
+/// `.underline(_:)` modifier (see `AlbumTextBlockView.body`), same as `.regular` here.
 func albumTextBestMatchingFontName(family: String, style: AlbumTextFontStyle) -> String {
     let candidates = UIFont.fontNames(forFamilyName: family)
     guard !candidates.isEmpty else { return family }
@@ -124,17 +141,15 @@ func albumTextBestMatchingFontName(family: String, style: AlbumTextFontStyle) ->
 
     let match: String?
     switch style {
-    case .regular:
+    case .regular, .underline:
         match = nil
     case .bold:
         match = candidates.first { isBold($0) && !isItalic($0) }
     case .italic:
         match = candidates.first { isItalic($0) && !isBold($0) }
-    case .boldItalic:
-        match = candidates.first { isBold($0) && isItalic($0) }
     }
-    // No exact match — either `.regular` itself, or this family doesn't ship a face for the
-    // requested style (many of the curated families only have one) — fall back to whatever looks
-    // like its regular/default face.
+    // No exact match — either `.regular`/`.underline` (neither needs one), or this family doesn't
+    // ship a face for the requested style (many of the curated families only have one) — fall
+    // back to whatever looks like its regular/default face.
     return match ?? candidates.first(where: { has($0, "Regular") }) ?? candidates[0]
 }

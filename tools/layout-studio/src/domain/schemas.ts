@@ -68,7 +68,16 @@ export const albumTextVerticalAlignmentSchema = z.enum(
 
 export const albumTextFontFamilySchema = z.enum(ALBUM_TEXT_FONT_FAMILIES as [string, ...string[]]);
 
-export const albumTextFontStyleSchema = z.enum(ALBUM_TEXT_FONT_STYLES as [string, ...string[]]);
+// § lesson learned from the iOS app's own "mất hết ảnh" bug (a schema evolution that made one
+// stale field value fail decoding took down the *entire* layout library, not just the one text
+// block): a plain `z.enum(...)` would reject an already-saved `"boldItalic"` value outright (that
+// case existed only briefly, before being replaced with `"underline"`) and fail importing the
+// *whole* file. `z.preprocess` remaps anything not in the current set to `"regular"` first, so an
+// old file with that stale value still imports cleanly instead of blocking the whole import.
+export const albumTextFontStyleSchema = z.preprocess(
+  (value) => (typeof value === "string" && !(ALBUM_TEXT_FONT_STYLES as string[]).includes(value) ? "regular" : value),
+  z.enum(ALBUM_TEXT_FONT_STYLES as [string, ...string[]]),
+);
 
 export const albumTextBlockSchema = z.object({
   id: nonEmptyString,

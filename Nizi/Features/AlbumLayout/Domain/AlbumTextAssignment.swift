@@ -63,7 +63,11 @@ struct AlbumTextAssignment: Identifiable, Codable, Hashable {
         verticalAlignment = try container.decodeIfPresent(AlbumTextVerticalAlignment.self, forKey: .verticalAlignment) ?? .center
         fontFamily = try container.decodeIfPresent(AlbumTextFontFamily.self, forKey: .fontFamily) ?? .system
         fontSize = try container.decodeIfPresent(Double.self, forKey: .fontSize) ?? 32
-        fontStyle = try container.decodeIfPresent(AlbumTextFontStyle.self, forKey: .fontStyle) ?? .regular
+        // § lesson learned from the "mất hết ảnh" bug — decoding straight as `AlbumTextFontStyle`
+        // would throw `dataCorrupted` (not just skip gracefully) for a *present* but no-longer-
+        // recognized value (e.g. a stale `"boldItalic"`, valid while that case briefly existed) —
+        // see `AlbumTextFontStyle.init(legacyRawValue:)`'s own doc comment.
+        fontStyle = (try container.decodeIfPresent(String.self, forKey: .fontStyle)).map(AlbumTextFontStyle.init(legacyRawValue:)) ?? .regular
     }
 
     func encode(to encoder: Encoder) throws {

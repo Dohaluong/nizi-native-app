@@ -183,11 +183,16 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
         let scaledFontSize = fontSize * min(scaleX, scaleY)
 
         let content = AlbumTextBlockView(
-            frame: rect, horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
+            size: rect.size, horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
             fontFamily: fontFamily, scaledFontSize: scaledFontSize, fontStyle: fontStyle,
             content: assignment?.text
         )
 
+        // § bug report — "khi ấn vào ảnh cũng ra editor text": the gesture must attach *before*
+        // `.position()` (applied once, below, to both branches) — see `AlbumTextBlockView`'s own
+        // doc comment for why attaching it to an already-positioned view silently made the tap
+        // target cover the whole canvas instead of just this block's own bounds. Mirrors
+        // `slotView`'s exact structure below.
         return Group {
             if let onTapTextBlock {
                 let effective = assignment ?? AlbumTextAssignment(
@@ -202,6 +207,7 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
                 content
             }
         }
+        .position(x: rect.midX, y: rect.midY)
     }
 
     private func slotView(
