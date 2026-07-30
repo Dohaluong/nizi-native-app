@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Konva from "konva";
-import { Layer, Stage } from "react-konva";
+import { Layer, Line, Stage } from "react-konva";
 import type { StudioLayout } from "../domain/studioLayout";
 import { frameToPixels, pixelsToFrame, snapFrame } from "../services/normalizeGeometry";
 import { assignPreviewPhotos } from "../preview/LocalPhotoProvider";
@@ -9,18 +9,20 @@ import { CanvasBackground } from "./CanvasBackground";
 import { GridLayer } from "./GridLayer";
 import { LayoutSlot } from "./LayoutSlot";
 import { SlotTransformer } from "./SlotTransformer";
+import { computeAlignmentGuides, type AlignmentGuide } from "./alignmentGuides";
 
 const MAX_STAGE_SIZE = 640;
 
 interface Props {
   studioLayout: StudioLayout;
   showGrid: boolean;
+  alignEnabled: boolean;
 }
 
 /** § 11 — the Page canvas. Scales to fit the editor area while keeping `referenceCanvas`'s own
  * aspect ratio (never a hardcoded square — § 11: "Nếu schema hiện tại có page aspect ratio thì
  * lấy từ schema thật"). */
-export function LayoutCanvas({ studioLayout, showGrid }: Props) {
+export function LayoutCanvas({ studioLayout, showGrid, alignEnabled }: Props) {
   const { layout } = studioLayout;
   const selectedSlotId = useLayoutStudioStore((s) => s.selectedSlotId);
   const snapEnabled = useLayoutStudioStore((s) => s.snapEnabled);
@@ -58,6 +60,29 @@ export function LayoutCanvas({ studioLayout, showGrid }: Props) {
   useEffect(() => {
     setSelectedNode(selectedSlotId ? nodeRefs.current[selectedSlotId] ?? null : null);
   }, [selectedSlotId, layout.slots]);
+
+  // § user request: "Konva có tính năng align theo object và stage. Cho phép bật để align" —
+  // live snap-to-other-slots/snap-to-stage guides during drag, independent of the 1%-grid
+  // `snapEnabled` above (that snaps to a fixed grid; this snaps to whatever's actually on the
+  // page). `guidesActiveRef` tracks whether a guide was engaged for the drag currently in
+  // progress, read (not just `alignmentGuides` state, which is cleared before `onDragEnd` fires)
+  // so `onDragEnd` can skip the grid-percent snap when the alignment snap already placed the slot
+  // exactly where it needs to be — stacking both would nudge it off the guide by a pixel or two.
+  const [alignmentGuides, setAlignmentGuides] = useState<AlignmentGuide[]>([]);
+  const guidesActiveRef = useRef(false);
+
+  const handleDragMove = useCallback(
+    (slotId: string, node: Konva.Group) => {
+      const others = Object.entries(nodeRefs.current)
+        .filter(([id, otherNode]) => id !== slotId && otherNode !== null)
+        .map(([, otherNode]) => otherNode as Konva.Group);
+      const { guides, snappedPosition } = computeAlignmentGuides(node, others, stagePixelSize);
+      node.position(snappedPosition);
+      guidesActiveRef.current = guides.length > 0;
+      setAlignmentGuides(guides);
+    },
+    [stagePixelSize],
+  );
 
   const photoAssignment = useMemo(
     () =>
@@ -118,6 +143,7 @@ export function LayoutCanvas({ studioLayout, showGrid }: Props) {
               isSelected={slot.id === selectedSlotId}
               previewPhoto={photoAssignment.get(slot.id)}
               onSelect={() => selectSlot(slot.id)}
+              onDragMove={alignEnabled ? (node) => handleDragMove(slot.id, node) : undefined}
               onDragEnd={(pixelPosition) => {
                 const currentPixels = frameToPixels(slot.frame, layout.referenceCanvas, stagePixelSize);
                 const rawFrame = pixelsToFrame(
@@ -125,7 +151,13 @@ export function LayoutCanvas({ studioLayout, showGrid }: Props) {
                   layout.referenceCanvas,
                   stagePixelSize,
                 );
-                updateSlotFrame(layout.id, slot.id, snapFrame(rawFrame, layout.referenceCanvas, snapEnabled));
+                // An active alignment guide already placed this slot exactly on another slot's/
+                // the stage's edge — layering the 1%-grid snap on top of that could nudge it back
+                // off by a pixel or two, so it's skipped for this drag when a guide was engaged.
+                const wasGuideSnapped = alignEnabled && guidesActiveRef.current;
+                updateSlotFrame(layout.id, slot.id, wasGuideSnapped ? rawFrame : snapFrame(rawFrame, layout.referenceCanvas, snapEnabled));
+                guidesActiveRef.current = false;
+                setAlignmentGuides([]);
               }}
               onTransformEnd={(node) => {
                 const scaleX = node.scaleX();
@@ -147,6 +179,21 @@ export function LayoutCanvas({ studioLayout, showGrid }: Props) {
             />
           ))}
           <SlotTransformer selectedNode={selectedNode} />
+          {alignEnabled &&
+            alignmentGuides.map((guide, index) => (
+              <Line
+                key={index}
+                points={
+                  guide.orientation === "V"
+                    ? [guide.position, 0, guide.position, stageHeight]
+                    : [0, guide.position, stageWidth, guide.position]
+                }
+                stroke="#ff3d81"
+                strokeWidth={1}
+                dash={[4, 6]}
+                listening={false}
+              />
+            ))}
         </Layer>
       </Stage>
     </div>

@@ -14,6 +14,7 @@ export default function App() {
   const selectedLayout = useLayoutStudioStore((s) => s.selectedLayout());
   const selectedSlotId = useLayoutStudioStore((s) => s.selectedSlotId);
   const [showGrid, setShowGrid] = useState(true);
+  const [alignEnabled, setAlignEnabled] = useState(true);
 
   useEffect(() => {
     loadAutosaveIfAny();
@@ -31,7 +32,12 @@ export default function App() {
         <span className="app-subtitle">Internal authoring tool — not part of the iOS app runtime.</span>
       </header>
 
-      <Toolbar showGrid={showGrid} onToggleGrid={() => setShowGrid((v) => !v)} />
+      <Toolbar
+        showGrid={showGrid}
+        onToggleGrid={() => setShowGrid((v) => !v)}
+        alignEnabled={alignEnabled}
+        onToggleAlign={() => setAlignEnabled((v) => !v)}
+      />
 
       <div className="app-body">
         <LayoutLibraryPanel />
@@ -39,7 +45,7 @@ export default function App() {
         <div className="canvas-column">
           {selectedLayout ? (
             <>
-              <LayoutCanvas studioLayout={selectedLayout} showGrid={showGrid} />
+              <LayoutCanvas studioLayout={selectedLayout} showGrid={showGrid} alignEnabled={alignEnabled} />
               <PhotoPreviewPanel />
               <ValidationPanel />
             </>

@@ -7,12 +7,14 @@ import { PRODUCTION_EXPORT_FILENAME, STUDIO_PROJECT_FILENAME, type StudioProject
 interface Props {
   showGrid: boolean;
   onToggleGrid: () => void;
+  alignEnabled: boolean;
+  onToggleAlign: () => void;
 }
 
-/** § 8 toolbar actions: Import JSON, Validate, Export JSON, plus Snap/Grid toggles and Studio
- * project Save/Open/Reset (§ 22/§ 23/§ 24). "New Layout"/"Duplicate"/"Delete"/"Add Slot" live on
- * `LayoutLibraryPanel`/`LayoutInspector` instead, next to the layout they act on. */
-export function Toolbar({ showGrid, onToggleGrid }: Props) {
+/** § 8 toolbar actions: Import JSON, Validate, Export JSON, plus Snap/Grid/Align toggles and
+ * Studio project Save/Open/Reset (§ 22/§ 23/§ 24). "New Layout"/"Duplicate"/"Delete"/"Add Slot"
+ * live on `LayoutLibraryPanel`/`LayoutInspector` instead, next to the layout they act on. */
+export function Toolbar({ showGrid, onToggleGrid, alignEnabled, onToggleAlign }: Props) {
   const snapEnabled = useLayoutStudioStore((s) => s.snapEnabled);
   const toggleSnap = useLayoutStudioStore((s) => s.toggleSnap);
   const layouts = useLayoutStudioStore((s) => s.layouts);
@@ -81,6 +83,9 @@ export function Toolbar({ showGrid, onToggleGrid }: Props) {
         </label>
         <label className="checkbox-inline">
           <input type="checkbox" checked={showGrid} onChange={onToggleGrid} /> Grid
+        </label>
+        <label className="checkbox-inline" title="Snap to other slots' edges/centers and the page's edges/center while dragging">
+          <input type="checkbox" checked={alignEnabled} onChange={onToggleAlign} /> Align
         </label>
       </div>
 

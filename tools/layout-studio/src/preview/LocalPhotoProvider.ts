@@ -1,4 +1,5 @@
 import type { AlbumSlotOrientation } from "../domain/albumLayout";
+import { classifyOrientationFromSize } from "../services/classifyOrientation";
 
 /** A locally-picked preview photo — `url` is a `URL.createObjectURL(file)` blob URL, never
  * uploaded anywhere (§ 16) and never persisted to localStorage (§ 24: "Không autosave ảnh local
@@ -9,16 +10,6 @@ export interface PreviewPhoto {
   naturalWidth: number;
   naturalHeight: number;
   orientation: "landscape" | "portrait" | "square";
-}
-
-const SQUARE_TOLERANCE = 0.05; // within ±5% aspect ratio counts as "square", matching the same
-// tolerance AlbumLayoutValidator.swift uses for the format check, for one consistent notion of
-// "close enough to square" across the whole tool.
-
-function classifyOrientation(width: number, height: number): "landscape" | "portrait" | "square" {
-  const ratio = width / height;
-  if (Math.abs(ratio - 1) <= SQUARE_TOLERANCE) return "square";
-  return ratio > 1 ? "landscape" : "portrait";
 }
 
 /** Reads `naturalWidth`/`naturalHeight` off a real `<img>` load — the only reliable way to get
@@ -44,7 +35,7 @@ export async function loadPreviewPhotos(files: FileList | File[]): Promise<Previ
         url,
         naturalWidth: width,
         naturalHeight: height,
-        orientation: classifyOrientation(width, height),
+        orientation: classifyOrientationFromSize(width, height),
       });
     } catch {
       URL.revokeObjectURL(url);

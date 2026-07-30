@@ -31,12 +31,16 @@ interface Props {
   isSelected: boolean;
   previewPhoto?: PreviewPhoto;
   onSelect: () => void;
+  /** Fires continuously while dragging, before `onDragEnd` — only wired up when alignment guides
+   * are enabled (`LayoutCanvas` passes `undefined` otherwise), since it's the hook that lets the
+   * parent snap this node's live position to other slots'/the stage's edges. */
+  onDragMove?: (node: Konva.Group) => void;
   onDragEnd: (pixelPosition: { x: number; y: number }) => void;
   onTransformEnd: (node: Konva.Group) => void;
 }
 
 export const LayoutSlot = forwardRef<Konva.Group, Props>(function LayoutSlot(
-  { slot, canvas, stagePixelSize, isSelected, previewPhoto, onSelect, onDragEnd, onTransformEnd },
+  { slot, canvas, stagePixelSize, isSelected, previewPhoto, onSelect, onDragMove, onDragEnd, onTransformEnd },
   ref,
 ) {
   const pixels = frameToPixels(slot.frame, canvas, stagePixelSize);
@@ -65,6 +69,7 @@ export const LayoutSlot = forwardRef<Konva.Group, Props>(function LayoutSlot(
   return (
     <Group
       ref={ref}
+      id={slot.id}
       x={pixels.x}
       y={pixels.y}
       width={pixels.width}
@@ -72,6 +77,7 @@ export const LayoutSlot = forwardRef<Konva.Group, Props>(function LayoutSlot(
       draggable
       onClick={onSelect}
       onTap={onSelect}
+      onDragMove={onDragMove ? (e) => onDragMove(e.target as Konva.Group) : undefined}
       onDragEnd={(e) => onDragEnd({ x: e.target.x(), y: e.target.y() })}
       onTransformEnd={(e) => onTransformEnd(e.target as Konva.Group)}
     >

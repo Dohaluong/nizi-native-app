@@ -10,6 +10,7 @@ import { DEFAULT_REFERENCE_CANVAS } from "../domain/albumLayout";
 import type { StudioLayout, StudioProject } from "../domain/studioLayout";
 import { makeStudioMeta, STUDIO_PROJECT_FILENAME } from "../domain/studioLayout";
 import { importLayoutLibrary } from "../services/importLayoutLibrary";
+import { classifyOrientationFromSize } from "../services/classifyOrientation";
 import { clampFrame } from "../services/normalizeGeometry";
 import { validateLibrary, type ValidationIssue } from "../services/validateLayout";
 import type { PreviewPhoto } from "../preview/LocalPhotoProvider";
@@ -31,12 +32,21 @@ function nextUniqueId(baseId: string, existing: Set<string>): string {
   return `${baseId}-${counter}`;
 }
 
+/** `"any"` is the one `AlbumSlotOrientation` value a rectangle's own shape can never imply — it's
+ * a deliberate "accept whatever photo you're given" choice, not a geometry fact — so it's treated
+ * as a sticky manual override here: once a slot is explicitly set to `"any"`, further frame
+ * changes leave it alone. Every other value (`landscape`/`portrait`/`square`) always stays in
+ * sync with the slot's actual current shape. */
+function nextOrientation(current: AlbumSlotOrientation, width: number, height: number): AlbumSlotOrientation {
+  return current === "any" ? "any" : classifyOrientationFromSize(width, height);
+}
+
 function makeSlot(order: number, frame: AlbumLayoutFrame): AlbumLayoutSlot {
   return {
     id: `photo-${order + 1}`,
     order,
     role: order === 0 ? "hero" : "supporting",
-    preferredOrientation: "any",
+    preferredOrientation: classifyOrientationFromSize(frame.width, frame.height),
     frame,
     contentMode: "fill",
     cornerRadius: 0,
@@ -338,10 +348,10 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
         // three times just stacks three full-bleed slots on top of each other, none of them
         // usable without the author manually repositioning all of them first.
         const evenWidth = l.layout.referenceCanvas.width / (nextOrder + 1);
-        const reflowedSlots = l.layout.slots.map((slot, index) => ({
-          ...slot,
-          frame: { x: evenWidth * index, y: 0, width: evenWidth, height: l.layout.referenceCanvas.height },
-        }));
+        const reflowedSlots = l.layout.slots.map((slot, index) => {
+          const frame = { x: evenWidth * index, y: 0, width: evenWidth, height: l.layout.referenceCanvas.height };
+          return { ...slot, frame, preferredOrientation: nextOrientation(slot.preferredOrientation, frame.width, frame.height) };
+        });
         const newFrame = { x: evenWidth * nextOrder, y: 0, width: evenWidth, height: l.layout.referenceCanvas.height };
         const newSlot = makeSlot(nextOrder, newFrame);
         return { ...l, layout: withReindexedSlots(l.layout, [...reflowedSlots, newSlot]) };
@@ -351,6 +361,11 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
     scheduleAutosave(get);
   },
 
+  // § user request: "Preferred Orientation cần tự nhận diện theo kích thước RECT" — every frame
+  // change (drag, resize, or a manual X/Y/W/H edit in the Inspector all funnel through this one
+  // action) re-derives `preferredOrientation` from the new width/height via `nextOrientation`, so
+  // it's never a separate, driftable field the author has to remember to update by hand after
+  // reshaping a slot (except a deliberate `"any"`, which stays put — see `nextOrientation`).
   updateSlotFrame: (layoutId, slotId, frame) => {
     set((state) => ({
       layouts: state.layouts.map((l) => {
@@ -360,7 +375,11 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
           ...l,
           layout: {
             ...l.layout,
-            slots: l.layout.slots.map((slot) => (slot.id === slotId ? { ...slot, frame: clamped } : slot)),
+            slots: l.layout.slots.map((slot) =>
+              slot.id === slotId
+                ? { ...slot, frame: clamped, preferredOrientation: nextOrientation(slot.preferredOrientation, clamped.width, clamped.height) }
+                : slot,
+            ),
           },
         };
       }),
