@@ -44,9 +44,6 @@
         }
       }
     },
-    "%lld" : {
-
-    },
     "%lld / %lld" : {
       "localizations" : {
         "en" : {
@@ -119,9 +116,6 @@
 
     },
     "0 Album · %lld photos surveyed" : {
-
-    },
-    "A" : {
 
     },
     "Album Draft Planner" : {

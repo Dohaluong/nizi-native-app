@@ -26,6 +26,71 @@ struct AlbumTextBlock: Identifiable, Codable, Hashable {
     let fontFamily: AlbumTextFontFamily
     let fontSize: Double
     let fontStyle: AlbumTextFontStyle
+
+    init(
+        id: String, order: Int, frame: AlbumLayoutFrame,
+        horizontalAlignment: AlbumTextHorizontalAlignment, verticalAlignment: AlbumTextVerticalAlignment,
+        fontFamily: AlbumTextFontFamily, fontSize: Double, fontStyle: AlbumTextFontStyle
+    ) {
+        self.id = id
+        self.order = order
+        self.frame = frame
+        self.horizontalAlignment = horizontalAlignment
+        self.verticalAlignment = verticalAlignment
+        self.fontFamily = fontFamily
+        self.fontSize = fontSize
+        self.fontStyle = fontStyle
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, order, frame, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontStyle
+        /// § bug report — "mất hết ảnh": the entire `AlbumLayoutLibrary` decode is one array —
+        /// one `AlbumTextBlock` still carrying the *old* field name (from before `fontWeight` was
+        /// renamed to `fontStyle`, exported by an out-of-date copy of the Layout Studio) failed
+        /// with `keyNotFound(fontStyle)`, which threw all the way up through `layouts[30].
+        /// textBlocks[0]` and took every single layout down with it — every Album page's renderer
+        /// then found no layout at all (`BundleAlbumLayoutRepository` never partially succeeds)
+        /// and rendered nothing, looking exactly like every photo had vanished.
+        case legacyFontWeight = "fontWeight"
+    }
+
+    /// § same bug report — decodes `fontStyle` if present; falls back to translating whatever
+    /// *old* `fontWeight` value is there instead (only `"bold"` has a real equivalent — `medium`/
+    /// `semibold`/`regular` all become `.regular`, the closest available style); falls back to
+    /// `.regular` if neither key exists at all. This is the one place in the whole "Thêm chữ"
+    /// feature that was missed when `fontWeight` became `fontStyle` — every other type involved
+    /// (`AlbumPageLayout.textBlocks`, `AlbumTextAssignment`) already had this same defensive
+    /// posture; `AlbumTextBlock` itself was still relying on synthesized (all-fields-required)
+    /// `Codable`.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        order = try container.decode(Int.self, forKey: .order)
+        frame = try container.decode(AlbumLayoutFrame.self, forKey: .frame)
+        horizontalAlignment = try container.decode(AlbumTextHorizontalAlignment.self, forKey: .horizontalAlignment)
+        verticalAlignment = try container.decode(AlbumTextVerticalAlignment.self, forKey: .verticalAlignment)
+        fontFamily = try container.decode(AlbumTextFontFamily.self, forKey: .fontFamily)
+        fontSize = try container.decode(Double.self, forKey: .fontSize)
+        if let style = try container.decodeIfPresent(AlbumTextFontStyle.self, forKey: .fontStyle) {
+            fontStyle = style
+        } else if let legacyWeight = try container.decodeIfPresent(String.self, forKey: .legacyFontWeight) {
+            fontStyle = legacyWeight == "bold" ? .bold : .regular
+        } else {
+            fontStyle = .regular
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(order, forKey: .order)
+        try container.encode(frame, forKey: .frame)
+        try container.encode(horizontalAlignment, forKey: .horizontalAlignment)
+        try container.encode(verticalAlignment, forKey: .verticalAlignment)
+        try container.encode(fontFamily, forKey: .fontFamily)
+        try container.encode(fontSize, forKey: .fontSize)
+        try container.encode(fontStyle, forKey: .fontStyle)
+    }
 }
 
 /// "Có các kiểu căn lề trái phải giữa" — left/center/right, mapped to a `TextAlignment` (how
