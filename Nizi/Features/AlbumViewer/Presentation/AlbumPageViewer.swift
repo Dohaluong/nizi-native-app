@@ -257,7 +257,7 @@ struct AlbumPageViewer: View {
                 if let page = currentViewerPage { swapSourcePage = page }
             }
             .disabled(currentViewerPage == nil)
-            editToolbarButton("album.removePhoto", systemImage: "photo.badge.minus") {
+            editToolbarButton("album.removePhoto", systemImage: "minus.circle") {
                 if let page = currentViewerPage { removePhotoTarget = page }
             }
             .disabled(currentViewerPage == nil)

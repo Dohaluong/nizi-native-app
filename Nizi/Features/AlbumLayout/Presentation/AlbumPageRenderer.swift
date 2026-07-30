@@ -40,8 +40,6 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
     @State private var dragState: AlbumSlotDragState?
     @State private var activeRipples: [String: AlbumSlotRippleEffect] = [:]
 
-    private static var coordinateSpaceName: String { "AlbumPageRenderer.canvas" }
-
     var body: some View {
         // A single `GeometryReader` at the canvas level (§ Performance) — no nested
         // `GeometryReader`s per slot; every slot's frame is plain arithmetic from this one size.
@@ -51,12 +49,19 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
             // Built once per render pass, not re-searched per slot (§ Performance).
             let assignmentsBySlotId = Dictionary(uniqueKeysWithValues: assignments.map { ($0.slotId, $0) })
             let slotFrames = slotFrames(scaleX: scaleX, scaleY: scaleY)
+            // The swap gesture reports `.global` drag locations (see `albumSlotSwapGesture`'s own
+            // doc comment for why not a named coordinate space) — this is what converts them back
+            // to the same local space `slotFrames` is already in.
+            let canvasOrigin = proxy.frame(in: .global).origin
 
             ZStack(alignment: .topLeading) {
                 backgroundView
 
                 ForEach(layout.slots.sorted { $0.order < $1.order }) { slot in
-                    slotView(slot, assignmentsBySlotId: assignmentsBySlotId, slotFrames: slotFrames, scaleX: scaleX, scaleY: scaleY)
+                    slotView(
+                        slot, assignmentsBySlotId: assignmentsBySlotId, slotFrames: slotFrames,
+                        canvasOrigin: canvasOrigin, scaleX: scaleX, scaleY: scaleY
+                    )
                 }
 
                 if let dragState {
@@ -64,7 +69,6 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
-            .coordinateSpace(name: Self.coordinateSpaceName)
         }
     }
 
@@ -92,6 +96,7 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
         _ slot: AlbumLayoutSlot,
         assignmentsBySlotId: [String: AlbumPhotoAssignment],
         slotFrames: [String: CGRect],
+        canvasOrigin: CGPoint,
         scaleX: CGFloat,
         scaleY: CGFloat
     ) -> some View {
@@ -134,7 +139,7 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
             slot: slot, assignment: assignment, slotRect: rect, slotFrames: slotFrames,
             assignmentsBySlotId: assignmentsBySlotId,
             dragState: $dragState,
-            coordinateSpaceName: Self.coordinateSpaceName,
+            canvasOrigin: canvasOrigin,
             onDropped: { source, target in beginSwapRipple(source: source, target: target) }
         )
     }

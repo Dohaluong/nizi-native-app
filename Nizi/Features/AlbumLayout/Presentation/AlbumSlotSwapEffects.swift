@@ -12,9 +12,9 @@ import SwiftUI
 /// self-contained gesture+animation concern layered on top of the renderer's own plain layout/
 /// paint job — none of this affects `AlbumPageRenderer` when `onSwapPhotos` is left `nil`.
 
-/// One in-flight drag: which slot/photo it started from, and where the finger currently is (in
-/// the renderer's own named coordinate space — the same space every slot's frame is computed in,
-/// so a drop point can be hit-tested directly against those frames).
+/// One in-flight drag: which slot/photo it started from, and where the finger currently is —
+/// converted to the canvas's own local coordinate space (the same space every slot's frame is
+/// computed in), so a drop point can be hit-tested directly against those frames.
 struct AlbumSlotDragState {
     let sourceSlotId: String
     let sourceAssignment: AlbumPhotoAssignment
@@ -99,6 +99,16 @@ extension View {
     /// placeholder slot) cancels with no effect. `isEnabled: false` (or no assignment to drag in
     /// the first place) attaches no gesture at all — same "opt-in, zero overhead otherwise" shape
     /// `onTapPhoto` already uses elsewhere in this renderer.
+    ///
+    /// Uses `.global` coordinate space, converted back to this canvas's own local space via
+    /// `canvasOrigin` (`GeometryReader`'s `proxy.frame(in: .global).origin`, computed once by the
+    /// caller) — not a shared named coordinate space. A `TabView(.page)` keeps 2-3 Pages' worth of
+    /// `AlbumPageRenderer` alive at once (current + adjacent, for swipe transitions), and this
+    /// screen's layout picker instantiates several more (one per swatch); every one of those
+    /// previously declared the *same* string-named coordinate space simultaneously, which is
+    /// exactly the kind of setup that made drag tracking silently stop working after paging to a
+    /// page whose renderer instance was freshly (re)constructed — `.global` has no name to
+    /// register or resolve, so there's nothing for multiple instances to collide over.
     @ViewBuilder
     func albumSlotSwapGesture(
         isEnabled: Bool,
@@ -108,13 +118,17 @@ extension View {
         slotFrames: [String: CGRect],
         assignmentsBySlotId: [String: AlbumPhotoAssignment],
         dragState: Binding<AlbumSlotDragState?>,
-        coordinateSpaceName: String,
+        canvasOrigin: CGPoint,
         onDropped: @escaping (_ source: AlbumSlotSwapEndpoint, _ target: AlbumSlotSwapEndpoint) -> Void
     ) -> some View {
         if isEnabled, let assignment {
-            gesture(
+            // `.highPriorityGesture`, not `.gesture` — TabView(.page) is UIKit-backed
+            // (`UIPageViewController`) with its own pan recognizer for swipe-between-Pages; once a
+            // long-press has actually succeeded here, this gesture needs to keep winning the touch
+            // stream rather than risk losing it back to the page-swipe recognizer.
+            highPriorityGesture(
                 LongPressGesture(minimumDuration: 0.35)
-                    .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(coordinateSpaceName)))
+                    .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
                     .onChanged { value in
                         switch value {
                         case .first(true):
@@ -130,7 +144,9 @@ extension View {
                             }
                         case let .second(true, drag):
                             if let drag {
-                                dragState.wrappedValue?.currentLocation = drag.location
+                                dragState.wrappedValue?.currentLocation = CGPoint(
+                                    x: drag.location.x - canvasOrigin.x, y: drag.location.y - canvasOrigin.y
+                                )
                             }
                         default:
                             break
@@ -140,11 +156,12 @@ extension View {
                         let source = dragState.wrappedValue
                         dragState.wrappedValue = nil
                         guard case let .second(true, drag) = value, let drag, let source else { return }
+                        let dropLocation = CGPoint(x: drag.location.x - canvasOrigin.x, y: drag.location.y - canvasOrigin.y)
                         // Hit-test the drop point against every *other* slot's frame — dropping
                         // back onto the same slot, on empty background, or on a slot with no
                         // photo assigned all fall through here and cancel with no effect.
                         guard
-                            let targetEntry = slotFrames.first(where: { $0.key != slot.id && $0.value.contains(drag.location) }),
+                            let targetEntry = slotFrames.first(where: { $0.key != slot.id && $0.value.contains(dropLocation) }),
                             let targetAssignment = assignmentsBySlotId[targetEntry.key]
                         else { return }
 
@@ -156,7 +173,7 @@ extension View {
                         )
                         let targetEndpoint = AlbumSlotSwapEndpoint(
                             slotId: targetEntry.key, assignment: targetAssignment,
-                            anchor: CGPoint(x: drag.location.x - targetRect.minX, y: drag.location.y - targetRect.minY),
+                            anchor: CGPoint(x: dropLocation.x - targetRect.minX, y: dropLocation.y - targetRect.minY),
                             rect: targetRect
                         )
                         onDropped(sourceEndpoint, targetEndpoint)
