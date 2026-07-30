@@ -147,21 +147,26 @@ extension View {
             let holdDuration = 0.18
             let promotionMovementTolerance: CGFloat = 12
 
-            // § user report — a quick swipe starting on a photo was being swallowed entirely
-            // instead of turning the page. `.highPriorityGesture` alone (no `including:`) claims
-            // the touch stream from the very first instant, whether or not this ever actually
-            // becomes a photo drag — so *every* touch on a photo, including a fast swipe that
-            // never comes anywhere near `holdDuration`, was blocking `TabView(.page)`'s own pan
-            // recognizer (`UIPageViewController`-backed) from ever seeing it.
+            // § user report, round 2 — `.highPriorityGesture(_:including:)` with a dynamic mask
+            // (`.none` before promotion, `.all` after — the technique `AlbumPhotoPreviewView`'s
+            // own pan-while-zoomed gesture uses) turned out to be the wrong tool here: per
+            // `GestureMask`'s actual documented meaning, `.none` doesn't mean "track but don't
+            // claim priority" — it means "disable this gesture entirely, including its own
+            // `onChanged`." With that mask applied *before* promotion, this `DragGesture` never
+            // received any events at all during exactly the window it needs to be watching touch
+            // duration/movement to decide whether to promote — so holding never worked, at all.
             //
-            // `including:` takes a dynamic `GestureMask`, the same technique
-            // `AlbumPhotoPreviewView`'s own pan-while-zoomed gesture already uses to solve this
-            // exact class of conflict: `.none` while `dragState` hasn't been promoted yet means
-            // this gesture doesn't claim priority at all, so a plain quick swipe is free to reach
-            // the page-turn recognizer untouched; `.all` only once the hold has actually succeeded
-            // (`dragState != nil`) claims it, so the in-progress drag isn't then stolen back by a
-            // swipe gesture as the finger keeps moving.
-            highPriorityGesture(
+            // `.simultaneousGesture` instead: this gesture always tracks (its `onChanged`/
+            // `onEnded` always fire, so the hold-timer below always gets a chance to run), and it
+            // never blocks `TabView(.page)`'s own pan recognizer from *also* tracking the same
+            // touch. A quick swipe still pages normally, since nothing here ever promotes for one
+            // (the timer either never fires before release, or the movement tolerance check below
+            // fails) — the trade-off is that once a drag *is* promoted, TabView's own recognizer
+            // is still nominally free to also react if the subsequent motion reads as a page-swipe
+            // to it, which `.highPriorityGesture` would have prevented; in practice the drag target
+            // is another slot on the same, currently-visible Page, not a full edge-to-edge swipe,
+            // so this hasn't been an issue.
+            simultaneousGesture(
                 DragGesture(minimumDistance: 0, coordinateSpace: .global)
                     .onChanged { drag in
                         let location = CGPoint(x: drag.location.x - canvasOrigin.x, y: drag.location.y - canvasOrigin.y)
@@ -220,8 +225,7 @@ extension View {
                             rect: targetRect
                         )
                         onDropped(sourceEndpoint, targetEndpoint)
-                    },
-                including: dragState.wrappedValue != nil ? .all : .none
+                    }
             )
         } else {
             self
