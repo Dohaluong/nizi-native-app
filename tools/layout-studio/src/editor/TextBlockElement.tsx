@@ -28,6 +28,15 @@ const KONVA_VERTICAL_ALIGN: Record<AlbumTextBlock["verticalAlignment"], string> 
   bottom: "bottom",
 };
 
+/** Konva's own `<Text fontStyle>` accepts exactly these 4 strings — a direct match for our own
+ * 4-case `AlbumTextFontStyle`, § user request "Regular, Italic, Bold, Italic-Bold". */
+const KONVA_FONT_STYLE: Record<AlbumTextBlock["fontStyle"], string> = {
+  regular: "normal",
+  italic: "italic",
+  bold: "bold",
+  boldItalic: "italic bold",
+};
+
 /** § user request "Thêm chữ" — a text block's canvas presence, sibling to `LayoutSlot`. Always
  * previews the literal placeholder ("Write here") — there's no per-Album text content yet, only
  * the layout template's own geometry/style (see `AlbumTextBlock`'s own doc comment, Swift side).
@@ -72,7 +81,7 @@ export const TextBlockElement = forwardRef<Konva.Group, Props>(function TextBloc
         verticalAlign={KONVA_VERTICAL_ALIGN[textBlock.verticalAlignment]}
         fontSize={fontSizePx}
         fontFamily={textBlock.fontFamily === "System" ? undefined : textBlock.fontFamily}
-        fontStyle={textBlock.fontWeight === "bold" ? "bold" : "normal"}
+        fontStyle={KONVA_FONT_STYLE[textBlock.fontStyle]}
         fill="#333"
         padding={4}
         wrap="word"

@@ -83,7 +83,7 @@ function makeTextBlock(order: number, frame: AlbumLayoutFrame): AlbumTextBlock {
     verticalAlignment: "center",
     fontFamily: "System",
     fontSize: 48,
-    fontWeight: "regular",
+    fontStyle: "regular",
   };
 }
 
@@ -146,7 +146,7 @@ interface LayoutStudioState {
   updateTextBlock: (
     key: string,
     textBlockId: string,
-    patch: Partial<Pick<AlbumTextBlock, "horizontalAlignment" | "verticalAlignment" | "fontFamily" | "fontSize" | "fontWeight">>,
+    patch: Partial<Pick<AlbumTextBlock, "horizontalAlignment" | "verticalAlignment" | "fontFamily" | "fontSize" | "fontStyle">>,
   ) => void;
   deleteTextBlock: (key: string, textBlockId: string) => void;
   duplicateTextBlock: (key: string, textBlockId: string) => void;

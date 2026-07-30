@@ -1,7 +1,7 @@
 import type { AlbumTextBlock } from "../domain/albumLayout";
 import {
   ALBUM_TEXT_FONT_FAMILIES,
-  ALBUM_TEXT_FONT_WEIGHTS,
+  ALBUM_TEXT_FONT_STYLES,
   ALBUM_TEXT_HORIZONTAL_ALIGNMENTS,
   ALBUM_TEXT_VERTICAL_ALIGNMENTS,
 } from "../domain/albumLayout";
@@ -16,7 +16,7 @@ interface Props {
 /** § user request "Thêm chữ" — mirrors `SlotInspector`'s own layout exactly (same X/Y/Width/Height
  * `geometry-grid`, same numeric-input-calls-the-same-action-the-canvas-uses pattern), swapping the
  * slot-specific fields (orientation/role/contentMode/cornerRadius) for the text block's own
- * (horizontal/vertical alignment, font family, size, weight). */
+ * (horizontal/vertical alignment, font family, size, style). */
 export function TextBlockInspector({ layoutKey, textBlock }: Props) {
   const updateTextBlockFrame = useLayoutStudioStore((s) => s.updateTextBlockFrame);
   const updateTextBlock = useLayoutStudioStore((s) => s.updateTextBlock);
@@ -106,13 +106,13 @@ export function TextBlockInspector({ layoutKey, textBlock }: Props) {
       </label>
 
       <label>
-        Font weight
+        Font style
         <select
-          value={textBlock.fontWeight}
-          onChange={(e) => updateTextBlock(layoutKey, textBlock.id, { fontWeight: e.target.value as AlbumTextBlock["fontWeight"] })}
+          value={textBlock.fontStyle}
+          onChange={(e) => updateTextBlock(layoutKey, textBlock.id, { fontStyle: e.target.value as AlbumTextBlock["fontStyle"] })}
         >
-          {ALBUM_TEXT_FONT_WEIGHTS.map((weight) => (
-            <option key={weight} value={weight}>{weight}</option>
+          {ALBUM_TEXT_FONT_STYLES.map((style) => (
+            <option key={style} value={style}>{style}</option>
           ))}
         </select>
       </label>

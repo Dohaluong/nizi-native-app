@@ -4,7 +4,7 @@ import {
   ALBUM_SLOT_CONTENT_MODES,
   ALBUM_SLOT_ORIENTATIONS,
   ALBUM_TEXT_FONT_FAMILIES,
-  ALBUM_TEXT_FONT_WEIGHTS,
+  ALBUM_TEXT_FONT_STYLES,
   ALBUM_TEXT_HORIZONTAL_ALIGNMENTS,
   ALBUM_TEXT_VERTICAL_ALIGNMENTS,
 } from "./albumLayout";
@@ -68,7 +68,7 @@ export const albumTextVerticalAlignmentSchema = z.enum(
 
 export const albumTextFontFamilySchema = z.enum(ALBUM_TEXT_FONT_FAMILIES as [string, ...string[]]);
 
-export const albumTextFontWeightSchema = z.enum(ALBUM_TEXT_FONT_WEIGHTS as [string, ...string[]]);
+export const albumTextFontStyleSchema = z.enum(ALBUM_TEXT_FONT_STYLES as [string, ...string[]]);
 
 export const albumTextBlockSchema = z.object({
   id: nonEmptyString,
@@ -78,7 +78,7 @@ export const albumTextBlockSchema = z.object({
   verticalAlignment: albumTextVerticalAlignmentSchema,
   fontFamily: albumTextFontFamilySchema,
   fontSize: z.number().positive(),
-  fontWeight: albumTextFontWeightSchema,
+  fontStyle: albumTextFontStyleSchema,
 });
 
 export const albumPageLayoutSchema = z.object({

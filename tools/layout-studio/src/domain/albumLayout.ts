@@ -138,9 +138,14 @@ export const ALBUM_TEXT_FONT_FAMILIES: AlbumTextFontFamily[] = [
   "Papyrus",
 ];
 
-export type AlbumTextFontWeight = "regular" | "medium" | "semibold" | "bold";
+/** § user request — "font-weight sẽ thay bằng các định dạng cơ bản: Regular, Italic, Bold,
+ * Italic-Bold": the 4 basic style permutations most fonts actually ship as distinct named faces —
+ * mirrors `Nizi/Features/AlbumLayout/Domain/AlbumTextBlock.swift`'s own `AlbumTextFontStyle`
+ * exactly (this replaced an earlier `AlbumTextFontWeight` thickness scale — medium/semibold rarely
+ * resolved to a visibly different face for most of the curated families above anyway). */
+export type AlbumTextFontStyle = "regular" | "italic" | "bold" | "boldItalic";
 
-export const ALBUM_TEXT_FONT_WEIGHTS: AlbumTextFontWeight[] = ["regular", "medium", "semibold", "bold"];
+export const ALBUM_TEXT_FONT_STYLES: AlbumTextFontStyle[] = ["regular", "italic", "bold", "boldItalic"];
 
 export interface AlbumTextBlock {
   id: string;
@@ -151,7 +156,7 @@ export interface AlbumTextBlock {
   verticalAlignment: AlbumTextVerticalAlignment;
   fontFamily: AlbumTextFontFamily;
   fontSize: number;
-  fontWeight: AlbumTextFontWeight;
+  fontStyle: AlbumTextFontStyle;
 }
 
 export interface AlbumPageLayout {
