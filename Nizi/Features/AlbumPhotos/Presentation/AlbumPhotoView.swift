@@ -30,6 +30,12 @@ struct AlbumPhotoView: View {
     /// `AlbumPageRenderer`'s bridge) is preferred so this doesn't need its own `GeometryReader`
     /// nested inside the renderer's.
     let targetSize: CGSize?
+    /// § user request — `AlbumPhotoCropSheet` needs the photo to keep rendering *past* its own
+    /// frame (dimmed by an overlay outside the crop rect) instead of being cut off at it, so the
+    /// user can see what panning further would bring into frame. `true` everywhere else (every
+    /// real Page slot, every preview/swatch) — those all still want the normal "clip to my own
+    /// bounds" behavior, unchanged.
+    var clipsToFrame: Bool = true
 
     @Environment(\.albumPhotoProvider) private var provider
     @State private var state: AlbumPhotoLoadState = .idle
@@ -81,13 +87,17 @@ struct AlbumPhotoView: View {
 
     private func imageView(_ image: PlatformImage, pixelSize: CGSize) -> some View {
         GeometryReader { proxy in
-            Image(uiImage: image)
+            let content = Image(uiImage: image)
                 .resizable()
                 .aspectRatio(contentMode: contentMode == .fill ? .fill : .fit)
                 .scaleEffect(crop.scale)
                 .offset(x: crop.normalizedOffsetX * proxy.size.width, y: crop.normalizedOffsetY * proxy.size.height)
                 .frame(width: proxy.size.width, height: proxy.size.height)
-                .clipped()
+            if clipsToFrame {
+                content.clipped()
+            } else {
+                content
+            }
         }
     }
 

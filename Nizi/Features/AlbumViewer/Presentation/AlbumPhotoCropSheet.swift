@@ -58,12 +58,19 @@ struct AlbumPhotoCropSheet: View {
     var body: some View {
         NavigationStack {
             GeometryReader { proxy in
-                let frameSize = Self.frameSize(fitting: proxy.size, aspectRatio: frameAspectRatio)
+                let canvasSize = proxy.size
+                let frameSize = Self.frameSize(fitting: canvasSize, aspectRatio: frameAspectRatio)
+                let frameRect = CGRect(
+                    x: (canvasSize.width - frameSize.width) / 2,
+                    y: (canvasSize.height - frameSize.height) / 2,
+                    width: frameSize.width,
+                    height: frameSize.height
+                )
                 ZStack {
                     Color.black.ignoresSafeArea()
-                    cropCanvas(frameSize: frameSize)
+                    cropCanvas(canvasSize: canvasSize, frameRect: frameRect)
                 }
-                .frame(width: proxy.size.width, height: proxy.size.height)
+                .frame(width: canvasSize.width, height: canvasSize.height)
             }
             .navigationTitle("album.crop.title")
             .navigationBarTitleDisplayMode(.inline)
@@ -82,46 +89,66 @@ struct AlbumPhotoCropSheet: View {
         }
     }
 
-    private func cropCanvas(frameSize: CGSize) -> some View {
+    /// § user request — "Ảnh cần hiển thị cả phía bên ngoài khung crop nhưng màu nền tối hơn": the
+    /// photo itself is rendered `clipsToFrame: false` (still sized/positioned exactly as it would
+    /// be inside just the frame — same crop math, same `frameRect` origin — but no longer cut off
+    /// at that boundary), so panning reveals what's actually there beyond the frame instead of
+    /// cutting to black. `CropDimOverlay` then darkens everything *except* `frameRect` on top of
+    /// it, and gestures are attached to the whole canvas (not just the frame) so touching the
+    /// dimmed surrounding area still pans/zooms — it's the same live photo, just dimmed.
+    private func cropCanvas(canvasSize: CGSize, frameRect: CGRect) -> some View {
         let liveCrop = AlbumPhotoCrop(normalizedOffsetX: normalizedOffset.width, normalizedOffsetY: normalizedOffset.height, scale: scale)
-        return AlbumPhotoView(reference: assignment.photo, crop: liveCrop, contentMode: .fill, targetSize: nil)
-            .frame(width: frameSize.width, height: frameSize.height)
-            .clipShape(Rectangle())
-            .overlay(Rectangle().stroke(Color.white, lineWidth: 2))
-            .contentShape(Rectangle())
-            // § "Cho phép dùng 2 ngón zoom ảnh, pan ảnh" — pinch to zoom (its own gesture) and drag
-            // to pan (attached `.simultaneously`, so a plain one-finger drag pans without needing a
-            // pinch at the same time, and both still update together during an actual two-finger
-            // pinch-and-drag).
-            .gesture(
-                MagnificationGesture()
-                    .onChanged { value in
-                        let newScale = Self.clampedScale(lastScale * value)
-                        scale = newScale
-                        normalizedOffset = Self.clampedOffset(normalizedOffset, scale: newScale)
-                    }
-                    .onEnded { _ in
-                        lastScale = scale
-                        lastNormalizedOffset = normalizedOffset
-                    }
-            )
-            .simultaneousGesture(
-                DragGesture()
-                    .onChanged { value in
-                        let delta = CGSize(
-                            width: value.translation.width / frameSize.width,
-                            height: value.translation.height / frameSize.height
-                        )
-                        let proposed = CGSize(
-                            width: lastNormalizedOffset.width + delta.width,
-                            height: lastNormalizedOffset.height + delta.height
-                        )
-                        normalizedOffset = Self.clampedOffset(proposed, scale: scale)
-                    }
-                    .onEnded { _ in
-                        lastNormalizedOffset = normalizedOffset
-                    }
-            )
+        return ZStack {
+            AlbumPhotoView(reference: assignment.photo, crop: liveCrop, contentMode: .fill, targetSize: nil, clipsToFrame: false)
+                .frame(width: frameRect.width, height: frameRect.height)
+                .position(x: frameRect.midX, y: frameRect.midY)
+
+            CropDimOverlay(holeRect: frameRect)
+                .fill(Color.black.opacity(0.55), style: FillStyle(eoFill: true))
+                .allowsHitTesting(false)
+
+            Rectangle()
+                .stroke(Color.white, lineWidth: 2)
+                .frame(width: frameRect.width, height: frameRect.height)
+                .position(x: frameRect.midX, y: frameRect.midY)
+                .allowsHitTesting(false)
+        }
+        .frame(width: canvasSize.width, height: canvasSize.height)
+        .contentShape(Rectangle())
+        .clipped()
+        // § "Cho phép dùng 2 ngón zoom ảnh, pan ảnh" — pinch to zoom (its own gesture) and drag
+        // to pan (attached `.simultaneously`, so a plain one-finger drag pans without needing a
+        // pinch at the same time, and both still update together during an actual two-finger
+        // pinch-and-drag).
+        .gesture(
+            MagnificationGesture()
+                .onChanged { value in
+                    let newScale = Self.clampedScale(lastScale * value)
+                    scale = newScale
+                    normalizedOffset = Self.clampedOffset(normalizedOffset, scale: newScale)
+                }
+                .onEnded { _ in
+                    lastScale = scale
+                    lastNormalizedOffset = normalizedOffset
+                }
+        )
+        .simultaneousGesture(
+            DragGesture()
+                .onChanged { value in
+                    let delta = CGSize(
+                        width: value.translation.width / frameRect.width,
+                        height: value.translation.height / frameRect.height
+                    )
+                    let proposed = CGSize(
+                        width: lastNormalizedOffset.width + delta.width,
+                        height: lastNormalizedOffset.height + delta.height
+                    )
+                    normalizedOffset = Self.clampedOffset(proposed, scale: scale)
+                }
+                .onEnded { _ in
+                    lastNormalizedOffset = normalizedOffset
+                }
+        )
     }
 
     private static func clampedScale(_ value: CGFloat) -> CGFloat {
@@ -152,5 +179,20 @@ struct AlbumPhotoCropSheet: View {
         } else {
             return CGSize(width: maxHeight * aspectRatio, height: maxHeight)
         }
+    }
+}
+
+/// The full canvas rect minus `holeRect`, filled with an even-odd rule — darkens everywhere
+/// *except* the crop frame without needing `.mask()` (that's for punching a hole in existing
+/// content to reveal what's underneath; here the dimming color itself is the only content, so
+/// filling the compound path directly is simpler).
+private struct CropDimOverlay: Shape {
+    let holeRect: CGRect
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.addRect(rect)
+        path.addRect(holeRect)
+        return path
     }
 }
