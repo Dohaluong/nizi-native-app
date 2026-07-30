@@ -175,23 +175,6 @@
         }
       }
     },
-    "album.changeLayout" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Change Layout"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đổi bố cục"
-          }
-        }
-      }
-    },
     "album.creation.default_title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1559,23 +1542,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Không thể tải ảnh"
-          }
-        }
-      }
-    },
-    "album.viewer.cover_indicator" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cover"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bìa"
           }
         }
       }

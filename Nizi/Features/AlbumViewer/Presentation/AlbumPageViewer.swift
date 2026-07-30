@@ -24,7 +24,6 @@ struct AlbumPageViewer: View {
     @State private var editError: String?
 
     @State private var changeCoverTarget: Bool = false
-    @State private var changeLayoutTarget: AlbumViewerPage?
     @State private var swapSourcePage: AlbumViewerPage?
     @State private var removePhotoTarget: AlbumViewerPage?
     @State private var removeSpreadConfirmation: AlbumViewerPage?
@@ -60,7 +59,11 @@ struct AlbumPageViewer: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .background(Color(.systemGroupedBackground))
-            .safeAreaInset(edge: .top) { header }
+            .safeAreaInset(edge: .top) {
+                if isEditing {
+                    layoutPickerHeader
+                }
+            }
             .safeAreaInset(edge: .bottom) {
                 if isEditing { editToolbar }
             }
@@ -121,12 +124,6 @@ struct AlbumPageViewer: View {
                 changeCoverTarget = false
             }
         }
-        .sheet(item: $changeLayoutTarget) { page in
-            AlbumLayoutPickerSheet(page: page.page, layoutRepository: layoutRepository) { layoutId in
-                apply(.changePageLayout(pageId: page.page.id, layoutId: layoutId))
-                changeLayoutTarget = nil
-            }
-        }
         .sheet(item: $swapSourcePage) { sourcePage in
             AlbumSwapPhotoSheet(currentPage: sourcePage, draft: activeDraft) { firstAssignmentId, secondAssignmentId in
                 apply(.swapPhotos(firstAssignmentId: firstAssignmentId, secondAssignmentId: secondAssignmentId))
@@ -141,33 +138,11 @@ struct AlbumPageViewer: View {
         }
     }
 
-    // MARK: - Header
-
-    private var header: some View {
-        VStack(spacing: 2) {
-            Text(activeDraft.title)
-                .font(.subheadline.bold())
-            Text(pageIndicatorText)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(.bar)
-    }
-
-    private var pageIndicatorText: String {
-        guard let currentItem = items.first(where: { $0.id == selectedItemId }) else { return "" }
-        switch currentItem {
-        case .cover:
-            return String(localized: "album.viewer.cover_indicator")
-        case let .page(page):
-            return localizedString("album.viewer.page_indicator", defaultValue: "Page \(page.pageNumber) / \(page.totalPageCount)")
-        }
-    }
-
     // MARK: - Items
 
+    // § layout request — the page number now sits right below each Page's own content (as part
+    // of the same `TabView` item, so it slides along with the Page it belongs to) instead of in a
+    // persistent top header; the Cover has no page number, so it renders with nothing below it.
     @ViewBuilder
     private func itemView(_ item: AlbumViewerItem) -> some View {
         switch item {
@@ -179,7 +154,12 @@ struct AlbumPageViewer: View {
     }
 
     private func pageView(_ viewerPage: AlbumViewerPage) -> some View {
-        AlbumPageCardView(viewerPage: viewerPage, layoutRepository: layoutRepository)
+        VStack(spacing: 6) {
+            AlbumPageCardView(viewerPage: viewerPage, layoutRepository: layoutRepository)
+            Text(localizedString("album.viewer.page_indicator", defaultValue: "Page \(viewerPage.pageNumber) / \(viewerPage.totalPageCount)"))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
     }
 
     // MARK: - Edit mode
@@ -189,13 +169,65 @@ struct AlbumPageViewer: View {
         return page
     }
 
+    /// § layout request — replaces the old "Change Layout" sheet with an always-visible picker at
+    /// the top of the screen: 2 rows of every layout that matches the *current* Page's own photo
+    /// count (never a mismatched count — same filter `AlbumLayoutPickerSheet` used to apply),
+    /// re-filtering automatically as `currentViewerPage` changes while swiping between Pages.
+    /// Tapping a swatch applies it immediately, no confirmation step. Empty (no picker at all)
+    /// while the Cover is showing, since a Cover has no interchangeable Page layout.
+    @ViewBuilder
+    private var layoutPickerHeader: some View {
+        if let viewerPage = currentViewerPage {
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHGrid(rows: [GridItem(.fixed(56), spacing: 8), GridItem(.fixed(56), spacing: 8)], spacing: 10) {
+                    ForEach(candidateLayouts(for: viewerPage)) { candidate in
+                        layoutSwatchButton(candidate, currentPage: viewerPage)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+            }
+            .background(.bar)
+        }
+    }
+
+    private func candidateLayouts(for viewerPage: AlbumViewerPage) -> [AlbumPageLayout] {
+        (try? layoutRepository.layouts(photoCount: viewerPage.page.assignments.count, format: viewerPage.page.format))?
+            .sorted { $0.id < $1.id } ?? []
+    }
+
+    private func layoutSwatchButton(_ candidate: AlbumPageLayout, currentPage: AlbumViewerPage) -> some View {
+        Button {
+            apply(.changePageLayout(pageId: currentPage.page.id, layoutId: candidate.id))
+        } label: {
+            AlbumPageRenderer(layout: candidate, assignments: Self.swatchAssignments(for: candidate), photoProvider: LayoutSwatchPhotoProvider())
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(candidate.id == currentPage.page.layoutId ? Color.accentColor : .clear, lineWidth: 3)
+                }
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// One placeholder assignment per slot — never a real photo, just enough for
+    /// `AlbumPageRenderer` to hand each slot to `LayoutSwatchPhotoProvider`, which colors it by
+    /// the reference id's own stable hash. Keyed off `candidate.id`/`slot.id` (not a real photo
+    /// id) so the same layout always swatches the same way.
+    private static func swatchAssignments(for candidate: AlbumPageLayout) -> [AlbumPhotoAssignment] {
+        candidate.slots.map { slot in
+            AlbumPhotoAssignment(
+                id: "swatch-\(candidate.id)-\(slot.id)", slotId: slot.id,
+                photo: AlbumPhotoReference(id: "\(candidate.id)-\(slot.id)", source: .applePhotos, sourceIdentifier: "", originalFilename: nil),
+                crop: .centered
+            )
+        }
+    }
+
     private var editToolbar: some View {
         HStack(spacing: 0) {
             editToolbarButton("album.changeCover", systemImage: "photo") { changeCoverTarget = true }
-            editToolbarButton("album.changeLayout", systemImage: "square.grid.2x2") {
-                if let page = currentViewerPage { changeLayoutTarget = page }
-            }
-            .disabled(currentViewerPage == nil)
             editToolbarButton("album.swapPhoto", systemImage: "arrow.left.arrow.right") {
                 if let page = currentViewerPage { swapSourcePage = page }
             }
