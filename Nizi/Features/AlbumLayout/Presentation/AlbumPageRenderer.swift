@@ -58,9 +58,18 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
             ZStack(alignment: .topLeading) {
                 backgroundView
 
-                ForEach(layout.slots.sorted { $0.order < $1.order }) { slot in
+                // § user request — changing layout animates each photo *moving* from its old
+                // slot's frame to its new one, not popping straight there. That only happens if
+                // SwiftUI recognizes "this is still the same view, just with new frame/position
+                // values" across the layout change — which means keying `ForEach` by the *photo's*
+                // own stable id, not `slot.id` (every real layout independently names its own
+                // slots "photo-1", "photo-2", ... — two different layouts' "photo-1" are not the
+                // same slot, but the same photo re-assigned to a new layout's slot very much is
+                // still "the same thing" that should visibly move rather than get torn down and
+                // recreated in place).
+                ForEach(renderableSlots(assignmentsBySlotId: assignmentsBySlotId)) { entry in
                     slotView(
-                        slot, assignmentsBySlotId: assignmentsBySlotId, slotFrames: slotFrames,
+                        entry.slot, assignmentsBySlotId: assignmentsBySlotId, slotFrames: slotFrames,
                         canvasOrigin: canvasOrigin, scaleX: scaleX, scaleY: scaleY
                     )
                 }
@@ -77,6 +86,21 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
         switch layout.background.type {
         case .solid:
             Color(hex: layout.background.value) ?? Color(.systemBackground)
+        }
+    }
+
+    /// `id` is the assigned photo's own id when there is one — stable across a layout change,
+    /// since `AlbumEditActionApplying.changePageLayout` re-assigns photos onto new slot ids but
+    /// preserves which *photos* are on the Page. Empty slots (no assignment) have nothing to stay
+    /// stable across a layout change anyway, so they just key off the slot's own id.
+    private struct RenderableSlot: Identifiable {
+        let id: String
+        let slot: AlbumLayoutSlot
+    }
+
+    private func renderableSlots(assignmentsBySlotId: [String: AlbumPhotoAssignment]) -> [RenderableSlot] {
+        layout.slots.sorted { $0.order < $1.order }.map { slot in
+            RenderableSlot(id: assignmentsBySlotId[slot.id]?.photo.id ?? "empty-\(slot.id)", slot: slot)
         }
     }
 

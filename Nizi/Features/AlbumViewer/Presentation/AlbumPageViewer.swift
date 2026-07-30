@@ -241,7 +241,7 @@ struct AlbumPageViewer: View {
     private func layoutSwatchButton(_ candidate: AlbumPageLayout, currentPage: AlbumViewerPage) -> some View {
         let isSelected = candidate.id == currentPage.page.layoutId
         return Button {
-            apply(.changePageLayout(pageId: currentPage.page.id, layoutId: candidate.id))
+            apply(.changePageLayout(pageId: currentPage.page.id, layoutId: candidate.id), animated: true)
         } label: {
             AlbumPageRenderer(layout: candidate, assignments: Self.swatchAssignments(for: candidate), photoProvider: LayoutSwatchPhotoProvider())
                 .frame(width: Self.layoutSwatchSize, height: Self.layoutSwatchSize)
@@ -329,12 +329,26 @@ struct AlbumPageViewer: View {
         }
     }
 
-    private func apply(_ action: AlbumEditAction) {
+    /// `animated: true` (used only for `.changePageLayout` — § user request: "toạ độ frame layout
+    /// cũ sẽ di chuyển đến toạ độ frame tương ứng của layout mới") wraps the actual state
+    /// mutation in `withAnimation`, even though it lands asynchronously inside this `Task` — that
+    /// still works, since `withAnimation` only cares that the state write itself happens
+    /// synchronously *within* its trailing closure, not that the closure runs synchronously
+    /// relative to the call site. Every other action stays unanimated (snap), matching how it's
+    /// always behaved; `.swapPhotos` in particular already has its own dedicated ripple transition
+    /// in `AlbumPageRenderer` that a blanket animation here would only fight with.
+    private func apply(_ action: AlbumEditAction, animated: Bool = false) {
         guard let session = editingSession else { return }
         Task {
             do {
                 let updated = try await actionApplier.apply(action, to: session.workingDraft)
-                editingSession?.workingDraft = updated
+                if animated {
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        editingSession?.workingDraft = updated
+                    }
+                } else {
+                    editingSession?.workingDraft = updated
+                }
             } catch AlbumEditError.cannotRemoveLastPhotoOnPage {
                 removePhotoBlockedAlert = true
             } catch {
