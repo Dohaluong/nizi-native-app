@@ -85,6 +85,75 @@ export interface AlbumLayoutSlot {
   cornerRadius: number;
 }
 
+/** § user request "Thêm chữ" — mirrors `Nizi/Features/AlbumLayout/Domain/AlbumTextBlock.swift`
+ * exactly, the same "mirror the real Swift Codable shape" convention every other type in this file
+ * follows. Never counted toward `photoCount`/`slots.length` — a separate, decorative collection. */
+export type AlbumTextHorizontalAlignment = "left" | "center" | "right";
+
+export const ALBUM_TEXT_HORIZONTAL_ALIGNMENTS: AlbumTextHorizontalAlignment[] = ["left", "center", "right"];
+
+export type AlbumTextVerticalAlignment = "top" | "center" | "bottom";
+
+export const ALBUM_TEXT_VERTICAL_ALIGNMENTS: AlbumTextVerticalAlignment[] = ["top", "center", "bottom"];
+
+/** Raw values are the *exact* iOS family names `AlbumTextBlockView.swift` looks up via
+ * `UIFont.fontNames(forFamilyName:)` — see that Swift enum's own doc comment for why this is a
+ * curated subset, not iOS's full Font Book list. */
+export type AlbumTextFontFamily =
+  | "System"
+  | "Helvetica Neue"
+  | "Avenir"
+  | "Avenir Next"
+  | "Georgia"
+  | "Baskerville"
+  | "Didot"
+  | "Futura"
+  | "Gill Sans"
+  | "Optima"
+  | "Palatino"
+  | "Times New Roman"
+  | "American Typewriter"
+  | "Noteworthy"
+  | "Snell Roundhand"
+  | "Marker Felt"
+  | "Papyrus";
+
+export const ALBUM_TEXT_FONT_FAMILIES: AlbumTextFontFamily[] = [
+  "System",
+  "Helvetica Neue",
+  "Avenir",
+  "Avenir Next",
+  "Georgia",
+  "Baskerville",
+  "Didot",
+  "Futura",
+  "Gill Sans",
+  "Optima",
+  "Palatino",
+  "Times New Roman",
+  "American Typewriter",
+  "Noteworthy",
+  "Snell Roundhand",
+  "Marker Felt",
+  "Papyrus",
+];
+
+export type AlbumTextFontWeight = "regular" | "medium" | "semibold" | "bold";
+
+export const ALBUM_TEXT_FONT_WEIGHTS: AlbumTextFontWeight[] = ["regular", "medium", "semibold", "bold"];
+
+export interface AlbumTextBlock {
+  id: string;
+  /** Must be unique within its own layout (not globally) — mirrors `AlbumLayoutSlot.order`. */
+  order: number;
+  frame: AlbumLayoutFrame;
+  horizontalAlignment: AlbumTextHorizontalAlignment;
+  verticalAlignment: AlbumTextVerticalAlignment;
+  fontFamily: AlbumTextFontFamily;
+  fontSize: number;
+  fontWeight: AlbumTextFontWeight;
+}
+
 export interface AlbumPageLayout {
   /** Persistent, `{format}.{photoCount}.{variant}`-shaped (e.g. `"square.3.hero-top"`) — once an
    * Album page references it, it must never change or be reused for a different layout. */
@@ -100,6 +169,7 @@ export interface AlbumPageLayout {
   referenceCanvas: AlbumReferenceCanvas;
   background: AlbumLayoutBackground;
   slots: AlbumLayoutSlot[];
+  textBlocks: AlbumTextBlock[];
 }
 
 export interface AlbumLayoutLibrary {

@@ -47,6 +47,7 @@ export interface StudioProject {
   layouts: StudioLayout[];
   selectedLayoutKey: string | null;
   selectedSlotId: string | null;
+  selectedTextBlockId: string | null;
   snapEnabled: boolean;
 }
 

@@ -17,6 +17,7 @@ export function LayoutInspector({ studioLayout }: Props) {
   const renameLayoutId = useLayoutStudioStore((s) => s.renameLayoutId);
   const updateLayoutMeta = useLayoutStudioStore((s) => s.updateLayoutMeta);
   const addSlot = useLayoutStudioStore((s) => s.addSlot);
+  const addTextBlock = useLayoutStudioStore((s) => s.addTextBlock);
   const setLayoutFormat = useLayoutStudioStore((s) => s.setLayoutFormat);
   const setLayoutBackgroundColor = useLayoutStudioStore((s) => s.setLayoutBackgroundColor);
   const [idDraft, setIdDraft] = useState(layout.id);
@@ -71,7 +72,10 @@ export function LayoutInspector({ studioLayout }: Props) {
         <input type="color" value={layout.background.value} onChange={(e) => setLayoutBackgroundColor(studioLayout.key, e.target.value)} />
       </label>
 
-      <button onClick={() => addSlot(studioLayout.key)}>+ Add Slot</button>
+      <div className="inspector-actions">
+        <button onClick={() => addSlot(studioLayout.key)}>+ Add Slot</button>
+        <button onClick={() => addTextBlock(studioLayout.key)}>+ Add Text Block</button>
+      </div>
 
       <label>
         Notes (Studio-only)

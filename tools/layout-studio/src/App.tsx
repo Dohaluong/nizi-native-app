@@ -4,6 +4,7 @@ import { ValidationPanel } from "./components/ValidationPanel";
 import { LayoutLibraryPanel } from "./panels/LayoutLibraryPanel";
 import { LayoutInspector } from "./panels/LayoutInspector";
 import { SlotInspector } from "./panels/SlotInspector";
+import { TextBlockInspector } from "./panels/TextBlockInspector";
 import { PhotoPreviewPanel } from "./panels/PhotoPreviewPanel";
 import { LayoutCanvas } from "./editor/LayoutCanvas";
 import { useLayoutStudioStore } from "./store/layoutStudioStore";
@@ -13,6 +14,7 @@ export default function App() {
   const loadAutosaveIfAny = useLayoutStudioStore((s) => s.loadAutosaveIfAny);
   const selectedLayout = useLayoutStudioStore((s) => s.selectedLayout());
   const selectedSlotId = useLayoutStudioStore((s) => s.selectedSlotId);
+  const selectedTextBlockId = useLayoutStudioStore((s) => s.selectedTextBlockId);
   const [showGrid, setShowGrid] = useState(true);
   const [alignEnabled, setAlignEnabled] = useState(true);
 
@@ -24,6 +26,7 @@ export default function App() {
   }, []);
 
   const selectedSlot = selectedLayout?.layout.slots.find((slot) => slot.id === selectedSlotId);
+  const selectedTextBlock = selectedLayout?.layout.textBlocks.find((textBlock) => textBlock.id === selectedTextBlockId);
 
   return (
     <div className="app">
@@ -62,6 +65,13 @@ export default function App() {
               <LayoutInspector key={selectedLayout.key} studioLayout={selectedLayout} />
               {selectedSlot && (
                 <SlotInspector key={`${selectedLayout.key}-${selectedSlot.id}`} layoutKey={selectedLayout.key} slot={selectedSlot} />
+              )}
+              {selectedTextBlock && (
+                <TextBlockInspector
+                  key={`${selectedLayout.key}-${selectedTextBlock.id}`}
+                  layoutKey={selectedLayout.key}
+                  textBlock={selectedTextBlock}
+                />
               )}
             </>
           ) : (

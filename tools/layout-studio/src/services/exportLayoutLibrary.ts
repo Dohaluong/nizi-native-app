@@ -19,6 +19,7 @@ export function exportLayoutLibrary(studioLayouts: StudioLayout[]): ExportResult
   const layouts: AlbumPageLayout[] = studioLayouts.map(({ layout }) => ({
     ...layout,
     slots: layout.slots.map((slot) => ({ ...slot, frame: roundFrame(slot.frame) })),
+    textBlocks: layout.textBlocks.map((textBlock) => ({ ...textBlock, frame: roundFrame(textBlock.frame) })),
   }));
   const library: AlbumLayoutLibrary = { schemaVersion: SUPPORTED_SCHEMA_VERSION, layouts };
 

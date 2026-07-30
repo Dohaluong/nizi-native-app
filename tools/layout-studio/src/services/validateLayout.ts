@@ -92,6 +92,34 @@ export function validateLayout(layout: AlbumPageLayout): ValidationIssue[] {
     }
   }
 
+  // § user request "Thêm chữ" — text blocks validate the same frame/canvas rules slots do
+  // (mirrors `AlbumLayoutValidator.validate(_ textBlock:in:)`), but never against `photoCount` —
+  // a separate, decorative collection.
+  const seenTextBlockIds = new Set<string>();
+  const seenTextBlockOrders = new Set<number>();
+  for (const textBlock of layout.textBlocks) {
+    if (seenTextBlockIds.has(textBlock.id)) {
+      issues.push({ level: "error", code: "duplicateTextBlockId", message: `Duplicate text block id "${textBlock.id}".`, layoutId, slotId: textBlock.id });
+    }
+    seenTextBlockIds.add(textBlock.id);
+
+    if (seenTextBlockOrders.has(textBlock.order)) {
+      issues.push({ level: "error", code: "duplicateTextBlockOrder", message: `Duplicate text block order (${textBlock.order}).`, layoutId, slotId: textBlock.id });
+    }
+    seenTextBlockOrders.add(textBlock.order);
+
+    const { frame } = textBlock;
+    if (!(frame.width > 0) || !(frame.height > 0) || frame.x < 0 || frame.y < 0) {
+      issues.push({ level: "error", code: "invalidTextBlockFrame", message: "Text block frame width/height must be > 0, x/y >= 0.", layoutId, slotId: textBlock.id });
+    }
+    if (frame.x + frame.width > layout.referenceCanvas.width || frame.y + frame.height > layout.referenceCanvas.height) {
+      issues.push({ level: "error", code: "textBlockOutsideCanvas", message: "Text block extends outside the page canvas.", layoutId, slotId: textBlock.id });
+    }
+    if (!(textBlock.fontSize > 0)) {
+      issues.push({ level: "error", code: "invalidTextBlockFontSize", message: "Text block fontSize must be > 0.", layoutId, slotId: textBlock.id });
+    }
+  }
+
   // Overlap warning — pairwise rectangle intersection over the reference canvas.
   for (let i = 0; i < layout.slots.length; i += 1) {
     for (let j = i + 1; j < layout.slots.length; j += 1) {

@@ -86,6 +86,14 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
                     )
                 }
 
+                // § user request "Thêm chữ" — decorative only (always shows its own placeholder,
+                // never a real photo/assignment), so unlike slots there's nothing here that needs
+                // to survive a layout change's animation or participate in the swap/crop gestures
+                // above; a plain `ForEach` keyed by the block's own id is enough.
+                ForEach(layout.textBlocks) { textBlock in
+                    AlbumTextBlockView(textBlock: textBlock, frame: textBlockFrame(textBlock, scaleX: scaleX, scaleY: scaleY))
+                }
+
                 if let dragState {
                     AlbumSlotDragPreview(assignment: dragState.sourceAssignment, photoProvider: photoProvider, position: dragState.currentLocation)
                 }
@@ -130,6 +138,13 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
             )
             return (slot.id, rect)
         })
+    }
+
+    private func textBlockFrame(_ textBlock: AlbumTextBlock, scaleX: CGFloat, scaleY: CGFloat) -> CGRect {
+        CGRect(
+            x: textBlock.frame.x * scaleX, y: textBlock.frame.y * scaleY,
+            width: textBlock.frame.width * scaleX, height: textBlock.frame.height * scaleY
+        )
     }
 
     private func slotView(

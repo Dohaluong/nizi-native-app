@@ -1,5 +1,13 @@
 import { z } from "zod";
-import { ALBUM_LAYOUT_SLOT_ROLES, ALBUM_SLOT_CONTENT_MODES, ALBUM_SLOT_ORIENTATIONS } from "./albumLayout";
+import {
+  ALBUM_LAYOUT_SLOT_ROLES,
+  ALBUM_SLOT_CONTENT_MODES,
+  ALBUM_SLOT_ORIENTATIONS,
+  ALBUM_TEXT_FONT_FAMILIES,
+  ALBUM_TEXT_FONT_WEIGHTS,
+  ALBUM_TEXT_HORIZONTAL_ALIGNMENTS,
+  ALBUM_TEXT_VERTICAL_ALIGNMENTS,
+} from "./albumLayout";
 
 /**
  * Structural (per-field/per-type) validation only — mirrors the real Swift `Codable` shape
@@ -50,6 +58,29 @@ export const albumLayoutSlotSchema = z.object({
   cornerRadius: z.number().min(0),
 });
 
+export const albumTextHorizontalAlignmentSchema = z.enum(
+  ALBUM_TEXT_HORIZONTAL_ALIGNMENTS as [string, ...string[]],
+);
+
+export const albumTextVerticalAlignmentSchema = z.enum(
+  ALBUM_TEXT_VERTICAL_ALIGNMENTS as [string, ...string[]],
+);
+
+export const albumTextFontFamilySchema = z.enum(ALBUM_TEXT_FONT_FAMILIES as [string, ...string[]]);
+
+export const albumTextFontWeightSchema = z.enum(ALBUM_TEXT_FONT_WEIGHTS as [string, ...string[]]);
+
+export const albumTextBlockSchema = z.object({
+  id: nonEmptyString,
+  order: z.number().int().min(0),
+  frame: albumLayoutFrameSchema,
+  horizontalAlignment: albumTextHorizontalAlignmentSchema,
+  verticalAlignment: albumTextVerticalAlignmentSchema,
+  fontFamily: albumTextFontFamilySchema,
+  fontSize: z.number().positive(),
+  fontWeight: albumTextFontWeightSchema,
+});
+
 export const albumPageLayoutSchema = z.object({
   id: nonEmptyString,
   name: nonEmptyString,
@@ -59,6 +90,10 @@ export const albumPageLayoutSchema = z.object({
   referenceCanvas: albumReferenceCanvasSchema,
   background: albumLayoutBackgroundSchema,
   slots: z.array(albumLayoutSlotSchema),
+  // § user request "Thêm chữ" — `.default([])` (not a plain required array) so any
+  // `album-layouts.json` exported before this feature existed still imports cleanly, matching the
+  // same backward-compatible posture `AlbumPageLayout.textBlocks` uses on the Swift side.
+  textBlocks: z.array(albumTextBlockSchema).default([]),
 });
 
 export const albumLayoutLibrarySchema = z.object({

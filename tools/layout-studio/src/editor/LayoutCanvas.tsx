@@ -8,6 +8,7 @@ import { useLayoutStudioStore } from "../store/layoutStudioStore";
 import { CanvasBackground } from "./CanvasBackground";
 import { GridLayer } from "./GridLayer";
 import { LayoutSlot } from "./LayoutSlot";
+import { TextBlockElement } from "./TextBlockElement";
 import { SlotTransformer } from "./SlotTransformer";
 import { computeAlignmentGuides, type AlignmentGuide } from "./alignmentGuides";
 
@@ -25,13 +26,19 @@ interface Props {
 export function LayoutCanvas({ studioLayout, showGrid, alignEnabled }: Props) {
   const { layout } = studioLayout;
   const selectedSlotId = useLayoutStudioStore((s) => s.selectedSlotId);
+  const selectedTextBlockId = useLayoutStudioStore((s) => s.selectedTextBlockId);
   const snapEnabled = useLayoutStudioStore((s) => s.snapEnabled);
   const previewPhotos = useLayoutStudioStore((s) => s.previewPhotos);
   const selectSlot = useLayoutStudioStore((s) => s.selectSlot);
+  const selectTextBlock = useLayoutStudioStore((s) => s.selectTextBlock);
   const updateSlotFrame = useLayoutStudioStore((s) => s.updateSlotFrame);
   const deleteSlot = useLayoutStudioStore((s) => s.deleteSlot);
   const duplicateSlot = useLayoutStudioStore((s) => s.duplicateSlot);
   const nudgeSlot = useLayoutStudioStore((s) => s.nudgeSlot);
+  const updateTextBlockFrame = useLayoutStudioStore((s) => s.updateTextBlockFrame);
+  const deleteTextBlock = useLayoutStudioStore((s) => s.deleteTextBlock);
+  const duplicateTextBlock = useLayoutStudioStore((s) => s.duplicateTextBlock);
+  const nudgeTextBlock = useLayoutStudioStore((s) => s.nudgeTextBlock);
 
   const aspect = layout.referenceCanvas.width / layout.referenceCanvas.height;
   const stageWidth = aspect >= 1 ? MAX_STAGE_SIZE : MAX_STAGE_SIZE * aspect;
@@ -56,10 +63,15 @@ export function LayoutCanvas({ studioLayout, showGrid, alignEnabled }: Props) {
     return setNodeRefCallbacks.current[slotId];
   }, []);
 
+  // Slots and text blocks share this same lookup (and the same `nodeRefs` map below) — at most
+  // one of `selectedSlotId`/`selectedTextBlockId` is ever set at a time (see the store's own
+  // `selectSlot`/`selectTextBlock`, which always clear the other), so which one supplied the id
+  // doesn't matter here.
+  const selectedElementId = selectedSlotId ?? selectedTextBlockId;
   const [selectedNode, setSelectedNode] = useState<Konva.Group | null>(null);
   useEffect(() => {
-    setSelectedNode(selectedSlotId ? nodeRefs.current[selectedSlotId] ?? null : null);
-  }, [selectedSlotId, layout.slots]);
+    setSelectedNode(selectedElementId ? nodeRefs.current[selectedElementId] ?? null : null);
+  }, [selectedElementId, layout.slots, layout.textBlocks]);
 
   // § user request: "Konva có tính năng align theo object và stage. Cho phép bật để align" —
   // live snap-to-other-slots/snap-to-stage guides during drag, independent of the 1%-grid
@@ -94,32 +106,48 @@ export function LayoutCanvas({ studioLayout, showGrid, alignEnabled }: Props) {
   );
 
   // § 26 — keyboard basics: Delete, Cmd/Ctrl+D duplicate, arrow nudge (Shift = bigger step), Esc
-  // deselect. Ignored while typing in an Inspector text field.
+  // deselect. Ignored while typing in an Inspector text field. Dispatches to the slot- or
+  // text-block-specific store action depending on which kind is currently selected — the two
+  // selection ids are mutually exclusive (see `selectedElementId`'s own comment above).
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
-      if (!selectedSlotId) return;
+      if (!selectedSlotId && !selectedTextBlockId) return;
 
       if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault();
-        deleteSlot(studioLayout.key, selectedSlotId);
+        if (selectedSlotId) deleteSlot(studioLayout.key, selectedSlotId);
+        else if (selectedTextBlockId) deleteTextBlock(studioLayout.key, selectedTextBlockId);
       } else if (event.key === "Escape") {
         selectSlot(null);
       } else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") {
         event.preventDefault();
-        duplicateSlot(studioLayout.key, selectedSlotId);
+        if (selectedSlotId) duplicateSlot(studioLayout.key, selectedSlotId);
+        else if (selectedTextBlockId) duplicateTextBlock(studioLayout.key, selectedTextBlockId);
       } else if (event.key.startsWith("Arrow")) {
         event.preventDefault();
         const step = event.shiftKey ? 5 : 1;
         const dx = event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0;
         const dy = event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0;
-        nudgeSlot(studioLayout.key, selectedSlotId, dx, dy);
+        if (selectedSlotId) nudgeSlot(studioLayout.key, selectedSlotId, dx, dy);
+        else if (selectedTextBlockId) nudgeTextBlock(studioLayout.key, selectedTextBlockId, dx, dy);
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedSlotId, studioLayout.key, deleteSlot, duplicateSlot, nudgeSlot, selectSlot]);
+  }, [
+    selectedSlotId,
+    selectedTextBlockId,
+    studioLayout.key,
+    deleteSlot,
+    duplicateSlot,
+    nudgeSlot,
+    deleteTextBlock,
+    duplicateTextBlock,
+    nudgeTextBlock,
+    selectSlot,
+  ]);
 
   return (
     <div className="canvas-wrapper">
@@ -175,6 +203,50 @@ export function LayoutCanvas({ studioLayout, showGrid, alignEnabled }: Props) {
                   stagePixelSize,
                 );
                 updateSlotFrame(studioLayout.key, slot.id, snapFrame(rawFrame, layout.referenceCanvas, snapEnabled));
+              }}
+            />
+          ))}
+          {layout.textBlocks.map((textBlock) => (
+            <TextBlockElement
+              key={textBlock.id}
+              ref={setNodeRef(textBlock.id)}
+              textBlock={textBlock}
+              canvas={layout.referenceCanvas}
+              stagePixelSize={stagePixelSize}
+              isSelected={textBlock.id === selectedTextBlockId}
+              onSelect={() => selectTextBlock(textBlock.id)}
+              onDragMove={alignEnabled ? (node) => handleDragMove(textBlock.id, node) : undefined}
+              onDragEnd={(pixelPosition) => {
+                const currentPixels = frameToPixels(textBlock.frame, layout.referenceCanvas, stagePixelSize);
+                const rawFrame = pixelsToFrame(
+                  { x: pixelPosition.x, y: pixelPosition.y, width: currentPixels.width, height: currentPixels.height },
+                  layout.referenceCanvas,
+                  stagePixelSize,
+                );
+                const wasGuideSnapped = alignEnabled && guidesActiveRef.current;
+                updateTextBlockFrame(
+                  studioLayout.key,
+                  textBlock.id,
+                  wasGuideSnapped ? rawFrame : snapFrame(rawFrame, layout.referenceCanvas, snapEnabled),
+                );
+                guidesActiveRef.current = false;
+                setAlignmentGuides([]);
+              }}
+              onTransformEnd={(node) => {
+                const scaleX = node.scaleX();
+                const scaleY = node.scaleY();
+                const newWidth = Math.max(8, node.width() * scaleX);
+                const newHeight = Math.max(8, node.height() * scaleY);
+                node.scaleX(1);
+                node.scaleY(1);
+                node.width(newWidth);
+                node.height(newHeight);
+                const rawFrame = pixelsToFrame(
+                  { x: node.x(), y: node.y(), width: newWidth, height: newHeight },
+                  layout.referenceCanvas,
+                  stagePixelSize,
+                );
+                updateTextBlockFrame(studioLayout.key, textBlock.id, snapFrame(rawFrame, layout.referenceCanvas, snapEnabled));
               }}
             />
           ))}

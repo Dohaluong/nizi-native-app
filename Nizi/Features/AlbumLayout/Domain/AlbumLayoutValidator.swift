@@ -63,6 +63,22 @@ enum AlbumLayoutValidator {
                 throw AlbumLayoutError.aspectRatioMismatch(layoutId: layout.id, format: format)
             }
         }
+
+        // § user request "Thêm chữ" — text blocks validate the same frame/canvas/uniqueness rules
+        // slots do, but deliberately never touch `photoCount`/slot-count checks above (a layout's
+        // text blocks are a separate, decorative collection — see `AlbumTextBlock`'s own doc
+        // comment).
+        var seenTextBlockIds = Set<String>()
+        var seenTextBlockOrders = Set<Int>()
+        for textBlock in layout.textBlocks {
+            guard seenTextBlockIds.insert(textBlock.id).inserted else {
+                throw AlbumLayoutError.duplicateTextBlockId(layoutId: layout.id, textBlockId: textBlock.id)
+            }
+            guard seenTextBlockOrders.insert(textBlock.order).inserted else {
+                throw AlbumLayoutError.duplicateTextBlockOrder(layoutId: layout.id)
+            }
+            try validate(textBlock, in: layout)
+        }
     }
 
     /// Validates a page's photo assignments against the layout it claims to use. A missing
@@ -90,6 +106,20 @@ enum AlbumLayoutValidator {
         let canvas = layout.referenceCanvas
         guard frame.x + frame.width <= canvas.width, frame.y + frame.height <= canvas.height else {
             throw AlbumLayoutError.slotOutsideCanvas(layoutId: layout.id, slotId: slot.id)
+        }
+    }
+
+    private static func validate(_ textBlock: AlbumTextBlock, in layout: AlbumPageLayout) throws {
+        let frame = textBlock.frame
+        guard frame.width > 0, frame.height > 0, frame.x >= 0, frame.y >= 0 else {
+            throw AlbumLayoutError.invalidTextBlockFrame(layoutId: layout.id, textBlockId: textBlock.id)
+        }
+        let canvas = layout.referenceCanvas
+        guard frame.x + frame.width <= canvas.width, frame.y + frame.height <= canvas.height else {
+            throw AlbumLayoutError.textBlockOutsideCanvas(layoutId: layout.id, textBlockId: textBlock.id)
+        }
+        guard textBlock.fontSize > 0 else {
+            throw AlbumLayoutError.invalidTextBlockFontSize(layoutId: layout.id, textBlockId: textBlock.id)
         }
     }
 

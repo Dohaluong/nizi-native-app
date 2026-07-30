@@ -27,4 +27,9 @@ enum AlbumLayoutError: Error, Equatable {
     case aspectRatioMismatch(layoutId: String, format: AlbumPageFormat)
     case assignmentSlotNotFound(layoutId: String, slotId: String)
     case duplicateAssignmentSlot(layoutId: String, slotId: String)
+    case duplicateTextBlockId(layoutId: String, textBlockId: String)
+    case duplicateTextBlockOrder(layoutId: String)
+    case invalidTextBlockFrame(layoutId: String, textBlockId: String)
+    case textBlockOutsideCanvas(layoutId: String, textBlockId: String)
+    case invalidTextBlockFontSize(layoutId: String, textBlockId: String)
 }

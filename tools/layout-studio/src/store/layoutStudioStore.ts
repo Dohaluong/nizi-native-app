@@ -5,6 +5,7 @@ import type {
   AlbumPageFormat,
   AlbumPageLayout,
   AlbumSlotOrientation,
+  AlbumTextBlock,
 } from "../domain/albumLayout";
 import { DEFAULT_REFERENCE_CANVAS } from "../domain/albumLayout";
 import type { StudioLayout, StudioProject } from "../domain/studioLayout";
@@ -66,6 +67,26 @@ function withReindexedSlots(layout: AlbumPageLayout, slots: AlbumLayoutSlot[]): 
   return { ...layout, slots: reindexed, photoCount: reindexed.length };
 }
 
+/** Same idea as `withReindexedSlots`, minus `photoCount` — a layout's text blocks are a separate,
+ * decorative collection never counted toward it (§ user request "Thêm chữ"). */
+function withReindexedTextBlocks(layout: AlbumPageLayout, textBlocks: AlbumTextBlock[]): AlbumPageLayout {
+  const reindexed = textBlocks.map((textBlock, index) => ({ ...textBlock, order: index }));
+  return { ...layout, textBlocks: reindexed };
+}
+
+function makeTextBlock(order: number, frame: AlbumLayoutFrame): AlbumTextBlock {
+  return {
+    id: `text-${order + 1}`,
+    order,
+    frame,
+    horizontalAlignment: "center",
+    verticalAlignment: "center",
+    fontFamily: "System",
+    fontSize: 48,
+    fontWeight: "regular",
+  };
+}
+
 /** A `StudioProject` saved before `StudioLayout.key` existed (or hand-edited) won't have one —
  * generate a fresh key for anything missing it rather than fail to load. */
 function ensureKeys(layouts: StudioLayout[]): StudioLayout[] {
@@ -79,6 +100,11 @@ interface LayoutStudioState {
    * collide between entries, and every action below needs to unambiguously target exactly one. */
   selectedLayoutKey: string | null;
   selectedSlotId: string | null;
+  /** Mutually exclusive with `selectedSlotId` (selecting one clears the other) — a simpler,
+   * lower-risk addition than generalizing both into one "selected element" concept, at the cost of
+   * every selection-driven action (`selectSlot`/`selectTextBlock`, the Inspector switch in
+   * `App.tsx`, the canvas keyboard handler) needing its own explicit check of which one is set. */
+  selectedTextBlockId: string | null;
   snapEnabled: boolean;
   issues: ValidationIssue[];
   importError: string | null;
@@ -94,6 +120,7 @@ interface LayoutStudioState {
 
   selectLayout: (key: string | null) => void;
   selectSlot: (id: string | null) => void;
+  selectTextBlock: (id: string | null) => void;
 
   createLayout: (photoCount: number, id: string, format: AlbumPageFormat) => void;
   duplicateLayout: (key: string) => void;
@@ -114,6 +141,17 @@ interface LayoutStudioState {
   duplicateSlot: (key: string, slotId: string) => void;
   nudgeSlot: (key: string, slotId: string, dx: number, dy: number) => void;
 
+  addTextBlock: (key: string) => void;
+  updateTextBlockFrame: (key: string, textBlockId: string, frame: AlbumLayoutFrame) => void;
+  updateTextBlock: (
+    key: string,
+    textBlockId: string,
+    patch: Partial<Pick<AlbumTextBlock, "horizontalAlignment" | "verticalAlignment" | "fontFamily" | "fontSize" | "fontWeight">>,
+  ) => void;
+  deleteTextBlock: (key: string, textBlockId: string) => void;
+  duplicateTextBlock: (key: string, textBlockId: string) => void;
+  nudgeTextBlock: (key: string, textBlockId: string, dx: number, dy: number) => void;
+
   toggleSnap: () => void;
   runValidation: () => void;
 
@@ -131,6 +169,7 @@ function scheduleAutosave(get: () => LayoutStudioState): void {
       layouts: state.layouts,
       selectedLayoutKey: state.selectedLayoutKey,
       selectedSlotId: state.selectedSlotId,
+      selectedTextBlockId: state.selectedTextBlockId,
       snapEnabled: state.snapEnabled,
     };
     try {
@@ -148,6 +187,7 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
   layouts: [],
   selectedLayoutKey: null,
   selectedSlotId: null,
+  selectedTextBlockId: null,
   snapEnabled: true,
   issues: [],
   importError: null,
@@ -195,6 +235,7 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
       importError: null,
       selectedLayoutKey: keepsCurrentSelection ? state.selectedLayoutKey : merged[0]?.key ?? null,
       selectedSlotId: keepsCurrentSelection ? state.selectedSlotId : null,
+      selectedTextBlockId: keepsCurrentSelection ? state.selectedTextBlockId : null,
     });
     scheduleAutosave(get);
   },
@@ -216,6 +257,7 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
     layouts: get().layouts,
     selectedLayoutKey: get().selectedLayoutKey,
     selectedSlotId: get().selectedSlotId,
+    selectedTextBlockId: get().selectedTextBlockId,
     snapEnabled: get().snapEnabled,
   }),
 
@@ -225,6 +267,7 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
       layouts,
       selectedLayoutKey: project.selectedLayoutKey,
       selectedSlotId: project.selectedSlotId,
+      selectedTextBlockId: project.selectedTextBlockId,
       snapEnabled: project.snapEnabled,
       issues: validateLibrary({ schemaVersion: 1, layouts: layouts.map((l) => l.layout) }),
       importError: null,
@@ -238,14 +281,16 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
       layouts: [],
       selectedLayoutKey: null,
       selectedSlotId: null,
+      selectedTextBlockId: null,
       issues: [],
       importError: null,
       previewPhotos: [],
     });
   },
 
-  selectLayout: (key) => set({ selectedLayoutKey: key, selectedSlotId: null }),
-  selectSlot: (id) => set({ selectedSlotId: id }),
+  selectLayout: (key) => set({ selectedLayoutKey: key, selectedSlotId: null, selectedTextBlockId: null }),
+  selectSlot: (id) => set({ selectedSlotId: id, selectedTextBlockId: null }),
+  selectTextBlock: (id) => set({ selectedTextBlockId: id, selectedSlotId: null }),
 
   createLayout: (photoCount, id, format) => {
     const canvas = DEFAULT_REFERENCE_CANVAS[format];
@@ -267,12 +312,14 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
       referenceCanvas: canvas,
       background: { type: "solid", value: "#FFFFFF" },
       slots,
+      textBlocks: [],
     };
     const studioLayout: StudioLayout = { key: makeStudioLayoutKey(), layout, meta: makeStudioMeta() };
     set((state) => ({
       layouts: [...state.layouts, studioLayout],
       selectedLayoutKey: studioLayout.key,
       selectedSlotId: null,
+      selectedTextBlockId: null,
     }));
     get().runValidation();
     scheduleAutosave(get);
@@ -289,7 +336,7 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
       layout: { ...source.layout, id: newId, name: `${source.layout.name} Copy` },
       meta: makeStudioMeta(),
     };
-    set({ layouts: [...state.layouts, duplicated], selectedLayoutKey: duplicated.key, selectedSlotId: null });
+    set({ layouts: [...state.layouts, duplicated], selectedLayoutKey: duplicated.key, selectedSlotId: null, selectedTextBlockId: null });
     get().runValidation();
     scheduleAutosave(get);
   },
@@ -302,6 +349,7 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
         layouts,
         selectedLayoutKey: wasSelected ? null : state.selectedLayoutKey,
         selectedSlotId: wasSelected ? null : state.selectedSlotId,
+        selectedTextBlockId: wasSelected ? null : state.selectedTextBlockId,
       };
     });
     get().runValidation();
@@ -467,6 +515,109 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
       ...slot.frame,
       x: slot.frame.x + dx * step,
       y: slot.frame.y + dy * step,
+    });
+  },
+
+  // § user request "Thêm chữ" — mirrors addSlot/updateSlotFrame/updateSlot/deleteSlot/
+  // duplicateSlot/nudgeSlot exactly, minus anything that only makes sense for photo slots
+  // (contentMode/role/preferredOrientation/photoCount reflow).
+  addTextBlock: (key) => {
+    set((state) => ({
+      layouts: state.layouts.map((l) => {
+        if (l.key !== key) return l;
+        const canvas = l.layout.referenceCanvas;
+        // A sensible default size/position — a wide band across the middle third of the page,
+        // not full-bleed (unlike a first photo slot, a text block overlapping the whole canvas by
+        // default would almost always need immediate resizing to be useful).
+        const frame = { x: canvas.width * 0.1, y: canvas.height * 0.4, width: canvas.width * 0.8, height: canvas.height * 0.2 };
+        const newBlock = makeTextBlock(l.layout.textBlocks.length, frame);
+        return { ...l, layout: withReindexedTextBlocks(l.layout, [...l.layout.textBlocks, newBlock]) };
+      }),
+    }));
+    get().runValidation();
+    scheduleAutosave(get);
+  },
+
+  updateTextBlockFrame: (key, textBlockId, frame) => {
+    set((state) => ({
+      layouts: state.layouts.map((l) => {
+        if (l.key !== key) return l;
+        const clamped = clampFrame(frame, l.layout.referenceCanvas);
+        return {
+          ...l,
+          layout: {
+            ...l.layout,
+            textBlocks: l.layout.textBlocks.map((textBlock) => (textBlock.id === textBlockId ? { ...textBlock, frame: clamped } : textBlock)),
+          },
+        };
+      }),
+    }));
+    get().runValidation();
+    scheduleAutosave(get);
+  },
+
+  updateTextBlock: (key, textBlockId, patch) => {
+    set((state) => ({
+      layouts: state.layouts.map((l) => {
+        if (l.key !== key) return l;
+        return {
+          ...l,
+          layout: {
+            ...l.layout,
+            textBlocks: l.layout.textBlocks.map((textBlock) => (textBlock.id === textBlockId ? { ...textBlock, ...patch } : textBlock)),
+          },
+        };
+      }),
+    }));
+    scheduleAutosave(get);
+  },
+
+  deleteTextBlock: (key, textBlockId) => {
+    set((state) => ({
+      layouts: state.layouts.map((l) => {
+        if (l.key !== key) return l;
+        return { ...l, layout: withReindexedTextBlocks(l.layout, l.layout.textBlocks.filter((textBlock) => textBlock.id !== textBlockId)) };
+      }),
+      selectedTextBlockId: state.selectedTextBlockId === textBlockId ? null : state.selectedTextBlockId,
+    }));
+    get().runValidation();
+    scheduleAutosave(get);
+  },
+
+  duplicateTextBlock: (key, textBlockId) => {
+    set((state) => ({
+      layouts: state.layouts.map((l) => {
+        if (l.key !== key) return l;
+        const source = l.layout.textBlocks.find((textBlock) => textBlock.id === textBlockId);
+        if (!source) return l;
+        const existingIds = new Set(l.layout.textBlocks.map((textBlock) => textBlock.id));
+        const newId = nextUniqueId(`${source.id}-copy`, existingIds);
+        const offset = l.layout.referenceCanvas.width * 0.03;
+        const duplicated: AlbumTextBlock = {
+          ...source,
+          id: newId,
+          frame: clampFrame(
+            { ...source.frame, x: source.frame.x + offset, y: source.frame.y + offset },
+            l.layout.referenceCanvas,
+          ),
+        };
+        return { ...l, layout: withReindexedTextBlocks(l.layout, [...l.layout.textBlocks, duplicated]) };
+      }),
+    }));
+    get().runValidation();
+    scheduleAutosave(get);
+  },
+
+  nudgeTextBlock: (key, textBlockId, dx, dy) => {
+    const state = get();
+    const layout = state.layouts.find((l) => l.key === key)?.layout;
+    const textBlock = layout?.textBlocks.find((t) => t.id === textBlockId);
+    if (!layout || !textBlock) return;
+    const step = layout.referenceCanvas.width * 0.01;
+    get().updateTextBlockFrame(key, textBlockId, {
+      ...textBlock.frame,
+      x: textBlock.frame.x + dx * step,
+      y: textBlock.frame.y + dy * step,
     });
   },
 

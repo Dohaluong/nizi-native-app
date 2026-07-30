@@ -92,6 +92,22 @@ body {
   background: #fff;
   border-right: 1px solid #e2e4e8;
 }
+.library-format-filter {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.library-format-filter button {
+  flex: 1;
+  font-size: 11px;
+  padding: 4px 0;
+  border-radius: 4px;
+}
+.library-format-filter button.selected {
+  background: #2f6fed;
+  color: #fff;
+  border-color: #2f6fed;
+}
 .library-group h3 {
   font-size: 12px;
   color: #888;

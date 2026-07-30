@@ -1580,6 +1580,23 @@
         }
       }
     },
+    "album.textBlock.placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write here"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Viết ở đây"
+          }
+        }
+      }
+    },
     "album.unableToLoadPhoto" : {
       "extractionState" : "manual",
       "localizations" : {

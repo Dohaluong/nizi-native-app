@@ -17,9 +17,15 @@ export function LayoutLibraryPanel() {
   const [newName, setNewName] = useState("");
   const [newFormat, setNewFormat] = useState<AlbumPageFormat>("square");
   const [pendingDeleteKey, setPendingDeleteKey] = useState<string | null>(null);
+  // § user request: "Cần có filter riêng cho từng kiểu trang: All, Square, Landscape, Portrait" —
+  // narrows the list below before it's grouped by photo count; doesn't affect selection/creation.
+  const [formatFilter, setFormatFilter] = useState<AlbumPageFormat | "all">("all");
+
+  const filteredLayouts =
+    formatFilter === "all" ? layouts : layouts.filter((l) => l.layout.supportedFormats.includes(formatFilter));
 
   const grouped = new Map<number, typeof layouts>();
-  for (const studioLayout of layouts) {
+  for (const studioLayout of filteredLayouts) {
     const count = studioLayout.layout.photoCount;
     if (!grouped.has(count)) grouped.set(count, []);
     grouped.get(count)!.push(studioLayout);
@@ -40,6 +46,18 @@ export function LayoutLibraryPanel() {
       <div className="panel-header">
         <h2>Layout Library</h2>
         <button onClick={() => setIsCreating((v) => !v)}>{isCreating ? "Cancel" : "+ New"}</button>
+      </div>
+
+      <div className="library-format-filter">
+        {(["all", "square", "landscape", "portrait"] as const).map((format) => (
+          <button
+            key={format}
+            className={formatFilter === format ? "selected" : ""}
+            onClick={() => setFormatFilter(format)}
+          >
+            {format === "all" ? "All" : format[0].toUpperCase() + format.slice(1)}
+          </button>
+        ))}
       </div>
 
       {isCreating && (
