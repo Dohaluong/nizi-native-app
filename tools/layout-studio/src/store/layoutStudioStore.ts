@@ -76,6 +76,8 @@ interface LayoutStudioState {
   deleteLayout: (id: string) => void;
   renameLayoutId: (oldId: string, newId: string) => void;
   updateLayoutMeta: (id: string, patch: Partial<StudioLayout["meta"]>) => void;
+  setLayoutFormat: (layoutId: string, format: AlbumPageFormat) => void;
+  setLayoutBackgroundColor: (layoutId: string, value: string) => void;
 
   addSlot: (layoutId: string) => void;
   updateSlotFrame: (layoutId: string, slotId: string, frame: AlbumLayoutFrame) => void;
@@ -267,6 +269,37 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
     set((state) => ({
       layouts: state.layouts.map((l) =>
         l.layout.id === id ? { ...l, meta: { ...l.meta, ...patch, updatedAt: new Date().toISOString() } } : l,
+      ),
+    }));
+    scheduleAutosave(get);
+  },
+
+  /** A layout's `referenceCanvas` and `supportedFormats` can never disagree — every real layout
+   * ships with exactly one format whose aspect ratio the canvas actually matches
+   * (`AlbumLayoutValidator.aspectRatio(of:matches:)`); nothing in the app schema or the real data
+   * supports one canvas serving two different aspect-ratio families at once. So this is a
+   * single-choice switch, not independent checkboxes — picking a format also resets
+   * `referenceCanvas` to that format's own default size (`DEFAULT_REFERENCE_CANVAS`), which is
+   * also the only way to *fix* a layout that's already in a mismatched state (e.g. imported, or
+   * hand-edited via JSON) rather than leaving the author stuck looking at an error with no
+   * control that resolves it.
+   */
+  setLayoutFormat: (layoutId, format) => {
+    set((state) => ({
+      layouts: state.layouts.map((l) =>
+        l.layout.id === layoutId
+          ? { ...l, layout: { ...l.layout, supportedFormats: [format], referenceCanvas: DEFAULT_REFERENCE_CANVAS[format] } }
+          : l,
+      ),
+    }));
+    get().runValidation();
+    scheduleAutosave(get);
+  },
+
+  setLayoutBackgroundColor: (layoutId, value) => {
+    set((state) => ({
+      layouts: state.layouts.map((l) =>
+        l.layout.id === layoutId ? { ...l, layout: { ...l.layout, background: { type: "solid", value } } } : l,
       ),
     }));
     scheduleAutosave(get);

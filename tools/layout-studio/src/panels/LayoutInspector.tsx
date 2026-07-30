@@ -16,26 +16,14 @@ export function LayoutInspector({ studioLayout }: Props) {
   const renameLayoutId = useLayoutStudioStore((s) => s.renameLayoutId);
   const updateLayoutMeta = useLayoutStudioStore((s) => s.updateLayoutMeta);
   const addSlot = useLayoutStudioStore((s) => s.addSlot);
+  const setLayoutFormat = useLayoutStudioStore((s) => s.setLayoutFormat);
+  const setLayoutBackgroundColor = useLayoutStudioStore((s) => s.setLayoutBackgroundColor);
   const [idDraft, setIdDraft] = useState(layout.id);
 
   function commitId() {
     const trimmed = idDraft.trim();
     if (trimmed && trimmed !== layout.id) renameLayoutId(layout.id, trimmed);
     else setIdDraft(layout.id);
-  }
-
-  function toggleFormat(format: AlbumPageFormat) {
-    const layouts = useLayoutStudioStore.getState().layouts;
-    const current = layouts.find((l) => l.layout.id === layout.id);
-    if (!current) return;
-    const has = current.layout.supportedFormats.includes(format);
-    const next = has
-      ? current.layout.supportedFormats.filter((f) => f !== format)
-      : [...current.layout.supportedFormats, format];
-    useLayoutStudioStore.setState({
-      layouts: layouts.map((l) => (l.layout.id === layout.id ? { ...l, layout: { ...l.layout, supportedFormats: next } } : l)),
-    });
-    useLayoutStudioStore.getState().runValidation();
   }
 
   return (
@@ -52,37 +40,22 @@ export function LayoutInspector({ studioLayout }: Props) {
         <span className="field-value">{layout.photoCount} (= slot count)</span>
       </div>
 
-      <div className="field-row">
-        <span className="field-label">Reference canvas</span>
-        <span className="field-value">{layout.referenceCanvas.width} × {layout.referenceCanvas.height}</span>
-      </div>
-
       <label>
-        Supported formats
-        <div className="format-checkboxes">
+        Page format
+        <select value={layout.supportedFormats[0] ?? "square"} onChange={(e) => setLayoutFormat(layout.id, e.target.value as AlbumPageFormat)}>
           {ALL_FORMATS.map((format) => (
-            <label key={format} className="checkbox-inline">
-              <input type="checkbox" checked={layout.supportedFormats.includes(format)} onChange={() => toggleFormat(format)} />
-              {format}
-            </label>
+            <option key={format} value={format}>{format}</option>
           ))}
-        </div>
+        </select>
       </label>
+      <p className="field-hint">
+        Reference canvas: {layout.referenceCanvas.width} × {layout.referenceCanvas.height} (set automatically from the format above —
+        the app requires the canvas's own aspect ratio to match its declared format).
+      </p>
 
       <label>
         Background color
-        <input
-          type="color"
-          value={layout.background.value}
-          onChange={(e) => {
-            const layouts = useLayoutStudioStore.getState().layouts;
-            useLayoutStudioStore.setState({
-              layouts: layouts.map((l) =>
-                l.layout.id === layout.id ? { ...l, layout: { ...l.layout, background: { type: "solid", value: e.target.value } } } : l,
-              ),
-            });
-          }}
-        />
+        <input type="color" value={layout.background.value} onChange={(e) => setLayoutBackgroundColor(layout.id, e.target.value)} />
       </label>
 
       <button onClick={() => addSlot(layout.id)}>+ Add Slot</button>
