@@ -127,7 +127,14 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
             // arriving underneath via the normal `assignments` prop.
             if let ripple = activeRipples[slot.id] {
                 slotContent(slot: slot, assignment: ripple.frozenAssignment, cornerRadius: scaledCornerRadius)
-                    .mask(AlbumSlotRippleMask(center: ripple.anchor, radius: ripple.radius))
+                    // `.fill(style: FillStyle(eoFill: true))` is required here — `.mask(shape)`
+                    // alone renders the shape with the *default* (nonzero) fill rule, under which
+                    // a rect containing a circle just fills solid (the circle sub-path adds
+                    // nothing new to the union), so this was masking in the *entire* frozen photo
+                    // for the whole animation with no hole ever appearing, then vanishing outright
+                    // the instant `activeRipples` cleared — a hard cut with no visible transition,
+                    // not the growing "sóng nước" reveal this is supposed to be.
+                    .mask(AlbumSlotRippleMask(center: ripple.anchor, radius: ripple.radius).fill(style: FillStyle(eoFill: true)))
                     .allowsHitTesting(false)
             }
         }
