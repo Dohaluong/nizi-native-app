@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Konva from "konva";
 import { Layer, Stage } from "react-konva";
 import type { StudioLayout } from "../domain/studioLayout";
@@ -36,9 +36,28 @@ export function LayoutCanvas({ studioLayout, showGrid }: Props) {
   const stageHeight = aspect >= 1 ? MAX_STAGE_SIZE / aspect : MAX_STAGE_SIZE;
   const stagePixelSize = { width: stageWidth, height: stageHeight };
 
+  // A plain mutable map (never a `useState`) — Konva node identity doesn't need React to
+  // re-render on every attach/detach, only `SlotTransformer` needs to know about it, and only
+  // when the *selection* changes. `setNodeRef` is memoized per slot id so its identity stays
+  // stable across renders; an inline `ref={(node) => ...}` closure is re-created every render,
+  // which made React treat it as a *different* ref each time and re-invoke it in a loop the
+  // moment that callback itself called `setState` (the bug this replaces — "Maximum update depth
+  // exceeded" at mount).
   const nodeRefs = useRef<Record<string, Konva.Group | null>>({});
-  const [, forceRerender] = useState(0);
-  const selectedNode = selectedSlotId ? nodeRefs.current[selectedSlotId] ?? null : null;
+  const setNodeRefCallbacks = useRef<Record<string, (node: Konva.Group | null) => void>>({});
+  const setNodeRef = useCallback((slotId: string) => {
+    if (!setNodeRefCallbacks.current[slotId]) {
+      setNodeRefCallbacks.current[slotId] = (node) => {
+        nodeRefs.current[slotId] = node;
+      };
+    }
+    return setNodeRefCallbacks.current[slotId];
+  }, []);
+
+  const [selectedNode, setSelectedNode] = useState<Konva.Group | null>(null);
+  useEffect(() => {
+    setSelectedNode(selectedSlotId ? nodeRefs.current[selectedSlotId] ?? null : null);
+  }, [selectedSlotId, layout.slots]);
 
   const photoAssignment = useMemo(
     () =>
@@ -92,10 +111,7 @@ export function LayoutCanvas({ studioLayout, showGrid }: Props) {
           {layout.slots.map((slot) => (
             <LayoutSlot
               key={slot.id}
-              ref={(node) => {
-                nodeRefs.current[slot.id] = node;
-                forceRerender((n) => n + 1);
-              }}
+              ref={setNodeRef(slot.id)}
               slot={slot}
               canvas={layout.referenceCanvas}
               stagePixelSize={stagePixelSize}
