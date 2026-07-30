@@ -44,6 +44,9 @@
         }
       }
     },
+    "%lld" : {
+
+    },
     "%lld / %lld" : {
       "localizations" : {
         "en" : {
@@ -1716,6 +1719,23 @@
         }
       }
     },
+    "album.textBlock.edit.preview_section" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preview"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xem trước"
+          }
+        }
+      }
+    },
     "album.textBlock.edit.style_section" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2047,6 +2067,9 @@
 
     },
     "Each photo is requested once (cold) and once more (should hit cache). Never shown in production." : {
+
+    },
+    "Enter text" : {
 
     },
     "Error: %@" : {

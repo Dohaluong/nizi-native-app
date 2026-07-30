@@ -82,27 +82,35 @@ struct AlbumTextBlockView: View {
     }
 
     private var font: Font {
-        guard fontFamily != .system else {
-            return .system(size: scaledFontSize, weight: fontWeight.swiftUIWeight)
-        }
-        return .custom(Self.bestMatchingFontName(family: fontFamily.rawValue, weight: fontWeight), size: scaledFontSize)
+        albumTextFont(family: fontFamily, size: scaledFontSize, weight: fontWeight)
     }
+}
 
-    /// `Font.custom` needs an exact PostScript font name, not a family display name (e.g.
-    /// `"HelveticaNeue-Bold"`, not `"Helvetica Neue"`) — and which PostScript names exist, and
-    /// which one corresponds to which weight, differs per family and isn't something worth
-    /// hardcoding (and risking a typo silently falling back to the system font for one family).
-    /// `UIFont.fontNames(forFamilyName:)` asks iOS itself, which is the only reliable source.
-    private static func bestMatchingFontName(family: String, weight: AlbumTextFontWeight) -> String {
-        let candidates = UIFont.fontNames(forFamilyName: family)
-        guard !candidates.isEmpty else { return family }
-        if let match = candidates.first(where: { $0.localizedCaseInsensitiveContains(weight.postScriptNameHint) }) {
-            return match
-        }
-        // This family doesn't ship a face for the requested weight (many of the curated families
-        // only have one) — fall back to whatever looks like its regular/default face.
-        return candidates.first(where: { $0.localizedCaseInsensitiveContains("regular") }) ?? candidates[0]
+/// Shared by `AlbumTextBlockView` (the real Page render) and `AlbumTextBlockEditSheet` (its own
+/// live style preview, plus the font-strip's per-chip sample) — one place that turns a
+/// family/size/weight combination into an actual `Font`, so the edit screen's preview can never
+/// silently drift from what the Page itself will really show.
+func albumTextFont(family: AlbumTextFontFamily, size: CGFloat, weight: AlbumTextFontWeight) -> Font {
+    guard family != .system else {
+        return .system(size: size, weight: weight.swiftUIWeight)
     }
+    return .custom(albumTextBestMatchingFontName(family: family.rawValue, weight: weight), size: size)
+}
+
+/// `Font.custom` needs an exact PostScript font name, not a family display name (e.g.
+/// `"HelveticaNeue-Bold"`, not `"Helvetica Neue"`) — and which PostScript names exist, and which
+/// one corresponds to which weight, differs per family and isn't something worth hardcoding (and
+/// risking a typo silently falling back to the system font for one family). `UIFont.fontNames
+/// (forFamilyName:)` asks iOS itself, which is the only reliable source.
+func albumTextBestMatchingFontName(family: String, weight: AlbumTextFontWeight) -> String {
+    let candidates = UIFont.fontNames(forFamilyName: family)
+    guard !candidates.isEmpty else { return family }
+    if let match = candidates.first(where: { $0.localizedCaseInsensitiveContains(weight.postScriptNameHint) }) {
+        return match
+    }
+    // This family doesn't ship a face for the requested weight (many of the curated families
+    // only have one) — fall back to whatever looks like its regular/default face.
+    return candidates.first(where: { $0.localizedCaseInsensitiveContains("regular") }) ?? candidates[0]
 }
 
 extension AlbumTextFontWeight {

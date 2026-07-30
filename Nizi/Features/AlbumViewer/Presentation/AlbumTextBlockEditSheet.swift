@@ -25,10 +25,11 @@ struct AlbumTextBlockEditTarget: Identifiable {
 }
 
 /// § user request — "Chưa tap vào chữ để sửa nội dung chữ được" + "cho phép chọn cỡ chữ, font,
-/// weight, căn lề ... trong modal editor này". A plain `TextEditor`, not a pinch/pan canvas like
-/// `AlbumPhotoCropSheet` — nothing here has that screen's drag-vs-dismiss conflict (scrolling a
-/// `TextEditor` while a sheet's own interactive-dismiss is active is completely standard, expected
-/// behavior everywhere in iOS), so this stays a `.sheet` rather than a pushed screen.
+/// weight, căn lề ... trong modal editor này" + "Cần có phần Preview ở phía trên cùng editor". A
+/// plain `TextEditor`, not a pinch/pan canvas like `AlbumPhotoCropSheet` — nothing here has that
+/// screen's drag-vs-dismiss conflict (scrolling a `TextEditor` while a sheet's own
+/// interactive-dismiss is active is completely standard, expected behavior everywhere in iOS), so
+/// this stays a `.sheet` rather than a pushed screen.
 struct AlbumTextBlockEditSheet: View {
     let onSave: (
         _ text: String, _ horizontalAlignment: AlbumTextHorizontalAlignment, _ verticalAlignment: AlbumTextVerticalAlignment,
@@ -68,34 +69,23 @@ struct AlbumTextBlockEditSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                // § user request — "Cần có phần Preview ở phía trên cùng editor, trên phần input
+                // text" — the very first section, above Content.
+                Section("album.textBlock.edit.preview_section") {
+                    previewBox
+                }
+
                 Section("album.textBlock.edit.content_section") {
                     textEditorField
                 }
 
                 Section("album.textBlock.edit.alignment_section") {
-                    Picker("album.textBlock.edit.horizontal_alignment", selection: $horizontalAlignment) {
-                        ForEach(AlbumTextHorizontalAlignment.allCases, id: \.self) { alignment in
-                            Text(Self.displayName(for: alignment)).tag(alignment)
-                        }
-                    }
-                    Picker("album.textBlock.edit.vertical_alignment", selection: $verticalAlignment) {
-                        ForEach(AlbumTextVerticalAlignment.allCases, id: \.self) { alignment in
-                            Text(Self.displayName(for: alignment)).tag(alignment)
-                        }
-                    }
+                    alignmentControls
                 }
 
                 Section("album.textBlock.edit.style_section") {
-                    Picker("album.textBlock.edit.font_family", selection: $fontFamily) {
-                        ForEach(AlbumTextFontFamily.allCases, id: \.self) { family in
-                            Text(family.rawValue).tag(family)
-                        }
-                    }
-                    Picker("album.textBlock.edit.font_weight", selection: $fontWeight) {
-                        ForEach(AlbumTextFontWeight.allCases, id: \.self) { weight in
-                            Text(Self.displayName(for: weight)).tag(weight)
-                        }
-                    }
+                    fontFamilyStrip
+                    weightControl
                     Stepper(value: $fontSize, in: 8...200, step: 2) {
                         HStack {
                             Text("album.textBlock.edit.font_size")
@@ -123,13 +113,56 @@ struct AlbumTextBlockEditSheet: View {
         }
     }
 
+    // MARK: - Preview
+
+    /// § user request — "Phần preview không cần thể hiện hết text, nhưng cần thể hiện rõ độ lớn,
+    /// font chữ": a fixed-height box (never grows with the actual text, so it can never itself
+    /// need scrolling) showing up to 3 lines of the real current text — enough to read the actual
+    /// font/weight/size/alignment clearly without needing to reproduce the exact on-Page layout.
+    /// Reuses `albumTextFont` (the same function `AlbumTextBlockView` renders the real Page with)
+    /// so this can never silently drift from what Done will actually produce.
+    private var previewBox: some View {
+        Text(text.isEmpty ? localizedString("album.textBlock.placeholder", defaultValue: "Write here") : text)
+            .font(albumTextFont(family: fontFamily, size: fontSize, weight: fontWeight))
+            .multilineTextAlignment(textAlignment)
+            .opacity(text.isEmpty ? 0.35 : 1)
+            .lineLimit(3)
+            .frame(maxWidth: .infinity, minHeight: 90, alignment: containerAlignment)
+            .listRowInsets(EdgeInsets())
+            .padding(12)
+    }
+
+    private var textAlignment: TextAlignment {
+        switch horizontalAlignment {
+        case .left: return .leading
+        case .center: return .center
+        case .right: return .trailing
+        }
+    }
+
+    private var containerAlignment: Alignment {
+        switch (horizontalAlignment, verticalAlignment) {
+        case (.left, .top): return .topLeading
+        case (.center, .top): return .top
+        case (.right, .top): return .topTrailing
+        case (.left, .center): return .leading
+        case (.center, .center): return .center
+        case (.right, .center): return .trailing
+        case (.left, .bottom): return .bottomLeading
+        case (.center, .bottom): return .bottom
+        case (.right, .bottom): return .bottomTrailing
+        }
+    }
+
+    // MARK: - Content
+
     // § user report — "hiện giờ toàn 1 màu trắng, không có con trỏ, không có placeholder nên
-    // không biết viết gì ở đâu": a bare `TextEditor` has no border/background of its own to read
-    // as "this is an input field," and (unlike `TextField`) no built-in placeholder support at
-    // all. Gives it an explicit bordered box, layers a placeholder `Text` *behind* it (visible only
-    // while `text` is empty — `.scrollContentBackground(.hidden)` is what lets that show through,
-    // since `TextEditor` otherwise paints its own opaque background over it), and auto-focuses so
-    // the cursor is already visible the moment this sheet opens.
+    // không biết viết gì ở đâu" (fixed with a bordered box + placeholder + autofocus), followed by
+    // — "Phần input để trong 1 khung không có viền ... chỉ cần trong phần card trắng là được": the
+    // extra bordered/gray box turned out to be one frame too many now that this sits inside a
+    // `Form` Section (itself already a white card) — removed, keeping only the placeholder overlay
+    // (`.scrollContentBackground(.hidden)` is still what lets it show through `TextEditor`'s own
+    // otherwise-opaque background) and the autofocus.
     private var textEditorField: some View {
         ZStack(alignment: .topLeading) {
             if text.isEmpty {
@@ -144,33 +177,89 @@ struct AlbumTextBlockEditSheet: View {
                 .scrollContentBackground(.hidden)
                 .frame(minHeight: 140)
         }
-        .padding(6)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color(.secondarySystemBackground)))
-        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color(.separator), lineWidth: 1))
     }
 
-    private static func displayName(for alignment: AlbumTextHorizontalAlignment) -> String {
-        switch alignment {
-        case .left: return "Left"
-        case .center: return "Center"
-        case .right: return "Right"
+    // MARK: - Alignment
+
+    /// § user request — "Các phần căn lề, độ đậm sử dụng icon": icon-only segmented controls
+    /// instead of text pickers — alignment glyphs are self-explanatory without a label.
+    private var alignmentControls: some View {
+        VStack(spacing: 12) {
+            Picker("album.textBlock.edit.horizontal_alignment", selection: $horizontalAlignment) {
+                Image(systemName: "text.alignleft").tag(AlbumTextHorizontalAlignment.left)
+                Image(systemName: "text.aligncenter").tag(AlbumTextHorizontalAlignment.center)
+                Image(systemName: "text.alignright").tag(AlbumTextHorizontalAlignment.right)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            Picker("album.textBlock.edit.vertical_alignment", selection: $verticalAlignment) {
+                Image(systemName: "align.vertical.top").tag(AlbumTextVerticalAlignment.top)
+                Image(systemName: "align.vertical.center").tag(AlbumTextVerticalAlignment.center)
+                Image(systemName: "align.vertical.bottom").tag(AlbumTextVerticalAlignment.bottom)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
         }
     }
 
-    private static func displayName(for alignment: AlbumTextVerticalAlignment) -> String {
-        switch alignment {
-        case .top: return "Top"
-        case .center: return "Center"
-        case .bottom: return "Bottom"
+    // MARK: - Style
+
+    /// § user request — "Danh sách font chữ làm 1 dải ngang vuốt để chọn": a horizontal swipeable
+    /// strip of chips (mirroring `AlbumPageViewer`'s own `layoutPickerHeader` pattern — same
+    /// `ScrollViewReader` + auto-center-on-appear shape), each showing its own family name rendered
+    /// *in* that family, so picking a font previews it directly in the chip itself.
+    private var fontFamilyStrip: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("album.textBlock.edit.font_family")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            ScrollViewReader { scrollProxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 8) {
+                        ForEach(AlbumTextFontFamily.allCases, id: \.self) { family in
+                            fontFamilyChip(family).id(family)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .onAppear {
+                    scrollProxy.scrollTo(fontFamily, anchor: .center)
+                }
+            }
         }
+        .listRowInsets(EdgeInsets())
+        .padding(.horizontal, 4)
     }
 
-    private static func displayName(for weight: AlbumTextFontWeight) -> String {
-        switch weight {
-        case .regular: return "Regular"
-        case .medium: return "Medium"
-        case .semibold: return "Semibold"
-        case .bold: return "Bold"
+    private func fontFamilyChip(_ family: AlbumTextFontFamily) -> some View {
+        let isSelected = family == fontFamily
+        return Button {
+            fontFamily = family
+        } label: {
+            Text(family.rawValue)
+                .font(albumTextFont(family: family, size: 15, weight: .regular))
+                .lineLimit(1)
+                .foregroundStyle(isSelected ? Color.white : Color.primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(isSelected ? Color.accentColor : Color(.secondarySystemBackground))
+                )
         }
+        .buttonStyle(.plain)
+    }
+
+    /// § "độ đậm sử dụng icon" — each weight rendered as an "A" glyph *in* that weight, doubling as
+    /// its own icon (there's no universal SF Symbol per weight the way there is for alignment).
+    private var weightControl: some View {
+        Picker("album.textBlock.edit.font_weight", selection: $fontWeight) {
+            ForEach(AlbumTextFontWeight.allCases, id: \.self) { weight in
+                Text("A").font(.system(size: 17, weight: weight.swiftUIWeight)).tag(weight)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
     }
 }
