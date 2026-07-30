@@ -259,11 +259,20 @@ struct AlbumTextBlockEditSheet: View {
     private var styleAndSizeRow: some View {
         HStack(spacing: 12) {
             styleControl
-            Stepper(value: $fontSize, in: 8...200, step: 2) {
+            // § user report — "cỡ chữ giờ hơi bé so với trang ... 1 trang ảnh vuông khi in ra thực
+            // tế sẽ tương đương 20x20cm, nên tôi cần cỡ chữ thể hiện tương ứng": `fontSize` is
+            // stored/rendered in the layout's own `referenceCanvas` units (same space as `frame`),
+            // which don't mean anything on their own — the field now shows/accepts real print
+            // points instead (`fontSizeInPoints`), computed from the one physical anchor this
+            // whole app already assumes (a square page's `1000`-unit canvas == 20×20cm), so typing
+            // "24" here means an actual 24pt caption on the printed page, the same way it would in
+            // any word processor — not a mystery number in some other unit.
+            Stepper(value: fontSizeInPoints, in: Self.minFontSizePoints...Self.maxFontSizePoints, step: 1) {
                 // § "Ô cỡ chữ cho phép gõ số": typing an exact value directly, alongside the
-                // Stepper's own +/- for quick nudges — see `fontSizeField`'s own history (moved
-                // into this combined row, unchanged otherwise) for why nothing here clamps live.
-                TextField("", value: $fontSize, format: .number)
+                // Stepper's own +/- for quick nudges. Nothing here clamps live (see the "gõ luôn
+                // bị số 8 ở đầu" bug this avoided by design) — the valid range is only enforced
+                // once, at Done (`sanitizedFontSize`).
+                TextField("", value: fontSizeInPoints, format: .number)
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 44)
@@ -272,6 +281,33 @@ struct AlbumTextBlockEditSheet: View {
             .fixedSize()
             Spacer()
         }
+    }
+
+    /// § user report — "1 trang ảnh vuông khi in ra thực tế sẽ tương đương 20x20cm": the one fixed
+    /// physical anchor every reference canvas in this app already implies (`DEFAULT_REFERENCE_
+    /// CANVAS.square == 1000×1000`, portrait/landscape scale the same canvas-units-per-cm ratio
+    /// against their own longer edge) — `1000` canvas units along a page's shorter edge is always
+    /// `20`cm physically, regardless of format, so this ratio is a fixed constant, not derived from
+    /// whichever specific layout happens to be open.
+    private static let canvasUnitsPerCm: Double = 1000 / 20
+    /// 1cm == 28.3465pt (the standard print/typographic conversion) — combined with
+    /// `canvasUnitsPerCm` above, this is what actually lets a typed point value mean a real,
+    /// physical size on the printed page.
+    private static let pointsPerCm: Double = 28.3465
+    private static let canvasUnitsPerPoint: Double = canvasUnitsPerCm / pointsPerCm
+
+    private static let minFontSizePoints: Double = 6
+    private static let maxFontSizePoints: Double = 144
+
+    /// The editor's own font-size field/Stepper operate on this (points) — `fontSize` itself stays
+    /// in canvas units throughout (unchanged storage/rendering unit, same space `AlbumPageRenderer`
+    /// already scales against), so this is purely a presentation-layer conversion, not a schema
+    /// change.
+    private var fontSizeInPoints: Binding<Double> {
+        Binding(
+            get: { safeFontSize / Self.canvasUnitsPerPoint },
+            set: { fontSize = $0 * Self.canvasUnitsPerPoint }
+        )
     }
 
     /// § user request — "font-weight sẽ thay bằng các định dạng cơ bản: Regular, Italic, Bold,
@@ -312,10 +348,12 @@ struct AlbumTextBlockEditSheet: View {
         fontSize.isFinite && fontSize > 0 ? fontSize : 32
     }
 
-    /// The one point the valid `8...200` range is actually enforced — once, at Done — rather than
-    /// continuously while the user is still typing (see `fontSizeField`'s own doc comment).
+    /// The one point the valid range is actually enforced — once, at Done — rather than
+    /// continuously while the user is still typing (see `styleAndSizeRow`'s own doc comment). Bounds
+    /// are `minFontSizePoints`/`maxFontSizePoints` converted into this same canvas-unit space
+    /// `fontSize` itself is always stored/rendered in.
     private var sanitizedFontSize: Double {
         let base = fontSize.isFinite ? fontSize : 32
-        return min(max(base, 8), 200)
+        return min(max(base, Self.minFontSizePoints * Self.canvasUnitsPerPoint), Self.maxFontSizePoints * Self.canvasUnitsPerPoint)
     }
 }

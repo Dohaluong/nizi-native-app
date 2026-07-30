@@ -82,3 +82,26 @@ export function roundFrame(frame: AlbumLayoutFrame): AlbumLayoutFrame {
     height: roundGeometry(frame.height),
   };
 }
+
+/**
+ * § user request — "1 trang ảnh vuông khi in ra thực tế sẽ tương đương 20x20cm, nên tôi cần cỡ
+ * chữ thể hiện tương ứng": the one fixed physical anchor every `referenceCanvas` in this app
+ * already implies (`DEFAULT_REFERENCE_CANVAS.square == 1000×1000`, portrait/landscape scale the
+ * same canvas-units-per-cm ratio against their own longer edge) — `1000` canvas units along a
+ * page's shorter edge is always `20`cm physically, regardless of format. `AlbumTextBlock.fontSize`
+ * is stored/rendered in these same canvas units (same space as `frame`), which don't mean
+ * anything on their own — the Studio's own Inspector and the iOS app's text-edit screen both show
+ * this converted to real print points instead (1cm == 28.3465pt), so typing "24" means the same
+ * actual 24pt caption on the printed page in both places.
+ */
+const CANVAS_UNITS_PER_CM = 1000 / 20;
+const POINTS_PER_CM = 28.3465;
+const CANVAS_UNITS_PER_POINT = CANVAS_UNITS_PER_CM / POINTS_PER_CM;
+
+export function fontSizeToPoints(canvasUnits: number): number {
+  return canvasUnits / CANVAS_UNITS_PER_POINT;
+}
+
+export function pointsToFontSize(points: number): number {
+  return points * CANVAS_UNITS_PER_POINT;
+}

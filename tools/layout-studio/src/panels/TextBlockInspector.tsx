@@ -6,7 +6,7 @@ import {
   ALBUM_TEXT_VERTICAL_ALIGNMENTS,
 } from "../domain/albumLayout";
 import { useLayoutStudioStore } from "../store/layoutStudioStore";
-import { roundGeometry } from "../services/normalizeGeometry";
+import { fontSizeToPoints, pointsToFontSize, roundGeometry } from "../services/normalizeGeometry";
 
 interface Props {
   layoutKey: string;
@@ -93,14 +93,19 @@ export function TextBlockInspector({ layoutKey, textBlock }: Props) {
       </label>
 
       <label>
-        Font size
+        {/* § user request — "1 trang ảnh vuông khi in ra thực tế sẽ tương đương 20x20cm, nên tôi
+         * cần cỡ chữ thể hiện tương ứng": shows/accepts real print points (see
+         * `fontSizeToPoints`/`pointsToFontSize`'s own doc comment) rather than the raw
+         * `referenceCanvas` unit `fontSize` is actually stored in — same conversion the iOS app's
+         * own text-edit screen uses, so a value typed here means the same real-world size there. */}
+        Font size (pt)
         <input
           type="number"
           min={1}
-          value={roundGeometry(textBlock.fontSize)}
+          value={roundGeometry(fontSizeToPoints(textBlock.fontSize))}
           onChange={(e) => {
             const value = Number(e.target.value);
-            if (!Number.isNaN(value) && value > 0) updateTextBlock(layoutKey, textBlock.id, { fontSize: value });
+            if (!Number.isNaN(value) && value > 0) updateTextBlock(layoutKey, textBlock.id, { fontSize: pointsToFontSize(value) });
           }}
         />
       </label>
