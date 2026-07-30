@@ -20,7 +20,6 @@ struct HomeView: View {
     @State private var indexedPhotoCount = 0
     @State private var newEventCount = 0
     @State private var albums: [AlbumDraft] = []
-    @State private var selectedAlbumYear: Int? = nil
 
     var body: some View {
         NavigationStack {
@@ -38,7 +37,7 @@ struct HomeView: View {
                     if albums.isEmpty {
                         emptyTimeline
                     } else {
-                        albumListSection
+                        albumPreviewSection
                     }
                 }
                 .padding()
@@ -95,48 +94,60 @@ struct HomeView: View {
         .background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
     }
 
-    // Matches the agreed-upon design in `AlbumCardDesignPreview.swift` (`AlbumDesignCard` +
-    // `YearFilterBar`), now backed by real `AlbumDraft`s and real cover photos via `AlbumPhotoView`
-    // instead of the mock `AlbumCardSample` data that design was originally previewed with. Every
-    // Album matching the selected year is listed (not just one); the `YearFilterBar` pins to the
-    // top of the scroll view while its Albums scroll underneath.
-    private var albumListSection: some View {
-        LazyVStack(alignment: .leading, spacing: 16, pinnedViews: [.sectionHeaders]) {
-            Section {
-                ForEach(filteredAlbums) { album in
-                    NavigationLink {
-                        AlbumDetailView(draft: album) { updated in
-                            await saveUpdatedAlbum(updated)
-                        } onDelete: {
-                            await loadAlbums()
+    /// Home only ever shows a short taste of the Albums (§ layout request: moved the full list out
+    /// to its own `AlbumsListView` page) — the 6 most recent (`SwiftDataAlbumDraftStore.
+    /// fetchAllDrafts()` already sorts newest-`createdAt`-first) in one horizontal-scrolling row of
+    /// compact `AlbumMiniCard`s, a trailing "see all" tile as the row's last cell, and a second,
+    /// full-width "see all" link below the row — both open the same `AlbumsListView`.
+    private var albumPreviewSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("home.album_preview.title")
+                .font(.headline)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(homeAlbumPreview) { album in
+                        NavigationLink {
+                            AlbumDetailView(draft: album) { updated in
+                                await saveUpdatedAlbum(updated)
+                            } onDelete: {
+                                await loadAlbums()
+                            }
+                        } label: {
+                            AlbumMiniCard(album: cardSample(for: album))
                         }
+                        .buttonStyle(.plain)
+                    }
+
+                    NavigationLink {
+                        AlbumsListView()
                     } label: {
-                        AlbumDesignCard(album: cardSample(for: album))
+                        AlbumSeeAllTile()
                     }
                     .buttonStyle(.plain)
                 }
-            } header: {
-                albumSectionHeader
             }
+
+            NavigationLink {
+                AlbumsListView()
+            } label: {
+                HStack {
+                    Text("home.album_preview.see_all")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
         }
     }
 
-    private var albumSectionHeader: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("album.list.title")
-                .font(.headline)
-            YearFilterBar(years: albumYears, selectedYear: $selectedAlbumYear)
-        }
-        .padding(.vertical, 10)
-        .background(Color(.systemBackground))
-    }
-
-    private var albumYears: [Int] {
-        Array(Set(albums.map(year(of:)))).sorted(by: >)
-    }
-
-    private var filteredAlbums: [AlbumDraft] {
-        albums.filter { selectedAlbumYear == nil || year(of: $0) == selectedAlbumYear }
+    /// Only ever the first 6 — a taste, not the whole list (that's what the "see all" entry
+    /// points are for).
+    private var homeAlbumPreview: [AlbumDraft] {
+        Array(albums.prefix(6))
     }
 
     private func cardSample(for draft: AlbumDraft) -> AlbumCardSample {
@@ -210,6 +221,82 @@ struct HomeView: View {
         } catch {
             NiziLogger.discovery.error("home_album_update_failed")
         }
+    }
+}
+
+/// One compact Album tile for `HomeView.albumPreviewSection`'s horizontal row — same real
+/// cover-photo pipeline `AlbumDesignCard` uses, just a fraction of its size (§ layout request:
+/// "kích thước nhỏ hơn Album hiện tại" — the full-size `AlbumDesignCard` now only appears on the
+/// dedicated `AlbumsListView`).
+private struct AlbumMiniCard: View {
+    let album: AlbumCardSample
+    private let size: CGFloat = 128
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            coverImage
+            VStack(alignment: .leading, spacing: 2) {
+                Text(album.title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(localizedString("album.photosCount", defaultValue: "\(album.photoCount) photos"))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .frame(width: size, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var coverImage: some View {
+        Group {
+            if let coverPhoto = album.coverPhoto {
+                AlbumPhotoView(
+                    reference: coverPhoto, crop: .centered, contentMode: .fill,
+                    targetSize: CGSize(width: size * 2, height: size * 2)
+                )
+            } else {
+                ZStack {
+                    Color(.tertiarySystemFill)
+                    Image(systemName: album.imageName)
+                        .resizable()
+                        .scaledToFit()
+                        .foregroundStyle(.secondary.opacity(0.5))
+                        .padding(size * 0.28)
+                }
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
+/// The trailing cell in `HomeView.albumPreviewSection`'s row — same tile footprint as
+/// `AlbumMiniCard` (so it lines up in the same scrolling row) but with no cover photo of its own,
+/// opening `AlbumsListView` instead of an `AlbumDetailView`.
+private struct AlbumSeeAllTile: View {
+    private let size: CGFloat = 128
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ZStack {
+                Color(.tertiarySystemFill)
+                Image(systemName: "square.grid.2x2")
+                    .font(.system(size: 28))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+            Text("home.album_preview.see_all")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .frame(width: size, alignment: .leading)
+        }
+        .frame(width: size, alignment: .leading)
     }
 }
 
