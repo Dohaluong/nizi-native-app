@@ -45,7 +45,7 @@ export default function App() {
         <div className="canvas-column">
           {selectedLayout ? (
             <>
-              <LayoutCanvas studioLayout={selectedLayout} showGrid={showGrid} alignEnabled={alignEnabled} />
+              <LayoutCanvas key={selectedLayout.key} studioLayout={selectedLayout} showGrid={showGrid} alignEnabled={alignEnabled} />
               <PhotoPreviewPanel />
               <ValidationPanel />
             </>
@@ -59,8 +59,10 @@ export default function App() {
         <div className="inspector-column">
           {selectedLayout ? (
             <>
-              <LayoutInspector studioLayout={selectedLayout} />
-              {selectedSlot && <SlotInspector layoutId={selectedLayout.layout.id} slot={selectedSlot} />}
+              <LayoutInspector key={selectedLayout.key} studioLayout={selectedLayout} />
+              {selectedSlot && (
+                <SlotInspector key={`${selectedLayout.key}-${selectedSlot.id}`} layoutKey={selectedLayout.key} slot={selectedSlot} />
+              )}
             </>
           ) : (
             <div className="panel inspector-panel inspector-empty">No layout selected.</div>

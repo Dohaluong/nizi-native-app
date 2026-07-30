@@ -4,14 +4,14 @@ import { useLayoutStudioStore } from "../store/layoutStudioStore";
 import { roundGeometry } from "../services/normalizeGeometry";
 
 interface Props {
-  layoutId: string;
+  layoutKey: string;
   slot: AlbumLayoutSlot;
 }
 
 /** § 14 — Slot ID, X, Y, Width, Height, Preferred Orientation, all editable by hand with
  * validate/clamp/realtime-canvas-update (the numeric inputs call the exact same
  * `updateSlotFrame` action the canvas drag/resize handlers do, so both paths clamp identically). */
-export function SlotInspector({ layoutId, slot }: Props) {
+export function SlotInspector({ layoutKey, slot }: Props) {
   const updateSlotFrame = useLayoutStudioStore((s) => s.updateSlotFrame);
   const updateSlot = useLayoutStudioStore((s) => s.updateSlot);
   const deleteSlot = useLayoutStudioStore((s) => s.deleteSlot);
@@ -19,7 +19,7 @@ export function SlotInspector({ layoutId, slot }: Props) {
 
   function setFrameField(field: keyof AlbumLayoutSlot["frame"], value: number) {
     if (Number.isNaN(value)) return;
-    updateSlotFrame(layoutId, slot.id, { ...slot.frame, [field]: value });
+    updateSlotFrame(layoutKey, slot.id, { ...slot.frame, [field]: value });
   }
 
   return (
@@ -54,7 +54,7 @@ export function SlotInspector({ layoutId, slot }: Props) {
         Preferred Orientation
         <select
           value={slot.preferredOrientation}
-          onChange={(e) => updateSlot(layoutId, slot.id, { preferredOrientation: e.target.value as AlbumSlotOrientation })}
+          onChange={(e) => updateSlot(layoutKey, slot.id, { preferredOrientation: e.target.value as AlbumSlotOrientation })}
         >
           {ALBUM_SLOT_ORIENTATIONS.map((orientation) => (
             <option key={orientation} value={orientation}>{orientation}</option>
@@ -64,7 +64,7 @@ export function SlotInspector({ layoutId, slot }: Props) {
 
       <label>
         Role
-        <select value={slot.role} onChange={(e) => updateSlot(layoutId, slot.id, { role: e.target.value as AlbumLayoutSlot["role"] })}>
+        <select value={slot.role} onChange={(e) => updateSlot(layoutKey, slot.id, { role: e.target.value as AlbumLayoutSlot["role"] })}>
           {ALBUM_LAYOUT_SLOT_ROLES.map((role) => (
             <option key={role} value={role}>{role}</option>
           ))}
@@ -73,7 +73,7 @@ export function SlotInspector({ layoutId, slot }: Props) {
 
       <label>
         Content mode
-        <select value={slot.contentMode} onChange={(e) => updateSlot(layoutId, slot.id, { contentMode: e.target.value as AlbumLayoutSlot["contentMode"] })}>
+        <select value={slot.contentMode} onChange={(e) => updateSlot(layoutKey, slot.id, { contentMode: e.target.value as AlbumLayoutSlot["contentMode"] })}>
           {ALBUM_SLOT_CONTENT_MODES.map((mode) => (
             <option key={mode} value={mode}>{mode}</option>
           ))}
@@ -88,14 +88,14 @@ export function SlotInspector({ layoutId, slot }: Props) {
           value={roundGeometry(slot.cornerRadius)}
           onChange={(e) => {
             const value = Number(e.target.value);
-            if (!Number.isNaN(value) && value >= 0) updateSlot(layoutId, slot.id, { cornerRadius: value });
+            if (!Number.isNaN(value) && value >= 0) updateSlot(layoutKey, slot.id, { cornerRadius: value });
           }}
         />
       </label>
 
       <div className="inspector-actions">
-        <button onClick={() => duplicateSlot(layoutId, slot.id)}>Duplicate</button>
-        <button className="danger" onClick={() => deleteSlot(layoutId, slot.id)}>Delete</button>
+        <button onClick={() => duplicateSlot(layoutKey, slot.id)}>Duplicate</button>
+        <button className="danger" onClick={() => deleteSlot(layoutKey, slot.id)}>Delete</button>
       </div>
     </div>
   );

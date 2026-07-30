@@ -103,23 +103,23 @@ export function LayoutCanvas({ studioLayout, showGrid, alignEnabled }: Props) {
 
       if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault();
-        deleteSlot(layout.id, selectedSlotId);
+        deleteSlot(studioLayout.key, selectedSlotId);
       } else if (event.key === "Escape") {
         selectSlot(null);
       } else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") {
         event.preventDefault();
-        duplicateSlot(layout.id, selectedSlotId);
+        duplicateSlot(studioLayout.key, selectedSlotId);
       } else if (event.key.startsWith("Arrow")) {
         event.preventDefault();
         const step = event.shiftKey ? 5 : 1;
         const dx = event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0;
         const dy = event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0;
-        nudgeSlot(layout.id, selectedSlotId, dx, dy);
+        nudgeSlot(studioLayout.key, selectedSlotId, dx, dy);
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedSlotId, layout.id, deleteSlot, duplicateSlot, nudgeSlot, selectSlot]);
+  }, [selectedSlotId, studioLayout.key, deleteSlot, duplicateSlot, nudgeSlot, selectSlot]);
 
   return (
     <div className="canvas-wrapper">
@@ -155,7 +155,7 @@ export function LayoutCanvas({ studioLayout, showGrid, alignEnabled }: Props) {
                 // the stage's edge — layering the 1%-grid snap on top of that could nudge it back
                 // off by a pixel or two, so it's skipped for this drag when a guide was engaged.
                 const wasGuideSnapped = alignEnabled && guidesActiveRef.current;
-                updateSlotFrame(layout.id, slot.id, wasGuideSnapped ? rawFrame : snapFrame(rawFrame, layout.referenceCanvas, snapEnabled));
+                updateSlotFrame(studioLayout.key, slot.id, wasGuideSnapped ? rawFrame : snapFrame(rawFrame, layout.referenceCanvas, snapEnabled));
                 guidesActiveRef.current = false;
                 setAlignmentGuides([]);
               }}
@@ -174,7 +174,7 @@ export function LayoutCanvas({ studioLayout, showGrid, alignEnabled }: Props) {
                   layout.referenceCanvas,
                   stagePixelSize,
                 );
-                updateSlotFrame(layout.id, slot.id, snapFrame(rawFrame, layout.referenceCanvas, snapEnabled));
+                updateSlotFrame(studioLayout.key, slot.id, snapFrame(rawFrame, layout.referenceCanvas, snapEnabled));
               }}
             />
           ))}

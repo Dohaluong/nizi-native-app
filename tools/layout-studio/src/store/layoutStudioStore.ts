@@ -8,7 +8,7 @@ import type {
 } from "../domain/albumLayout";
 import { DEFAULT_REFERENCE_CANVAS } from "../domain/albumLayout";
 import type { StudioLayout, StudioProject } from "../domain/studioLayout";
-import { makeStudioMeta, STUDIO_PROJECT_FILENAME } from "../domain/studioLayout";
+import { makeStudioLayoutKey, makeStudioMeta, STUDIO_PROJECT_FILENAME } from "../domain/studioLayout";
 import { importLayoutLibrary } from "../services/importLayoutLibrary";
 import { classifyOrientationFromSize } from "../services/classifyOrientation";
 import { clampFrame } from "../services/normalizeGeometry";
@@ -66,9 +66,18 @@ function withReindexedSlots(layout: AlbumPageLayout, slots: AlbumLayoutSlot[]): 
   return { ...layout, slots: reindexed, photoCount: reindexed.length };
 }
 
+/** A `StudioProject` saved before `StudioLayout.key` existed (or hand-edited) won't have one —
+ * generate a fresh key for anything missing it rather than fail to load. */
+function ensureKeys(layouts: StudioLayout[]): StudioLayout[] {
+  return layouts.map((l) => (l.key ? l : { ...l, key: makeStudioLayoutKey() }));
+}
+
 interface LayoutStudioState {
   layouts: StudioLayout[];
-  selectedLayoutId: string | null;
+  /** Addresses a specific `StudioLayout` by its stable Studio-only `key`, never by `layout.id` —
+   * see the doc comment on `StudioLayout.key` for why: `layout.id` can (temporarily, invalidly)
+   * collide between entries, and every action below needs to unambiguously target exactly one. */
+  selectedLayoutKey: string | null;
   selectedSlotId: string | null;
   snapEnabled: boolean;
   issues: ValidationIssue[];
@@ -83,27 +92,27 @@ interface LayoutStudioState {
   openStudioProject: (project: StudioProject) => void;
   resetStudio: () => void;
 
-  selectLayout: (id: string | null) => void;
+  selectLayout: (key: string | null) => void;
   selectSlot: (id: string | null) => void;
 
   createLayout: (photoCount: number, id: string, format: AlbumPageFormat) => void;
-  duplicateLayout: (id: string) => void;
-  deleteLayout: (id: string) => void;
-  renameLayoutId: (oldId: string, newId: string) => void;
-  updateLayoutMeta: (id: string, patch: Partial<StudioLayout["meta"]>) => void;
-  setLayoutFormat: (layoutId: string, format: AlbumPageFormat) => void;
-  setLayoutBackgroundColor: (layoutId: string, value: string) => void;
+  duplicateLayout: (key: string) => void;
+  deleteLayout: (key: string) => void;
+  renameLayoutId: (key: string, newId: string) => void;
+  updateLayoutMeta: (key: string, patch: Partial<StudioLayout["meta"]>) => void;
+  setLayoutFormat: (key: string, format: AlbumPageFormat) => void;
+  setLayoutBackgroundColor: (key: string, value: string) => void;
 
-  addSlot: (layoutId: string) => void;
-  updateSlotFrame: (layoutId: string, slotId: string, frame: AlbumLayoutFrame) => void;
+  addSlot: (key: string) => void;
+  updateSlotFrame: (key: string, slotId: string, frame: AlbumLayoutFrame) => void;
   updateSlot: (
-    layoutId: string,
+    key: string,
     slotId: string,
     patch: Partial<Pick<AlbumLayoutSlot, "role" | "preferredOrientation" | "contentMode" | "cornerRadius">>,
   ) => void;
-  deleteSlot: (layoutId: string, slotId: string) => void;
-  duplicateSlot: (layoutId: string, slotId: string) => void;
-  nudgeSlot: (layoutId: string, slotId: string, dx: number, dy: number) => void;
+  deleteSlot: (key: string, slotId: string) => void;
+  duplicateSlot: (key: string, slotId: string) => void;
+  nudgeSlot: (key: string, slotId: string, dx: number, dy: number) => void;
 
   toggleSnap: () => void;
   runValidation: () => void;
@@ -120,7 +129,7 @@ function scheduleAutosave(get: () => LayoutStudioState): void {
     const project: StudioProject = {
       studioSchemaVersion: 1,
       layouts: state.layouts,
-      selectedLayoutId: state.selectedLayoutId,
+      selectedLayoutKey: state.selectedLayoutKey,
       selectedSlotId: state.selectedSlotId,
       snapEnabled: state.snapEnabled,
     };
@@ -137,23 +146,23 @@ let autosaveTimer: number | undefined;
 
 export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
   layouts: [],
-  selectedLayoutId: null,
+  selectedLayoutKey: null,
   selectedSlotId: null,
   snapEnabled: true,
   issues: [],
   importError: null,
   previewPhotos: [],
 
-  selectedLayout: () => get().layouts.find((l) => l.layout.id === get().selectedLayoutId),
+  selectedLayout: () => get().layouts.find((l) => l.key === get().selectedLayoutKey),
 
   /** Merges into whatever's already in the Studio — never a blind replace. A layout id already
    * present in the file being imported is refreshed from that file (the file is the source of
-   * truth for anything it actually contains), but keeps its existing Studio-only `meta` (notes/
-   * favorite) rather than resetting it. Any layout that only exists in the Studio so far (newly
-   * created, not yet part of the imported file) is kept untouched. Without this, importing the
-   * current production `album-layouts.json` *after* creating a new layout in the Studio would
-   * silently wipe that new layout back out — exactly the "chỉ thêm chứ không xoá cái cũ" case
-   * this exists to prevent, in both directions. */
+   * truth for anything it actually contains) but keeps its existing Studio `key`/`meta` if one
+   * already existed for that id (so selection and notes/favorite survive a re-import). Any layout
+   * that only exists in the Studio so far (newly created, not yet part of the imported file) is
+   * kept untouched. Without this, importing the current production `album-layouts.json` *after*
+   * creating a new layout in the Studio would silently wipe that new layout back out — exactly
+   * the "chỉ thêm chứ không xoá cái cũ" case this exists to prevent, in both directions. */
   importLibraryFromText: (rawText) => {
     const result = importLayoutLibrary(rawText);
     if (result.parseError) {
@@ -167,20 +176,24 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
     const importedIds = new Set<string>();
 
     for (const incoming of result.studioLayouts) {
-      const priorMeta = existingById.get(incoming.layout.id)?.meta;
-      merged.push({ layout: incoming.layout, meta: priorMeta ?? incoming.meta });
+      const existingMatch = existingById.get(incoming.layout.id);
+      merged.push({
+        key: existingMatch?.key ?? incoming.key,
+        layout: incoming.layout,
+        meta: existingMatch?.meta ?? incoming.meta,
+      });
       importedIds.add(incoming.layout.id);
     }
     for (const existingLayout of state.layouts) {
       if (!importedIds.has(existingLayout.layout.id)) merged.push(existingLayout);
     }
 
-    const keepsCurrentSelection = state.selectedLayoutId !== null && merged.some((l) => l.layout.id === state.selectedLayoutId);
+    const keepsCurrentSelection = state.selectedLayoutKey !== null && merged.some((l) => l.key === state.selectedLayoutKey);
     set({
       layouts: merged,
       issues: validateLibrary({ schemaVersion: 1, layouts: merged.map((l) => l.layout) }),
       importError: null,
-      selectedLayoutId: keepsCurrentSelection ? state.selectedLayoutId : merged[0]?.layout.id ?? null,
+      selectedLayoutKey: keepsCurrentSelection ? state.selectedLayoutKey : merged[0]?.key ?? null,
       selectedSlotId: keepsCurrentSelection ? state.selectedSlotId : null,
     });
     scheduleAutosave(get);
@@ -201,18 +214,19 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
   saveStudioProject: () => ({
     studioSchemaVersion: 1,
     layouts: get().layouts,
-    selectedLayoutId: get().selectedLayoutId,
+    selectedLayoutKey: get().selectedLayoutKey,
     selectedSlotId: get().selectedSlotId,
     snapEnabled: get().snapEnabled,
   }),
 
   openStudioProject: (project) => {
+    const layouts = ensureKeys(project.layouts);
     set({
-      layouts: project.layouts,
-      selectedLayoutId: project.selectedLayoutId,
+      layouts,
+      selectedLayoutKey: project.selectedLayoutKey,
       selectedSlotId: project.selectedSlotId,
       snapEnabled: project.snapEnabled,
-      issues: validateLibrary({ schemaVersion: 1, layouts: project.layouts.map((l) => l.layout) }),
+      issues: validateLibrary({ schemaVersion: 1, layouts: layouts.map((l) => l.layout) }),
       importError: null,
     });
   },
@@ -222,7 +236,7 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
     revokePreviewPhotos(get().previewPhotos);
     set({
       layouts: [],
-      selectedLayoutId: null,
+      selectedLayoutKey: null,
       selectedSlotId: null,
       issues: [],
       importError: null,
@@ -230,7 +244,7 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
     });
   },
 
-  selectLayout: (id) => set({ selectedLayoutId: id, selectedSlotId: null }),
+  selectLayout: (key) => set({ selectedLayoutKey: key, selectedSlotId: null }),
   selectSlot: (id) => set({ selectedSlotId: id }),
 
   createLayout: (photoCount, id, format) => {
@@ -254,38 +268,39 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
       background: { type: "solid", value: "#FFFFFF" },
       slots,
     };
-    const studioLayout: StudioLayout = { layout, meta: makeStudioMeta() };
+    const studioLayout: StudioLayout = { key: makeStudioLayoutKey(), layout, meta: makeStudioMeta() };
     set((state) => ({
       layouts: [...state.layouts, studioLayout],
-      selectedLayoutId: id,
+      selectedLayoutKey: studioLayout.key,
       selectedSlotId: null,
     }));
     get().runValidation();
     scheduleAutosave(get);
   },
 
-  duplicateLayout: (id) => {
+  duplicateLayout: (key) => {
     const state = get();
-    const source = state.layouts.find((l) => l.layout.id === id);
+    const source = state.layouts.find((l) => l.key === key);
     if (!source) return;
     const existingIds = new Set(state.layouts.map((l) => l.layout.id));
     const newId = nextUniqueId(`${source.layout.id}-copy`, existingIds);
     const duplicated: StudioLayout = {
+      key: makeStudioLayoutKey(),
       layout: { ...source.layout, id: newId, name: `${source.layout.name} Copy` },
       meta: makeStudioMeta(),
     };
-    set({ layouts: [...state.layouts, duplicated], selectedLayoutId: newId, selectedSlotId: null });
+    set({ layouts: [...state.layouts, duplicated], selectedLayoutKey: duplicated.key, selectedSlotId: null });
     get().runValidation();
     scheduleAutosave(get);
   },
 
-  deleteLayout: (id) => {
+  deleteLayout: (key) => {
     set((state) => {
-      const layouts = state.layouts.filter((l) => l.layout.id !== id);
-      const wasSelected = state.selectedLayoutId === id;
+      const layouts = state.layouts.filter((l) => l.key !== key);
+      const wasSelected = state.selectedLayoutKey === key;
       return {
         layouts,
-        selectedLayoutId: wasSelected ? null : state.selectedLayoutId,
+        selectedLayoutKey: wasSelected ? null : state.selectedLayoutKey,
         selectedSlotId: wasSelected ? null : state.selectedSlotId,
       };
     });
@@ -293,21 +308,20 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
     scheduleAutosave(get);
   },
 
-  renameLayoutId: (oldId, newId) => {
+  renameLayoutId: (key, newId) => {
     const trimmed = newId.trim();
     if (trimmed.length === 0) return;
     set((state) => ({
-      layouts: state.layouts.map((l) => (l.layout.id === oldId ? { ...l, layout: { ...l.layout, id: trimmed } } : l)),
-      selectedLayoutId: state.selectedLayoutId === oldId ? trimmed : state.selectedLayoutId,
+      layouts: state.layouts.map((l) => (l.key === key ? { ...l, layout: { ...l.layout, id: trimmed } } : l)),
     }));
     get().runValidation();
     scheduleAutosave(get);
   },
 
-  updateLayoutMeta: (id, patch) => {
+  updateLayoutMeta: (key, patch) => {
     set((state) => ({
       layouts: state.layouts.map((l) =>
-        l.layout.id === id ? { ...l, meta: { ...l.meta, ...patch, updatedAt: new Date().toISOString() } } : l,
+        l.key === key ? { ...l, meta: { ...l.meta, ...patch, updatedAt: new Date().toISOString() } } : l,
       ),
     }));
     scheduleAutosave(get);
@@ -323,10 +337,10 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
    * hand-edited via JSON) rather than leaving the author stuck looking at an error with no
    * control that resolves it.
    */
-  setLayoutFormat: (layoutId, format) => {
+  setLayoutFormat: (key, format) => {
     set((state) => ({
       layouts: state.layouts.map((l) =>
-        l.layout.id === layoutId
+        l.key === key
           ? { ...l, layout: { ...l.layout, supportedFormats: [format], referenceCanvas: DEFAULT_REFERENCE_CANVAS[format] } }
           : l,
       ),
@@ -335,19 +349,17 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
     scheduleAutosave(get);
   },
 
-  setLayoutBackgroundColor: (layoutId, value) => {
+  setLayoutBackgroundColor: (key, value) => {
     set((state) => ({
-      layouts: state.layouts.map((l) =>
-        l.layout.id === layoutId ? { ...l, layout: { ...l.layout, background: { type: "solid", value } } } : l,
-      ),
+      layouts: state.layouts.map((l) => (l.key === key ? { ...l, layout: { ...l.layout, background: { type: "solid", value } } } : l)),
     }));
     scheduleAutosave(get);
   },
 
-  addSlot: (layoutId) => {
+  addSlot: (key) => {
     set((state) => ({
       layouts: state.layouts.map((l) => {
-        if (l.layout.id !== layoutId) return l;
+        if (l.key !== key) return l;
         const nextOrder = l.layout.slots.length;
         // Re-flow every existing slot's frame too, not just the new one — otherwise "Add Slot"
         // three times just stacks three full-bleed slots on top of each other, none of them
@@ -371,10 +383,10 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
   // action) re-derives `preferredOrientation` from the new width/height via `nextOrientation`, so
   // it's never a separate, driftable field the author has to remember to update by hand after
   // reshaping a slot (except a deliberate `"any"`, which stays put — see `nextOrientation`).
-  updateSlotFrame: (layoutId, slotId, frame) => {
+  updateSlotFrame: (key, slotId, frame) => {
     set((state) => ({
       layouts: state.layouts.map((l) => {
-        if (l.layout.id !== layoutId) return l;
+        if (l.key !== key) return l;
         const clamped = clampFrame(frame, l.layout.referenceCanvas);
         return {
           ...l,
@@ -393,10 +405,10 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
     scheduleAutosave(get);
   },
 
-  updateSlot: (layoutId, slotId, patch) => {
+  updateSlot: (key, slotId, patch) => {
     set((state) => ({
       layouts: state.layouts.map((l) => {
-        if (l.layout.id !== layoutId) return l;
+        if (l.key !== key) return l;
         return {
           ...l,
           layout: {
@@ -409,10 +421,10 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
     scheduleAutosave(get);
   },
 
-  deleteSlot: (layoutId, slotId) => {
+  deleteSlot: (key, slotId) => {
     set((state) => ({
       layouts: state.layouts.map((l) => {
-        if (l.layout.id !== layoutId) return l;
+        if (l.key !== key) return l;
         return { ...l, layout: withReindexedSlots(l.layout, l.layout.slots.filter((slot) => slot.id !== slotId)) };
       }),
       selectedSlotId: state.selectedSlotId === slotId ? null : state.selectedSlotId,
@@ -421,10 +433,10 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
     scheduleAutosave(get);
   },
 
-  duplicateSlot: (layoutId, slotId) => {
+  duplicateSlot: (key, slotId) => {
     set((state) => ({
       layouts: state.layouts.map((l) => {
-        if (l.layout.id !== layoutId) return l;
+        if (l.key !== key) return l;
         const source = l.layout.slots.find((slot) => slot.id === slotId);
         if (!source) return l;
         const existingIds = new Set(l.layout.slots.map((slot) => slot.id));
@@ -445,13 +457,13 @@ export const useLayoutStudioStore = create<LayoutStudioState>((set, get) => ({
     scheduleAutosave(get);
   },
 
-  nudgeSlot: (layoutId, slotId, dx, dy) => {
+  nudgeSlot: (key, slotId, dx, dy) => {
     const state = get();
-    const layout = state.layouts.find((l) => l.layout.id === layoutId)?.layout;
+    const layout = state.layouts.find((l) => l.key === key)?.layout;
     const slot = layout?.slots.find((s) => s.id === slotId);
     if (!layout || !slot) return;
     const step = layout.referenceCanvas.width * 0.01;
-    get().updateSlotFrame(layoutId, slotId, {
+    get().updateSlotFrame(key, slotId, {
       ...slot.frame,
       x: slot.frame.x + dx * step,
       y: slot.frame.y + dy * step,

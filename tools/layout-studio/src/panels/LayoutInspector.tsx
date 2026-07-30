@@ -13,6 +13,7 @@ interface Props {
  * count), supportedFormats, referenceCanvas, background color, plus Studio-only notes. */
 export function LayoutInspector({ studioLayout }: Props) {
   const { layout, meta } = studioLayout;
+  const allLayouts = useLayoutStudioStore((s) => s.layouts);
   const renameLayoutId = useLayoutStudioStore((s) => s.renameLayoutId);
   const updateLayoutMeta = useLayoutStudioStore((s) => s.updateLayoutMeta);
   const addSlot = useLayoutStudioStore((s) => s.addSlot);
@@ -22,9 +23,15 @@ export function LayoutInspector({ studioLayout }: Props) {
 
   function commitId() {
     const trimmed = idDraft.trim();
-    if (trimmed && trimmed !== layout.id) renameLayoutId(layout.id, trimmed);
+    if (trimmed && trimmed !== layout.id) renameLayoutId(studioLayout.key, trimmed);
     else setIdDraft(layout.id);
   }
+
+  // Every store action already addresses this exact layout by its own stable `key`, never by
+  // this id — so even while it's duplicated, editing/renaming *this* one specifically works and
+  // never touches whichever other layout(s) share the text. This just makes the collision itself
+  // visible right where the fix (typing a new id below) actually happens.
+  const isDuplicateId = allLayouts.some((l) => l.key !== studioLayout.key && l.layout.id === layout.id);
 
   return (
     <div className="panel inspector-panel">
@@ -34,6 +41,12 @@ export function LayoutInspector({ studioLayout }: Props) {
         Layout ID
         <input value={idDraft} onChange={(e) => setIdDraft(e.target.value)} onBlur={commitId} />
       </label>
+      {isDuplicateId && (
+        <p className="field-warning">
+          Another layout also uses id "{layout.id}" — production export requires every layout id to be unique. Type a
+          different id above to fix just this one.
+        </p>
+      )}
 
       <div className="field-row">
         <span className="field-label">Photo count</span>
@@ -42,7 +55,7 @@ export function LayoutInspector({ studioLayout }: Props) {
 
       <label>
         Page format
-        <select value={layout.supportedFormats[0] ?? "square"} onChange={(e) => setLayoutFormat(layout.id, e.target.value as AlbumPageFormat)}>
+        <select value={layout.supportedFormats[0] ?? "square"} onChange={(e) => setLayoutFormat(studioLayout.key, e.target.value as AlbumPageFormat)}>
           {ALL_FORMATS.map((format) => (
             <option key={format} value={format}>{format}</option>
           ))}
@@ -55,17 +68,17 @@ export function LayoutInspector({ studioLayout }: Props) {
 
       <label>
         Background color
-        <input type="color" value={layout.background.value} onChange={(e) => setLayoutBackgroundColor(layout.id, e.target.value)} />
+        <input type="color" value={layout.background.value} onChange={(e) => setLayoutBackgroundColor(studioLayout.key, e.target.value)} />
       </label>
 
-      <button onClick={() => addSlot(layout.id)}>+ Add Slot</button>
+      <button onClick={() => addSlot(studioLayout.key)}>+ Add Slot</button>
 
       <label>
         Notes (Studio-only)
-        <textarea value={meta.notes} onChange={(e) => updateLayoutMeta(layout.id, { notes: e.target.value })} rows={3} />
+        <textarea value={meta.notes} onChange={(e) => updateLayoutMeta(studioLayout.key, { notes: e.target.value })} rows={3} />
       </label>
       <label className="checkbox-inline">
-        <input type="checkbox" checked={meta.favorite} onChange={(e) => updateLayoutMeta(layout.id, { favorite: e.target.checked })} />
+        <input type="checkbox" checked={meta.favorite} onChange={(e) => updateLayoutMeta(studioLayout.key, { favorite: e.target.checked })} />
         Favorite (Studio-only)
       </label>
     </div>

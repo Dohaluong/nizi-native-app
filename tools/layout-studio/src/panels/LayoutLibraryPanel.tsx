@@ -6,7 +6,7 @@ import { useLayoutStudioStore, slugify, nextUniqueId } from "../store/layoutStud
  * delete, plus a small "New Layout" form (photoCount + id, § 10). */
 export function LayoutLibraryPanel() {
   const layouts = useLayoutStudioStore((s) => s.layouts);
-  const selectedLayoutId = useLayoutStudioStore((s) => s.selectedLayoutId);
+  const selectedLayoutKey = useLayoutStudioStore((s) => s.selectedLayoutKey);
   const selectLayout = useLayoutStudioStore((s) => s.selectLayout);
   const duplicateLayout = useLayoutStudioStore((s) => s.duplicateLayout);
   const deleteLayout = useLayoutStudioStore((s) => s.deleteLayout);
@@ -16,7 +16,7 @@ export function LayoutLibraryPanel() {
   const [newPhotoCount, setNewPhotoCount] = useState(1);
   const [newName, setNewName] = useState("");
   const [newFormat, setNewFormat] = useState<AlbumPageFormat>("square");
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [pendingDeleteKey, setPendingDeleteKey] = useState<string | null>(null);
 
   const grouped = new Map<number, typeof layouts>();
   for (const studioLayout of layouts) {
@@ -75,9 +75,9 @@ export function LayoutLibraryPanel() {
           <h3>{count} Photo{count === 1 ? "" : "s"}</h3>
           {grouped.get(count)!.map((studioLayout) => (
             <div
-              key={studioLayout.layout.id}
-              className={`library-item ${studioLayout.layout.id === selectedLayoutId ? "selected" : ""}`}
-              onClick={() => selectLayout(studioLayout.layout.id)}
+              key={studioLayout.key}
+              className={`library-item ${studioLayout.key === selectedLayoutKey ? "selected" : ""}`}
+              onClick={() => selectLayout(studioLayout.key)}
             >
               <div className="library-item-thumb">
                 <LayoutThumbnail slots={studioLayout.layout.slots} canvas={studioLayout.layout.referenceCanvas} />
@@ -87,22 +87,22 @@ export function LayoutLibraryPanel() {
                 <span className="library-item-count">{studioLayout.layout.slots.length} slots</span>
               </div>
               <div className="library-item-actions">
-                <button title="Duplicate" onClick={(e) => { e.stopPropagation(); duplicateLayout(studioLayout.layout.id); }}>⧉</button>
-                <button title="Delete" onClick={(e) => { e.stopPropagation(); setPendingDeleteId(studioLayout.layout.id); }}>✕</button>
+                <button title="Duplicate" onClick={(e) => { e.stopPropagation(); duplicateLayout(studioLayout.key); }}>⧉</button>
+                <button title="Delete" onClick={(e) => { e.stopPropagation(); setPendingDeleteKey(studioLayout.key); }}>✕</button>
               </div>
-              {pendingDeleteId === studioLayout.layout.id && (
+              {pendingDeleteKey === studioLayout.key && (
                 <div className="confirm-delete" onClick={(e) => e.stopPropagation()}>
                   <span>Delete "{studioLayout.layout.id}"?</span>
                   <button
                     className="danger"
                     onClick={() => {
-                      deleteLayout(studioLayout.layout.id);
-                      setPendingDeleteId(null);
+                      deleteLayout(studioLayout.key);
+                      setPendingDeleteKey(null);
                     }}
                   >
                     Delete
                   </button>
-                  <button onClick={() => setPendingDeleteId(null)}>Cancel</button>
+                  <button onClick={() => setPendingDeleteKey(null)}>Cancel</button>
                 </div>
               )}
             </div>

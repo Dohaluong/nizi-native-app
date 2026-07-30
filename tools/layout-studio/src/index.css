@@ -218,6 +218,14 @@ body {
   color: #888;
   margin: -4px 0 10px;
 }
+.field-warning {
+  font-size: 11px;
+  color: #7a271a;
+  background: #fdecea;
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin: -2px 0 10px;
+}
 .field-row {
   display: flex;
   justify-content: space-between;

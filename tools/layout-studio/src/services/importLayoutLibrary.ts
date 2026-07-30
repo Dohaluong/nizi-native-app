@@ -1,6 +1,6 @@
 import { albumLayoutLibrarySchema } from "../domain/schemas";
 import type { AlbumLayoutLibrary } from "../domain/albumLayout";
-import { makeStudioMeta, type StudioLayout } from "../domain/studioLayout";
+import { makeStudioLayoutKey, makeStudioMeta, type StudioLayout } from "../domain/studioLayout";
 import { validateLibrary, type ValidationIssue } from "./validateLayout";
 
 export interface ImportResult {
@@ -46,6 +46,7 @@ export function importLayoutLibrary(rawText: string): ImportResult {
   const library = parsed.data as AlbumLayoutLibrary;
   const issues = validateLibrary(library);
   const studioLayouts: StudioLayout[] = library.layouts.map((layout) => ({
+    key: makeStudioLayoutKey(),
     layout,
     meta: makeStudioMeta(),
   }));
