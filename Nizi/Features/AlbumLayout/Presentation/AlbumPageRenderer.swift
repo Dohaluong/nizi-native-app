@@ -38,6 +38,7 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
     var onSwapPhotos: ((_ from: AlbumPhotoAssignment, _ to: AlbumPhotoAssignment) -> Void)? = nil
 
     @State private var dragState: AlbumSlotDragState?
+    @State private var pendingPress: AlbumSlotPendingPress?
     @State private var activeRipples: [String: AlbumSlotRippleEffect] = [:]
 
     var body: some View {
@@ -139,6 +140,7 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
             slot: slot, assignment: assignment, slotRect: rect, slotFrames: slotFrames,
             assignmentsBySlotId: assignmentsBySlotId,
             dragState: $dragState,
+            pendingPress: $pendingPress,
             canvasOrigin: canvasOrigin,
             onDropped: { source, target in beginSwapRipple(source: source, target: target) }
         )

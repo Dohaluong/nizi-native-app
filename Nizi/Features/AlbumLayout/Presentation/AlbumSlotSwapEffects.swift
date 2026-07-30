@@ -90,25 +90,46 @@ struct AlbumSlotSwapEndpoint {
     let rect: CGRect
 }
 
+/// A touch that's been down long enough to *maybe* become a drag-to-swap, but hasn't yet — tracked
+/// separately from `AlbumSlotDragState` (which only exists once a touch has actually been
+/// promoted) so a quick tap never spawns anything visible at all. `token` distinguishes this touch
+/// from any later one a stale, already-fired timer might otherwise still apply to.
+struct AlbumSlotPendingPress {
+    let token: UUID
+    let startLocation: CGPoint
+    var latestLocation: CGPoint
+}
+
 extension View {
-    /// Attaches the long-press-then-drag swap gesture (§ user request) to a slot's rendered
-    /// content — long-press to "pick up" the photo (spawns `AlbumSlotDragState`, which
-    /// `AlbumPageRenderer` renders as the floating circular preview and the dimmed source slot),
-    /// drag anywhere, release over a *different* slot that also has a real photo assigned to swap
-    /// the two. Released anywhere else (empty background, back onto the same slot, an empty
-    /// placeholder slot) cancels with no effect. `isEnabled: false` (or no assignment to drag in
-    /// the first place) attaches no gesture at all — same "opt-in, zero overhead otherwise" shape
-    /// `onTapPhoto` already uses elsewhere in this renderer.
+    /// Attaches the hold-then-drag swap gesture (§ user request) to a slot's rendered content —
+    /// hold in place to "pick up" the photo (spawns `AlbumSlotDragState`, which `AlbumPageRenderer`
+    /// renders as the floating circular preview and the dimmed source slot), drag anywhere,
+    /// release over a *different* slot that also has a real photo assigned to swap the two.
+    /// Released anywhere else (empty background, back onto the same slot, an empty placeholder
+    /// slot, or — critically — before the hold threshold below is even reached) cancels with no
+    /// visible effect at all. `isEnabled: false` (or no assignment to drag in the first place)
+    /// attaches no gesture at all — same "opt-in, zero overhead otherwise" shape `onTapPhoto`
+    /// already uses elsewhere in this renderer.
+    ///
+    /// § user report — a plain `DragGesture(minimumDistance: 0)`, not `LongPressGesture(...)
+    /// .sequenced(before: DragGesture(...))`: a `.sequenced` gesture's own `onEnded` is documented
+    /// to sometimes never fire at all if the touch lifts right as the long-press phase hands off
+    /// to the drag phase, before any drag delta has actually been reported yet — which is exactly
+    /// "long-press just long enough to spawn the circle, then release immediately" and left
+    /// `dragState` stuck showing that circle forever. A single, non-composite `DragGesture` doesn't
+    /// have that failure mode — its `onEnded` reliably fires exactly once per touch, so `dragState`
+    /// is *always* cleared there regardless of what happened. The hold-to-promote behavior is done
+    /// by hand instead: `holdDuration` after touch-down, a timer checks whether the touch is still
+    /// down and hasn't wandered past `promotionMovementTolerance` (ruling out an in-progress swipe)
+    /// before actually spawning `dragState` — until that fires, nothing is shown at all, so a quick
+    /// tap never produces a stray circle to begin with.
     ///
     /// Uses `.global` coordinate space, converted back to this canvas's own local space via
     /// `canvasOrigin` (`GeometryReader`'s `proxy.frame(in: .global).origin`, computed once by the
-    /// caller) — not a shared named coordinate space. A `TabView(.page)` keeps 2-3 Pages' worth of
-    /// `AlbumPageRenderer` alive at once (current + adjacent, for swipe transitions), and this
-    /// screen's layout picker instantiates several more (one per swatch); every one of those
-    /// previously declared the *same* string-named coordinate space simultaneously, which is
-    /// exactly the kind of setup that made drag tracking silently stop working after paging to a
-    /// page whose renderer instance was freshly (re)constructed — `.global` has no name to
-    /// register or resolve, so there's nothing for multiple instances to collide over.
+    /// caller) — not a shared named coordinate space, which previously made drag tracking silently
+    /// stop working on any `AlbumPageRenderer` instance `TabView(.page)` (re)constructed while
+    /// paging, since every simultaneously-alive instance (current + adjacent Pages, every layout
+    /// picker swatch) declared that same string name at once.
     @ViewBuilder
     func albumSlotSwapGesture(
         isEnabled: Bool,
@@ -118,44 +139,59 @@ extension View {
         slotFrames: [String: CGRect],
         assignmentsBySlotId: [String: AlbumPhotoAssignment],
         dragState: Binding<AlbumSlotDragState?>,
+        pendingPress: Binding<AlbumSlotPendingPress?>,
         canvasOrigin: CGPoint,
         onDropped: @escaping (_ source: AlbumSlotSwapEndpoint, _ target: AlbumSlotSwapEndpoint) -> Void
     ) -> some View {
         if isEnabled, let assignment {
+            let holdDuration = 0.18
+            let promotionMovementTolerance: CGFloat = 12
+
             // `.highPriorityGesture`, not `.gesture` — TabView(.page) is UIKit-backed
             // (`UIPageViewController`) with its own pan recognizer for swipe-between-Pages; once a
-            // long-press has actually succeeded here, this gesture needs to keep winning the touch
-            // stream rather than risk losing it back to the page-swipe recognizer.
+            // touch has actually been promoted to a drag here, this gesture needs to keep winning
+            // the touch stream rather than risk losing it back to the page-swipe recognizer. A
+            // touch that never gets promoted (released within `holdDuration`, or wanders past
+            // `promotionMovementTolerance` first) never calls back into anything visible, so a
+            // normal quick swipe starting on a photo is still free to page normally.
             highPriorityGesture(
-                LongPressGesture(minimumDuration: 0.35)
-                    .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
-                    .onChanged { value in
-                        switch value {
-                        case .first(true):
-                            // The long press succeeded — spawn the drag state (and with it, the
-                            // floating preview + dimmed source) right away, centered on the slot,
-                            // even before any finger movement has been reported yet.
-                            if dragState.wrappedValue == nil {
-                                let center = CGPoint(x: slotRect.midX, y: slotRect.midY)
+                DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                    .onChanged { drag in
+                        let location = CGPoint(x: drag.location.x - canvasOrigin.x, y: drag.location.y - canvasOrigin.y)
+
+                        if dragState.wrappedValue != nil {
+                            dragState.wrappedValue?.currentLocation = location
+                            return
+                        }
+
+                        guard let pending = pendingPress.wrappedValue else {
+                            // Fresh touch-down — start the short hold timer. Nothing is shown yet.
+                            let token = UUID()
+                            pendingPress.wrappedValue = AlbumSlotPendingPress(token: token, startLocation: location, latestLocation: location)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + holdDuration) {
+                                guard let stillPending = pendingPress.wrappedValue, stillPending.token == token else { return }
+                                let moved = hypot(
+                                    stillPending.latestLocation.x - stillPending.startLocation.x,
+                                    stillPending.latestLocation.y - stillPending.startLocation.y
+                                )
+                                guard moved <= promotionMovementTolerance else { return }
                                 dragState.wrappedValue = AlbumSlotDragState(
                                     sourceSlotId: slot.id, sourceAssignment: assignment,
-                                    startLocation: center, currentLocation: center
+                                    startLocation: stillPending.latestLocation, currentLocation: stillPending.latestLocation
                                 )
                             }
-                        case let .second(true, drag):
-                            if let drag {
-                                dragState.wrappedValue?.currentLocation = CGPoint(
-                                    x: drag.location.x - canvasOrigin.x, y: drag.location.y - canvasOrigin.y
-                                )
-                            }
-                        default:
-                            break
+                            return
                         }
+                        pendingPress.wrappedValue = AlbumSlotPendingPress(token: pending.token, startLocation: pending.startLocation, latestLocation: location)
                     }
-                    .onEnded { value in
+                    .onEnded { drag in
+                        pendingPress.wrappedValue = nil
                         let source = dragState.wrappedValue
                         dragState.wrappedValue = nil
-                        guard case let .second(true, drag) = value, let drag, let source else { return }
+                        // Never promoted (a quick tap, or a swipe that moved too far first) — no
+                        // drag was ever actually shown, so there's nothing to cancel or drop.
+                        guard let source else { return }
+
                         let dropLocation = CGPoint(x: drag.location.x - canvasOrigin.x, y: drag.location.y - canvasOrigin.y)
                         // Hit-test the drop point against every *other* slot's frame — dropping
                         // back onto the same slot, on empty background, or on a slot with no
