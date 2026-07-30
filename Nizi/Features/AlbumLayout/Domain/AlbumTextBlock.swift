@@ -25,7 +25,7 @@ struct AlbumTextBlock: Identifiable, Codable, Hashable {
     let verticalAlignment: AlbumTextVerticalAlignment
     let fontFamily: AlbumTextFontFamily
     let fontSize: Double
-    let fontWeight: AlbumTextFontWeight
+    let fontStyle: AlbumTextFontStyle
 }
 
 /// "Có các kiểu căn lề trái phải giữa" — left/center/right, mapped to a `TextAlignment` (how
@@ -52,7 +52,7 @@ enum AlbumTextVerticalAlignment: String, Codable, Hashable, CaseIterable {
 /// Palatino, Times New Roman, Gill Sans, Optima) and a few decorative options (Didot, Futura,
 /// Baskerville, American Typewriter, Noteworthy, Snell Roundhand, Marker Felt, Papyrus) — every
 /// raw value is the *exact* family name iOS itself reports via `UIFont.familyNames`, matched at
-/// render time in Presentation (never a PostScript/face name — `AlbumTextFontWeight` is what picks
+/// render time in Presentation (never a PostScript/face name — `AlbumTextFontStyle` is what picks
 /// the actual face for a given family, since that mapping differs per family and only the OS
 /// itself reliably knows it).
 enum AlbumTextFontFamily: String, Codable, Hashable, CaseIterable {
@@ -75,12 +75,14 @@ enum AlbumTextFontFamily: String, Codable, Hashable, CaseIterable {
     case papyrus = "Papyrus"
 }
 
-/// "Cỡ chữ, font-weight" — a practical subset (not iOS's full 9-step `UIFont.Weight` range, which
-/// is overkill for a captions picker and, for most non-system families below, wouldn't resolve to
-/// a different face anyway).
-enum AlbumTextFontWeight: String, Codable, Hashable, CaseIterable {
+/// § user request — "font-weight sẽ thay bằng các định dạng cơ bản: Regular, Italic, Bold,
+/// Italic-Bold": the 4 basic style permutations most fonts actually ship as distinct named faces
+/// (not a thickness scale like the previous `medium`/`semibold` steps — those rarely resolved to a
+/// visibly different face for most of the curated families below anyway; italic is a genuinely
+/// different, commonly-available axis instead).
+enum AlbumTextFontStyle: String, Codable, Hashable, CaseIterable {
     case regular
-    case medium
-    case semibold
+    case italic
     case bold
+    case boldItalic
 }

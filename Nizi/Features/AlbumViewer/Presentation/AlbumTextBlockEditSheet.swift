@@ -20,7 +20,7 @@ struct AlbumTextBlockEditTarget: Identifiable {
     let currentVerticalAlignment: AlbumTextVerticalAlignment
     let currentFontFamily: AlbumTextFontFamily
     let currentFontSize: Double
-    let currentFontWeight: AlbumTextFontWeight
+    let currentFontStyle: AlbumTextFontStyle
     var id: String { "\(pageId)-\(textBlockId)" }
 }
 
@@ -33,7 +33,7 @@ struct AlbumTextBlockEditTarget: Identifiable {
 struct AlbumTextBlockEditSheet: View {
     let onSave: (
         _ text: String, _ horizontalAlignment: AlbumTextHorizontalAlignment, _ verticalAlignment: AlbumTextVerticalAlignment,
-        _ fontFamily: AlbumTextFontFamily, _ fontSize: Double, _ fontWeight: AlbumTextFontWeight
+        _ fontFamily: AlbumTextFontFamily, _ fontSize: Double, _ fontStyle: AlbumTextFontStyle
     ) -> Void
     let onCancel: () -> Void
 
@@ -42,7 +42,7 @@ struct AlbumTextBlockEditSheet: View {
     @State private var verticalAlignment: AlbumTextVerticalAlignment
     @State private var fontFamily: AlbumTextFontFamily
     @State private var fontSize: Double
-    @State private var fontWeight: AlbumTextFontWeight
+    @State private var fontStyle: AlbumTextFontStyle
     // § user report — "không có con trỏ ... không biết viết gì ở đâu": auto-focusing the moment
     // this sheet appears means the keyboard is already up and the cursor already blinking, so
     // there's no ambiguity about where to type.
@@ -52,7 +52,7 @@ struct AlbumTextBlockEditSheet: View {
         target: AlbumTextBlockEditTarget,
         onSave: @escaping (
             _ text: String, _ horizontalAlignment: AlbumTextHorizontalAlignment, _ verticalAlignment: AlbumTextVerticalAlignment,
-            _ fontFamily: AlbumTextFontFamily, _ fontSize: Double, _ fontWeight: AlbumTextFontWeight
+            _ fontFamily: AlbumTextFontFamily, _ fontSize: Double, _ fontStyle: AlbumTextFontStyle
         ) -> Void,
         onCancel: @escaping () -> Void
     ) {
@@ -63,7 +63,7 @@ struct AlbumTextBlockEditSheet: View {
         _verticalAlignment = State(initialValue: target.currentVerticalAlignment)
         _fontFamily = State(initialValue: target.currentFontFamily)
         _fontSize = State(initialValue: target.currentFontSize)
-        _fontWeight = State(initialValue: target.currentFontWeight)
+        _fontStyle = State(initialValue: target.currentFontStyle)
     }
 
     var body: some View {
@@ -85,15 +85,8 @@ struct AlbumTextBlockEditSheet: View {
 
                 Section("album.textBlock.edit.style_section") {
                     fontFamilyStrip
-                    weightControl
-                    Stepper(value: $fontSize, in: 8...200, step: 2) {
-                        HStack {
-                            Text("album.textBlock.edit.font_size")
-                            Spacer()
-                            Text("\(Int(fontSize))")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                    styleControl
+                    fontSizeField
                 }
             }
             .navigationTitle("album.textBlock.edit.title")
@@ -104,7 +97,7 @@ struct AlbumTextBlockEditSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("album.textBlock.edit.done") {
-                        onSave(text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontWeight)
+                        onSave(text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontStyle)
                     }
                     .fontWeight(.semibold)
                 }
@@ -118,12 +111,12 @@ struct AlbumTextBlockEditSheet: View {
     /// § user request — "Phần preview không cần thể hiện hết text, nhưng cần thể hiện rõ độ lớn,
     /// font chữ": a fixed-height box (never grows with the actual text, so it can never itself
     /// need scrolling) showing up to 3 lines of the real current text — enough to read the actual
-    /// font/weight/size/alignment clearly without needing to reproduce the exact on-Page layout.
+    /// font/style/size/alignment clearly without needing to reproduce the exact on-Page layout.
     /// Reuses `albumTextFont` (the same function `AlbumTextBlockView` renders the real Page with)
     /// so this can never silently drift from what Done will actually produce.
     private var previewBox: some View {
         Text(text.isEmpty ? localizedString("album.textBlock.placeholder", defaultValue: "Write here") : text)
-            .font(albumTextFont(family: fontFamily, size: fontSize, weight: fontWeight))
+            .font(albumTextFont(family: fontFamily, size: fontSize, style: fontStyle))
             .multilineTextAlignment(textAlignment)
             .opacity(text.isEmpty ? 0.35 : 1)
             .lineLimit(3)
@@ -238,7 +231,7 @@ struct AlbumTextBlockEditSheet: View {
             fontFamily = family
         } label: {
             Text(family.rawValue)
-                .font(albumTextFont(family: family, size: 15, weight: .regular))
+                .font(albumTextFont(family: family, size: 15, style: .regular))
                 .lineLimit(1)
                 .foregroundStyle(isSelected ? Color.white : Color.primary)
                 .padding(.horizontal, 12)
@@ -251,15 +244,37 @@ struct AlbumTextBlockEditSheet: View {
         .buttonStyle(.plain)
     }
 
-    /// § "độ đậm sử dụng icon" — each weight rendered as an "A" glyph *in* that weight, doubling as
-    /// its own icon (there's no universal SF Symbol per weight the way there is for alignment).
-    private var weightControl: some View {
-        Picker("album.textBlock.edit.font_weight", selection: $fontWeight) {
-            ForEach(AlbumTextFontWeight.allCases, id: \.self) { weight in
-                Text("A").font(.system(size: 17, weight: weight.swiftUIWeight)).tag(weight)
-            }
+    /// § user request — "font-weight sẽ thay bằng các định dạng cơ bản: Regular, Italic, Bold,
+    /// Italic-Bold (sử dụng icon)": an icon-only segmented control over the 4 basic style
+    /// permutations, replacing the previous thickness-scale weight picker entirely.
+    private var styleControl: some View {
+        Picker("album.textBlock.edit.font_style", selection: $fontStyle) {
+            Image(systemName: "textformat").tag(AlbumTextFontStyle.regular)
+            Image(systemName: "italic").tag(AlbumTextFontStyle.italic)
+            Image(systemName: "bold").tag(AlbumTextFontStyle.bold)
+            Image(systemName: "bold.italic").tag(AlbumTextFontStyle.boldItalic)
         }
         .pickerStyle(.segmented)
         .labelsHidden()
+    }
+
+    // § user request — "Ô cỡ chữ cho phép gõ số": lets the user type an exact size directly,
+    // instead of only nudging it up/down one step at a time via the Stepper's own +/- buttons
+    // (kept alongside, for quick small adjustments).
+    private var fontSizeField: some View {
+        Stepper(value: $fontSize, in: 8...200, step: 2) {
+            HStack {
+                Text("album.textBlock.edit.font_size")
+                Spacer()
+                TextField("", value: $fontSize, format: .number)
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 50)
+                    .onChange(of: fontSize) { _, newValue in
+                        let clamped = min(max(newValue, 8), 200)
+                        if clamped != newValue { fontSize = clamped }
+                    }
+            }
+        }
     }
 }

@@ -52,7 +52,7 @@ enum AlbumEditAction {
     case updateTextBlock(
         pageId: String, textBlockId: String, text: String,
         horizontalAlignment: AlbumTextHorizontalAlignment, verticalAlignment: AlbumTextVerticalAlignment,
-        fontFamily: AlbumTextFontFamily, fontSize: Double, fontWeight: AlbumTextFontWeight
+        fontFamily: AlbumTextFontFamily, fontSize: Double, fontStyle: AlbumTextFontStyle
     )
 }
 

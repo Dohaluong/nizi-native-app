@@ -121,6 +121,9 @@
     "0 Album · %lld photos surveyed" : {
 
     },
+    "A" : {
+
+    },
     "Album Draft Planner" : {
 
     },
@@ -1668,19 +1671,19 @@
         }
       }
     },
-    "album.textBlock.edit.font_weight" : {
+    "album.textBlock.edit.font_style" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Weight"
+            "value" : "Font Style"
           }
         },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Độ đậm"
+            "value" : "Kiểu chữ"
           }
         }
       }

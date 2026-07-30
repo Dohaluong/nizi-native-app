@@ -177,14 +177,14 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
         let verticalAlignment = assignment?.verticalAlignment ?? textBlock.verticalAlignment
         let fontFamily = assignment?.fontFamily ?? textBlock.fontFamily
         let fontSize = assignment?.fontSize ?? textBlock.fontSize
-        let fontWeight = assignment?.fontWeight ?? textBlock.fontWeight
+        let fontStyle = assignment?.fontStyle ?? textBlock.fontStyle
         // Uniform scale, same reasoning `scaledCornerRadius` already uses for slots — never
         // stretch the text unevenly on a non-uniformly scaled canvas.
         let scaledFontSize = fontSize * min(scaleX, scaleY)
 
         let content = AlbumTextBlockView(
             frame: rect, horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
-            fontFamily: fontFamily, scaledFontSize: scaledFontSize, fontWeight: fontWeight,
+            fontFamily: fontFamily, scaledFontSize: scaledFontSize, fontStyle: fontStyle,
             content: assignment?.text
         )
 
@@ -193,7 +193,7 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
                 let effective = assignment ?? AlbumTextAssignment(
                     id: "pending-\(textBlock.id)", textBlockId: textBlock.id, text: "",
                     horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
-                    fontFamily: fontFamily, fontSize: fontSize, fontWeight: fontWeight
+                    fontFamily: fontFamily, fontSize: fontSize, fontStyle: fontStyle
                 )
                 content
                     .contentShape(Rectangle())

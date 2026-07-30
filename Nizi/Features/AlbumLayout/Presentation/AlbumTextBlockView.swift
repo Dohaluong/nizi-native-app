@@ -31,7 +31,7 @@ struct AlbumTextBlockView: View {
     /// page that's only a few hundred points on screen). The caller (`AlbumPageRenderer`) does the
     /// scaling since it's the one with `scaleX`/`scaleY` in scope.
     let scaledFontSize: CGFloat
-    let fontWeight: AlbumTextFontWeight
+    let fontStyle: AlbumTextFontStyle
     /// The real, user-typed content for this Page's copy of this text block — `nil`/empty means
     /// "nothing typed yet," which shows the placeholder instead.
     let content: String?
@@ -82,55 +82,59 @@ struct AlbumTextBlockView: View {
     }
 
     private var font: Font {
-        albumTextFont(family: fontFamily, size: scaledFontSize, weight: fontWeight)
+        albumTextFont(family: fontFamily, size: scaledFontSize, style: fontStyle)
     }
 }
 
 /// Shared by `AlbumTextBlockView` (the real Page render) and `AlbumTextBlockEditSheet` (its own
 /// live style preview, plus the font-strip's per-chip sample) — one place that turns a
-/// family/size/weight combination into an actual `Font`, so the edit screen's preview can never
+/// family/size/style combination into an actual `Font`, so the edit screen's preview can never
 /// silently drift from what the Page itself will really show.
-func albumTextFont(family: AlbumTextFontFamily, size: CGFloat, weight: AlbumTextFontWeight) -> Font {
+///
+/// The system family is the one case handled without any named-face lookup at all — SwiftUI's own
+/// `.bold()`/`.italic()` modifiers already compose correctly on top of `Font.system`, and there's
+/// no meaningful "PostScript face" concept for it the way there is for a real installed family.
+func albumTextFont(family: AlbumTextFontFamily, size: CGFloat, style: AlbumTextFontStyle) -> Font {
     guard family != .system else {
-        return .system(size: size, weight: weight.swiftUIWeight)
+        var font = Font.system(size: size)
+        if style == .bold || style == .boldItalic { font = font.bold() }
+        if style == .italic || style == .boldItalic { font = font.italic() }
+        return font
     }
-    return .custom(albumTextBestMatchingFontName(family: family.rawValue, weight: weight), size: size)
+    return .custom(albumTextBestMatchingFontName(family: family.rawValue, style: style), size: size)
 }
 
 /// `Font.custom` needs an exact PostScript font name, not a family display name (e.g.
-/// `"HelveticaNeue-Bold"`, not `"Helvetica Neue"`) — and which PostScript names exist, and which
-/// one corresponds to which weight, differs per family and isn't something worth hardcoding (and
-/// risking a typo silently falling back to the system font for one family). `UIFont.fontNames
-/// (forFamilyName:)` asks iOS itself, which is the only reliable source.
-func albumTextBestMatchingFontName(family: String, weight: AlbumTextFontWeight) -> String {
+/// `"HelveticaNeue-BoldItalic"`, not `"Helvetica Neue"`) — and which PostScript names exist, and
+/// which one corresponds to which style, differs per family and isn't something worth hardcoding
+/// (and risking a typo silently falling back to the system font for one family). `UIFont.fontNames
+/// (forFamilyName:)` asks iOS itself, which is the only reliable source. Deliberately doesn't just
+/// apply SwiftUI's own `.bold()`/`.italic()` on top of a resolved custom face — those synthesize a
+/// faux slant/weight algorithmically, which looks worse than an actual hand-designed italic/bold
+/// face the family already ships (exactly what this look-up finds instead, when one exists).
+func albumTextBestMatchingFontName(family: String, style: AlbumTextFontStyle) -> String {
     let candidates = UIFont.fontNames(forFamilyName: family)
     guard !candidates.isEmpty else { return family }
-    if let match = candidates.first(where: { $0.localizedCaseInsensitiveContains(weight.postScriptNameHint) }) {
-        return match
-    }
-    // This family doesn't ship a face for the requested weight (many of the curated families
-    // only have one) — fall back to whatever looks like its regular/default face.
-    return candidates.first(where: { $0.localizedCaseInsensitiveContains("regular") }) ?? candidates[0]
-}
 
-extension AlbumTextFontWeight {
-    var swiftUIWeight: Font.Weight {
-        switch self {
-        case .regular: return .regular
-        case .medium: return .medium
-        case .semibold: return .semibold
-        case .bold: return .bold
-        }
+    func has(_ name: String, _ token: String) -> Bool {
+        name.localizedCaseInsensitiveContains(token)
     }
+    func isItalic(_ name: String) -> Bool { has(name, "Italic") || has(name, "Oblique") }
+    func isBold(_ name: String) -> Bool { has(name, "Bold") }
 
-    /// Substring most iOS PostScript font names use to signal this weight (e.g.
-    /// `"HelveticaNeue-Bold"`, `"AvenirNext-Medium"`).
-    var postScriptNameHint: String {
-        switch self {
-        case .regular: return "Regular"
-        case .medium: return "Medium"
-        case .semibold: return "SemiBold"
-        case .bold: return "Bold"
-        }
+    let match: String?
+    switch style {
+    case .regular:
+        match = nil
+    case .bold:
+        match = candidates.first { isBold($0) && !isItalic($0) }
+    case .italic:
+        match = candidates.first { isItalic($0) && !isBold($0) }
+    case .boldItalic:
+        match = candidates.first { isBold($0) && isItalic($0) }
     }
+    // No exact match — either `.regular` itself, or this family doesn't ship a face for the
+    // requested style (many of the curated families only have one) — fall back to whatever looks
+    // like its regular/default face.
+    return match ?? candidates.first(where: { has($0, "Regular") }) ?? candidates[0]
 }

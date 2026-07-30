@@ -14,7 +14,7 @@ import Foundation
 /// `AlbumLayoutSlot`/`AlbumPhotoAssignment` already uses for photos — `AlbumTextBlock`'s own
 /// style fields are only ever the *starting point* a fresh assignment is seeded with (see
 /// `AlbumEditActionApplying.freshTextAssignments`); § user request — "cho phép chọn cỡ chữ, font,
-/// weight, căn lề ... trong modal editor" — a real Album's own text-edit screen then lets the user
+/// style, căn lề ... trong modal editor" — a real Album's own text-edit screen then lets the user
 /// change these per-Page, independently of the Layout Studio's own design-time defaults.
 struct AlbumTextAssignment: Identifiable, Codable, Hashable {
     let id: String
@@ -24,7 +24,7 @@ struct AlbumTextAssignment: Identifiable, Codable, Hashable {
     var verticalAlignment: AlbumTextVerticalAlignment
     var fontFamily: AlbumTextFontFamily
     var fontSize: Double
-    var fontWeight: AlbumTextFontWeight
+    var fontStyle: AlbumTextFontStyle
 
     init(
         id: String, textBlockId: String, text: String,
@@ -32,7 +32,7 @@ struct AlbumTextAssignment: Identifiable, Codable, Hashable {
         verticalAlignment: AlbumTextVerticalAlignment = .center,
         fontFamily: AlbumTextFontFamily = .system,
         fontSize: Double = 32,
-        fontWeight: AlbumTextFontWeight = .regular
+        fontStyle: AlbumTextFontStyle = .regular
     ) {
         self.id = id
         self.textBlockId = textBlockId
@@ -41,17 +41,19 @@ struct AlbumTextAssignment: Identifiable, Codable, Hashable {
         self.verticalAlignment = verticalAlignment
         self.fontFamily = fontFamily
         self.fontSize = fontSize
-        self.fontWeight = fontWeight
+        self.fontStyle = fontStyle
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, textBlockId, text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontWeight
+        case id, textBlockId, text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontStyle
     }
 
     /// § backward compatibility — an assignment encoded before the style fields existed (this
-    /// session's very first cut, text-only) still decodes: falls back to the same static defaults
-    /// the memberwise `init` above uses, since the *original* layout block that seeded it isn't
-    /// reachable from here (only the target's own `Decoder` is).
+    /// session's very first cut, text-only), or before `fontStyle` replaced the old thickness-scale
+    /// `fontWeight` field, still decodes: falls back to the same static defaults the memberwise
+    /// `init` above uses, since the *original* layout block that seeded it isn't reachable from
+    /// here (only the target's own `Decoder` is) — and there's no meaningful old-weight-value to
+    /// new-style-value mapping anyway (`medium`/`semibold` don't correspond to anything here).
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
@@ -61,7 +63,7 @@ struct AlbumTextAssignment: Identifiable, Codable, Hashable {
         verticalAlignment = try container.decodeIfPresent(AlbumTextVerticalAlignment.self, forKey: .verticalAlignment) ?? .center
         fontFamily = try container.decodeIfPresent(AlbumTextFontFamily.self, forKey: .fontFamily) ?? .system
         fontSize = try container.decodeIfPresent(Double.self, forKey: .fontSize) ?? 32
-        fontWeight = try container.decodeIfPresent(AlbumTextFontWeight.self, forKey: .fontWeight) ?? .regular
+        fontStyle = try container.decodeIfPresent(AlbumTextFontStyle.self, forKey: .fontStyle) ?? .regular
     }
 
     func encode(to encoder: Encoder) throws {
@@ -73,6 +75,6 @@ struct AlbumTextAssignment: Identifiable, Codable, Hashable {
         try container.encode(verticalAlignment, forKey: .verticalAlignment)
         try container.encode(fontFamily, forKey: .fontFamily)
         try container.encode(fontSize, forKey: .fontSize)
-        try container.encode(fontWeight, forKey: .fontWeight)
+        try container.encode(fontStyle, forKey: .fontStyle)
     }
 }

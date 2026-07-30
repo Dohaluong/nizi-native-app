@@ -65,11 +65,11 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
             return try await removePhoto(pageId: pageId, slotId: slotId, in: draft)
         case let .removeSpread(spreadId):
             return try removeSpread(spreadId: spreadId, in: draft)
-        case let .updateTextBlock(pageId, textBlockId, text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontWeight):
+        case let .updateTextBlock(pageId, textBlockId, text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontStyle):
             return try updateTextBlock(
                 pageId: pageId, textBlockId: textBlockId, text: text,
                 horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
-                fontFamily: fontFamily, fontSize: fontSize, fontWeight: fontWeight, in: draft
+                fontFamily: fontFamily, fontSize: fontSize, fontStyle: fontStyle, in: draft
             )
         }
     }
@@ -267,7 +267,7 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
     private func updateTextBlock(
         pageId: String, textBlockId: String, text: String,
         horizontalAlignment: AlbumTextHorizontalAlignment, verticalAlignment: AlbumTextVerticalAlignment,
-        fontFamily: AlbumTextFontFamily, fontSize: Double, fontWeight: AlbumTextFontWeight,
+        fontFamily: AlbumTextFontFamily, fontSize: Double, fontStyle: AlbumTextFontStyle,
         in draft: AlbumDraft
     ) throws -> AlbumDraft {
         guard let location = locatePage(pageId, in: draft) else { throw AlbumEditError.pageNotFound }
@@ -277,7 +277,7 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
                 id: page.textAssignments.first { $0.textBlockId == textBlockId }?.id ?? "\(page.id)-\(textBlockId)",
                 textBlockId: textBlockId, text: text,
                 horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
-                fontFamily: fontFamily, fontSize: fontSize, fontWeight: fontWeight
+                fontFamily: fontFamily, fontSize: fontSize, fontStyle: fontStyle
             )
             if let index = page.textAssignments.firstIndex(where: { $0.textBlockId == textBlockId }) {
                 page.textAssignments[index] = updatedAssignment
@@ -298,7 +298,7 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
             AlbumTextAssignment(
                 id: "\(pageId)-\(block.id)", textBlockId: block.id, text: "",
                 horizontalAlignment: block.horizontalAlignment, verticalAlignment: block.verticalAlignment,
-                fontFamily: block.fontFamily, fontSize: block.fontSize, fontWeight: block.fontWeight
+                fontFamily: block.fontFamily, fontSize: block.fontSize, fontStyle: block.fontStyle
             )
         }
     }

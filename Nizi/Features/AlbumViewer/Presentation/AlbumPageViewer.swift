@@ -113,11 +113,11 @@ struct AlbumPageViewer: View {
         .sheet(item: $textBlockEditTarget) { target in
             AlbumTextBlockEditSheet(
                 target: target,
-                onSave: { text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontWeight in
+                onSave: { text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontStyle in
                     apply(.updateTextBlock(
                         pageId: target.pageId, textBlockId: target.textBlockId, text: text,
                         horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
-                        fontFamily: fontFamily, fontSize: fontSize, fontWeight: fontWeight
+                        fontFamily: fontFamily, fontSize: fontSize, fontStyle: fontStyle
                     ))
                     textBlockEditTarget = nil
                 },
@@ -233,7 +233,7 @@ struct AlbumPageViewer: View {
                         textBlockEditTarget = AlbumTextBlockEditTarget(
                             pageId: viewerPage.page.id, textBlockId: effective.textBlockId, currentText: effective.text,
                             currentHorizontalAlignment: effective.horizontalAlignment, currentVerticalAlignment: effective.verticalAlignment,
-                            currentFontFamily: effective.fontFamily, currentFontSize: effective.fontSize, currentFontWeight: effective.fontWeight
+                            currentFontFamily: effective.fontFamily, currentFontSize: effective.fontSize, currentFontStyle: effective.fontStyle
                         )
                     }
                     : nil
