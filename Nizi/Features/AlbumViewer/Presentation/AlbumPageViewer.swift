@@ -175,18 +175,35 @@ struct AlbumPageViewer: View {
     /// re-filtering automatically as `currentViewerPage` changes while swiping between Pages.
     /// Tapping a swatch applies it immediately, no confirmation step. Empty (no picker at all)
     /// while the Cover is showing, since a Cover has no interchangeable Page layout.
+    private static let layoutSwatchSize: CGFloat = 56
+    private static let layoutSwatchRowSpacing: CGFloat = 8
+    private static let layoutPickerVerticalPadding: CGFloat = 10
+    /// Explicit, computed height — `LazyHGrid` inside a `ScrollView` with no bounded height left
+    /// `.safeAreaInset` to size this however it liked (observed: it claimed nearly the whole
+    /// screen, pushing the actual Page content out and leaving the 2 short rows of swatches
+    /// vertically centered in all that extra space instead of forming a compact bar). A `LazyHGrid`
+    /// needs a definite cross-axis size from its container to lay out predictably; this supplies
+    /// exactly the 2 rows' own height (+ the padding below) instead of leaving it ambiguous.
+    private static var layoutPickerHeight: CGFloat {
+        layoutSwatchSize * 2 + layoutSwatchRowSpacing + layoutPickerVerticalPadding * 2
+    }
+
     @ViewBuilder
     private var layoutPickerHeader: some View {
         if let viewerPage = currentViewerPage {
             ScrollView(.horizontal, showsIndicators: false) {
-                LazyHGrid(rows: [GridItem(.fixed(56), spacing: 8), GridItem(.fixed(56), spacing: 8)], spacing: 10) {
+                LazyHGrid(
+                    rows: [GridItem(.fixed(Self.layoutSwatchSize), spacing: Self.layoutSwatchRowSpacing), GridItem(.fixed(Self.layoutSwatchSize), spacing: Self.layoutSwatchRowSpacing)],
+                    spacing: 10
+                ) {
                     ForEach(candidateLayouts(for: viewerPage)) { candidate in
                         layoutSwatchButton(candidate, currentPage: viewerPage)
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.vertical, Self.layoutPickerVerticalPadding)
             }
+            .frame(height: Self.layoutPickerHeight)
             .background(.bar)
         }
     }
