@@ -7,24 +7,31 @@
 
 import SwiftUI
 
-/// Renders one `AlbumTextBlock` — either the real per-Page content typed into it (`content`,
-/// crisp/full-opacity) or, while that's still empty, its own localized placeholder (§ "Placeholder
-/// đều có dạng: Viết ở đây hoặc Write here", dimmed — § "Nếu là placeholder thì chữ sẽ bị mờ. Nếu
-/// là nội dung user nhập vào thì chữ mới rõ nét"). `AlbumPageRenderer` sizes/positions this exactly
-/// like a photo slot; this view only needs its own pixel `frame`, style, and already-scaled font
-/// size (see `scaledFontSize`'s own doc comment for why the caller computes that, not this view).
+/// Renders one text block's *resolved* style (already picked by the caller — either an
+/// `AlbumTextAssignment`'s own style, if this Page has one, or the layout's `AlbumTextBlock`
+/// default otherwise; see `AlbumPageRenderer.textBlockView`) — either the real per-Page content
+/// typed into it (`content`, crisp/full-opacity) or, while that's still empty, the localized
+/// placeholder (§ "Placeholder đều có dạng: Viết ở đây hoặc Write here", dimmed — § "Nếu là
+/// placeholder thì chữ sẽ bị mờ. Nếu là nội dung user nhập vào thì chữ mới rõ nét").
+/// `AlbumPageRenderer` sizes/positions this exactly like a photo slot; this view only needs its
+/// own pixel `frame` and already-resolved style — it doesn't know or care whether that style came
+/// from an assignment or a block default.
 struct AlbumTextBlockView: View {
-    let textBlock: AlbumTextBlock
     let frame: CGRect
-    /// § user report — "Tỷ lệ chữ to so với cả trang": `AlbumTextBlock.fontSize` is in the
-    /// layout's own `referenceCanvas` units, exactly like `frame`/`AlbumLayoutSlot.cornerRadius` —
-    /// it must be scaled the same way those already are (by the canvas→screen scale factor)
-    /// before use as an actual on-screen point size, matching how the Studio's own canvas preview
-    /// already scales it (`fontSizePx = (textBlock.fontSize / canvas.width) * stagePixelSize.
-    /// width`). Rendering `textBlock.fontSize` unscaled (the previous bug) made text huge on any
-    /// canvas bigger than the device's own point size — which every real `referenceCanvas` is
-    /// (e.g. `1000×1000` against a page that's only a few hundred points on screen).
+    let horizontalAlignment: AlbumTextHorizontalAlignment
+    let verticalAlignment: AlbumTextVerticalAlignment
+    let fontFamily: AlbumTextFontFamily
+    /// § user report — "Tỷ lệ chữ to so với cả trang": the source font size is in the layout's own
+    /// `referenceCanvas` units, exactly like `frame`/`AlbumLayoutSlot.cornerRadius` — it must be
+    /// scaled the same way those already are (by the canvas→screen scale factor) before use as an
+    /// actual on-screen point size, matching how the Studio's own canvas preview already scales it
+    /// (`fontSizePx = (textBlock.fontSize / canvas.width) * stagePixelSize.width`). Rendering the
+    /// raw font size unscaled (the previous bug) made text huge on any canvas bigger than the
+    /// device's own point size — which every real `referenceCanvas` is (e.g. `1000×1000` against a
+    /// page that's only a few hundred points on screen). The caller (`AlbumPageRenderer`) does the
+    /// scaling since it's the one with `scaleX`/`scaleY` in scope.
     let scaledFontSize: CGFloat
+    let fontWeight: AlbumTextFontWeight
     /// The real, user-typed content for this Page's copy of this text block — `nil`/empty means
     /// "nothing typed yet," which shows the placeholder instead.
     let content: String?
@@ -53,7 +60,7 @@ struct AlbumTextBlockView: View {
     }
 
     private var textAlignment: TextAlignment {
-        switch textBlock.horizontalAlignment {
+        switch horizontalAlignment {
         case .left: return .leading
         case .center: return .center
         case .right: return .trailing
@@ -61,7 +68,7 @@ struct AlbumTextBlockView: View {
     }
 
     private var containerAlignment: Alignment {
-        switch (textBlock.horizontalAlignment, textBlock.verticalAlignment) {
+        switch (horizontalAlignment, verticalAlignment) {
         case (.left, .top): return .topLeading
         case (.center, .top): return .top
         case (.right, .top): return .topTrailing
@@ -75,10 +82,10 @@ struct AlbumTextBlockView: View {
     }
 
     private var font: Font {
-        guard textBlock.fontFamily != .system else {
-            return .system(size: scaledFontSize, weight: textBlock.fontWeight.swiftUIWeight)
+        guard fontFamily != .system else {
+            return .system(size: scaledFontSize, weight: fontWeight.swiftUIWeight)
         }
-        return .custom(Self.bestMatchingFontName(family: textBlock.fontFamily.rawValue, weight: textBlock.fontWeight), size: scaledFontSize)
+        return .custom(Self.bestMatchingFontName(family: fontFamily.rawValue, weight: fontWeight), size: scaledFontSize)
     }
 
     /// `Font.custom` needs an exact PostScript font name, not a family display name (e.g.
@@ -98,7 +105,7 @@ struct AlbumTextBlockView: View {
     }
 }
 
-private extension AlbumTextFontWeight {
+extension AlbumTextFontWeight {
     var swiftUIWeight: Font.Weight {
         switch self {
         case .regular: return .regular

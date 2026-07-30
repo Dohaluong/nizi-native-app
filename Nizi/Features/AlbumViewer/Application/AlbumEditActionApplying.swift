@@ -65,8 +65,12 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
             return try await removePhoto(pageId: pageId, slotId: slotId, in: draft)
         case let .removeSpread(spreadId):
             return try removeSpread(spreadId: spreadId, in: draft)
-        case let .updateTextBlockContent(pageId, textBlockId, text):
-            return try updateTextBlockContent(pageId: pageId, textBlockId: textBlockId, text: text, in: draft)
+        case let .updateTextBlock(pageId, textBlockId, text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontWeight):
+            return try updateTextBlock(
+                pageId: pageId, textBlockId: textBlockId, text: text,
+                horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
+                fontFamily: fontFamily, fontSize: fontSize, fontWeight: fontWeight, in: draft
+            )
         }
     }
 
@@ -252,31 +256,51 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
         return updated
     }
 
-    // MARK: - Update Text Block Content
+    // MARK: - Update Text Block
 
-    /// § user request — "tap vào chữ để sửa nội dung": the only mutation that ever touches
-    /// `AlbumDraftPage.textAssignments`' actual `text` (as opposed to resetting the whole array,
-    /// which only `changePageLayout`/`removePhoto` do, when the set of text blocks itself changes).
-    /// Inserts a fresh assignment if this text block somehow doesn't have one yet (e.g. a Page
-    /// whose Draft predates this feature) rather than silently no-op'ing.
-    private func updateTextBlockContent(pageId: String, textBlockId: String, text: String, in draft: AlbumDraft) throws -> AlbumDraft {
+    /// § user request — "tap vào chữ để sửa nội dung" + "cho phép chọn cỡ chữ, font, weight, căn
+    /// lề ... trong modal editor": the only mutation that ever touches an existing
+    /// `AlbumTextAssignment`'s own fields (as opposed to resetting the whole array, which only
+    /// `changePageLayout`/`removePhoto` do, when the set of text blocks itself changes). Inserts a
+    /// fresh assignment if this text block somehow doesn't have one yet (e.g. a Page whose Draft
+    /// predates this feature) rather than silently no-op'ing.
+    private func updateTextBlock(
+        pageId: String, textBlockId: String, text: String,
+        horizontalAlignment: AlbumTextHorizontalAlignment, verticalAlignment: AlbumTextVerticalAlignment,
+        fontFamily: AlbumTextFontFamily, fontSize: Double, fontWeight: AlbumTextFontWeight,
+        in draft: AlbumDraft
+    ) throws -> AlbumDraft {
         guard let location = locatePage(pageId, in: draft) else { throw AlbumEditError.pageNotFound }
         var updated = draft
         location.mutate(&updated) { page in
+            let updatedAssignment = AlbumTextAssignment(
+                id: page.textAssignments.first { $0.textBlockId == textBlockId }?.id ?? "\(page.id)-\(textBlockId)",
+                textBlockId: textBlockId, text: text,
+                horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
+                fontFamily: fontFamily, fontSize: fontSize, fontWeight: fontWeight
+            )
             if let index = page.textAssignments.firstIndex(where: { $0.textBlockId == textBlockId }) {
-                page.textAssignments[index].text = text
+                page.textAssignments[index] = updatedAssignment
             } else {
-                page.textAssignments.append(AlbumTextAssignment(id: "\(page.id)-\(textBlockId)", textBlockId: textBlockId, text: text))
+                page.textAssignments.append(updatedAssignment)
             }
         }
         return updated
     }
 
-    /// One empty-content `AlbumTextAssignment` per `layout.textBlocks` — see the call sites'
-    /// own doc comments (`changePageLayout`/`removePhoto`) for why this always starts fresh
-    /// rather than trying to carry anything over from the Page's previous layout.
+    /// One `AlbumTextAssignment` per `layout.textBlocks`, each seeded with that block's own
+    /// design-time style (§ its own doc comment: "only ever the starting point") and empty
+    /// content — see the call sites' own doc comments (`changePageLayout`/`removePhoto`) for why
+    /// this always starts fresh rather than trying to carry anything over from the Page's
+    /// previous layout.
     private func freshTextAssignments(for layout: AlbumPageLayout, pageId: String) -> [AlbumTextAssignment] {
-        layout.textBlocks.map { AlbumTextAssignment(id: "\(pageId)-\($0.id)", textBlockId: $0.id, text: "") }
+        layout.textBlocks.map { block in
+            AlbumTextAssignment(
+                id: "\(pageId)-\(block.id)", textBlockId: block.id, text: "",
+                horizontalAlignment: block.horizontalAlignment, verticalAlignment: block.verticalAlignment,
+                fontFamily: block.fontFamily, fontSize: block.fontSize, fontWeight: block.fontWeight
+            )
+        }
     }
 
     // MARK: - § 23 Remove Spread

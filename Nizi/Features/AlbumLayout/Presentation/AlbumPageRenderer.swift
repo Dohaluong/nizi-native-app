@@ -53,10 +53,13 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
     /// can't retroactively steal a touch already being tracked by `UIPageViewController`'s own
     /// internal pan recognizer, so that lock has to reach into UIKit directly instead).
     var onDragActiveChanged: ((Bool) -> Void)? = nil
-    /// § user request — quick-tap a text block to edit its content, reported alongside its current
-    /// text (empty string if it's still showing its placeholder). `nil` (the default) attaches no
+    /// § user request — quick-tap a text block to edit its content and style, reported as the
+    /// *effective* `AlbumTextAssignment` currently in play for it — either the Page's own real
+    /// assignment, or (if it doesn't have one yet) a synthesized one seeded from the layout's
+    /// `AlbumTextBlock` default style with empty text, so the edit screen always opens pre-filled
+    /// with whatever the block is actually showing right now. `nil` (the default) attaches no
     /// tap-detection at all; same opt-in shape as `onCropPhoto`.
-    var onTapTextBlock: ((_ textBlock: AlbumTextBlock, _ currentText: String) -> Void)? = nil
+    var onTapTextBlock: ((_ effective: AlbumTextAssignment) -> Void)? = nil
 
     @State private var dragState: AlbumSlotDragState?
     @State private var pendingPress: AlbumSlotPendingPress?
@@ -165,18 +168,38 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
         scaleY: CGFloat
     ) -> some View {
         let rect = textBlockFrame(textBlock, scaleX: scaleX, scaleY: scaleY)
+        let assignment = textAssignmentsByBlockId[textBlock.id]
+        // § user request — the Page's own assignment (once one exists) is the *actual* style in
+        // use, which can differ from the layout's own default once a real Album's user picks
+        // something different in the edit screen — falls back to the block's own default only
+        // for a Page that doesn't have an assignment yet at all.
+        let horizontalAlignment = assignment?.horizontalAlignment ?? textBlock.horizontalAlignment
+        let verticalAlignment = assignment?.verticalAlignment ?? textBlock.verticalAlignment
+        let fontFamily = assignment?.fontFamily ?? textBlock.fontFamily
+        let fontSize = assignment?.fontSize ?? textBlock.fontSize
+        let fontWeight = assignment?.fontWeight ?? textBlock.fontWeight
         // Uniform scale, same reasoning `scaledCornerRadius` already uses for slots — never
         // stretch the text unevenly on a non-uniformly scaled canvas.
-        let scaledFontSize = textBlock.fontSize * min(scaleX, scaleY)
-        let currentText = textAssignmentsByBlockId[textBlock.id]?.text
+        let scaledFontSize = fontSize * min(scaleX, scaleY)
+
+        let content = AlbumTextBlockView(
+            frame: rect, horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
+            fontFamily: fontFamily, scaledFontSize: scaledFontSize, fontWeight: fontWeight,
+            content: assignment?.text
+        )
 
         return Group {
             if let onTapTextBlock {
-                AlbumTextBlockView(textBlock: textBlock, frame: rect, scaledFontSize: scaledFontSize, content: currentText)
+                let effective = assignment ?? AlbumTextAssignment(
+                    id: "pending-\(textBlock.id)", textBlockId: textBlock.id, text: "",
+                    horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
+                    fontFamily: fontFamily, fontSize: fontSize, fontWeight: fontWeight
+                )
+                content
                     .contentShape(Rectangle())
-                    .onTapGesture { onTapTextBlock(textBlock, currentText ?? "") }
+                    .onTapGesture { onTapTextBlock(effective) }
             } else {
-                AlbumTextBlockView(textBlock: textBlock, frame: rect, scaledFontSize: scaledFontSize, content: currentText)
+                content
             }
         }
     }

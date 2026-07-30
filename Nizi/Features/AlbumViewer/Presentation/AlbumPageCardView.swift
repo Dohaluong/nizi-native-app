@@ -23,9 +23,9 @@ struct AlbumPageCardView: View {
     /// § user request — reports whenever a drag-to-swap is picked up/released, so the Viewer can
     /// lock page-turning out for the duration (see `AlbumPagingLockView`).
     var onDragActiveChanged: ((Bool) -> Void)? = nil
-    /// § user request — quick-tap to edit a text block's real content. `nil` outside edit mode,
-    /// same convention `onCropPhoto` already uses.
-    var onTapTextBlock: ((_ textBlock: AlbumTextBlock, _ currentText: String) -> Void)? = nil
+    /// § user request — quick-tap to edit a text block's real content and style. `nil` outside
+    /// edit mode, same convention `onCropPhoto` already uses.
+    var onTapTextBlock: ((_ effective: AlbumTextAssignment) -> Void)? = nil
 
     var body: some View {
         Group {

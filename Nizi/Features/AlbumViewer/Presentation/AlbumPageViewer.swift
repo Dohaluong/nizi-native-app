@@ -112,9 +112,13 @@ struct AlbumPageViewer: View {
         }
         .sheet(item: $textBlockEditTarget) { target in
             AlbumTextBlockEditSheet(
-                initialText: target.currentText,
-                onSave: { text in
-                    apply(.updateTextBlockContent(pageId: target.pageId, textBlockId: target.textBlockId, text: text))
+                target: target,
+                onSave: { text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontWeight in
+                    apply(.updateTextBlock(
+                        pageId: target.pageId, textBlockId: target.textBlockId, text: text,
+                        horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
+                        fontFamily: fontFamily, fontSize: fontSize, fontWeight: fontWeight
+                    ))
                     textBlockEditTarget = nil
                 },
                 onCancel: { textBlockEditTarget = nil }
@@ -225,8 +229,12 @@ struct AlbumPageViewer: View {
                     : nil,
                 onDragActiveChanged: { isPhotoDragActive = $0 },
                 onTapTextBlock: isEditing
-                    ? { textBlock, currentText in
-                        textBlockEditTarget = AlbumTextBlockEditTarget(pageId: viewerPage.page.id, textBlockId: textBlock.id, currentText: currentText)
+                    ? { effective in
+                        textBlockEditTarget = AlbumTextBlockEditTarget(
+                            pageId: viewerPage.page.id, textBlockId: effective.textBlockId, currentText: effective.text,
+                            currentHorizontalAlignment: effective.horizontalAlignment, currentVerticalAlignment: effective.verticalAlignment,
+                            currentFontFamily: effective.fontFamily, currentFontSize: effective.fontSize, currentFontWeight: effective.fontWeight
+                        )
                     }
                     : nil
             )

@@ -30,7 +30,7 @@ struct AlbumTextBlock: Identifiable, Codable, Hashable {
 
 /// "Có các kiểu căn lề trái phải giữa" — left/center/right, mapped to a `TextAlignment` (how
 /// multi-line text aligns within its own box) in Presentation.
-enum AlbumTextHorizontalAlignment: String, Codable, Hashable {
+enum AlbumTextHorizontalAlignment: String, Codable, Hashable, CaseIterable {
     case left
     case center
     case right
@@ -39,7 +39,7 @@ enum AlbumTextHorizontalAlignment: String, Codable, Hashable {
 /// "Căn trên dưới giữa" — top/center/bottom, mapped to where the whole text box sits within its
 /// `frame` (not the same thing as `AlbumTextHorizontalAlignment`, which only affects text *within*
 /// its own box) in Presentation.
-enum AlbumTextVerticalAlignment: String, Codable, Hashable {
+enum AlbumTextVerticalAlignment: String, Codable, Hashable, CaseIterable {
     case top
     case center
     case bottom
