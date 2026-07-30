@@ -133,6 +133,7 @@ extension View {
     @ViewBuilder
     func albumSlotSwapGesture(
         isEnabled: Bool,
+        canSwap: Bool,
         slot: AlbumLayoutSlot,
         assignment: AlbumPhotoAssignment?,
         slotRect: CGRect,
@@ -141,7 +142,12 @@ extension View {
         dragState: Binding<AlbumSlotDragState?>,
         pendingPress: Binding<AlbumSlotPendingPress?>,
         canvasOrigin: CGPoint,
-        onDropped: @escaping (_ source: AlbumSlotSwapEndpoint, _ target: AlbumSlotSwapEndpoint) -> Void
+        onDropped: @escaping (_ source: AlbumSlotSwapEndpoint, _ target: AlbumSlotSwapEndpoint) -> Void,
+        /// § user request — "tap nhanh vào ảnh, mở ra cửa sổ crop ảnh." A quick tap (released
+        /// before the hold threshold, without wandering past `promotionMovementTolerance`) never
+        /// promotes to a drag at all, so it's detected the same way a cancelled hold already is —
+        /// in `onEnded`, once `dragState` turns out to still be nil.
+        onTap: ((AlbumPhotoAssignment) -> Void)? = nil
     ) -> some View {
         if isEnabled, let assignment {
             let holdDuration = 0.18
@@ -183,6 +189,7 @@ extension View {
                             let token = UUID()
                             pendingPress.wrappedValue = AlbumSlotPendingPress(token: token, startLocation: location, latestLocation: location)
                             DispatchQueue.main.asyncAfter(deadline: .now() + holdDuration) {
+                                guard canSwap else { return }
                                 guard let stillPending = pendingPress.wrappedValue, stillPending.token == token else { return }
                                 let moved = hypot(
                                     stillPending.latestLocation.x - stillPending.startLocation.x,
@@ -202,9 +209,19 @@ extension View {
                         pendingPress.wrappedValue = nil
                         let source = dragState.wrappedValue
                         dragState.wrappedValue = nil
-                        // Never promoted (a quick tap, or a swipe that moved too far first) — no
-                        // drag was ever actually shown, so there's nothing to cancel or drop.
-                        guard let source else { return }
+                        // Never promoted — either a genuine quick tap (little/no movement) or a
+                        // fast swipe that moved past `promotionMovementTolerance` before the hold
+                        // timer could fire (left for `TabView(.page)`'s own pan recognizer, since
+                        // nothing here ever claimed that touch). `drag.translation` is the total
+                        // movement since this exact touch began, so the same tolerance that gates
+                        // promotion also tells the two apart here.
+                        guard let source else {
+                            let moved = hypot(drag.translation.width, drag.translation.height)
+                            if moved <= promotionMovementTolerance {
+                                onTap?(assignment)
+                            }
+                            return
+                        }
 
                         let dropLocation = CGPoint(x: drag.location.x - canvasOrigin.x, y: drag.location.y - canvasOrigin.y)
                         // Hit-test the drop point against every *other* slot's frame — dropping

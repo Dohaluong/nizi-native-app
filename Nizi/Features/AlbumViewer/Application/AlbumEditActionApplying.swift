@@ -57,6 +57,8 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
             return try await changePageLayout(pageId: pageId, layoutId: layoutId, in: draft)
         case let .swapPhotos(firstAssignmentId, secondAssignmentId):
             return try swapPhotos(firstAssignmentId, secondAssignmentId, in: draft)
+        case let .updatePhotoCrop(assignmentId, crop):
+            return try updatePhotoCrop(assignmentId: assignmentId, crop: crop, in: draft)
         case let .removePhoto(pageId, slotId):
             return try await removePhoto(pageId: pageId, slotId: slotId, in: draft)
         case let .removeSpread(spreadId):
@@ -133,6 +135,24 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
             if let index = page.assignments.firstIndex(where: { $0.id == secondAssignmentId }) {
                 page.assignments[index].photo = firstPhoto
                 page.assignments[index].crop = .centered
+            }
+        }
+        return updated
+    }
+
+    // MARK: - Update Photo Crop
+
+    /// § user request — never re-scores/re-assigns anything (unlike `.swapPhotos`/
+    /// `.changePageLayout`), since this only adjusts how one already-assigned photo fills its own
+    /// slot — the assignment, the layout, and every other slot on the Page are untouched.
+    private func updatePhotoCrop(assignmentId: String, crop: AlbumPhotoCrop, in draft: AlbumDraft) throws -> AlbumDraft {
+        guard let location = locateAssignment(assignmentId, in: draft) else {
+            throw AlbumEditError.assignmentNotFound
+        }
+        var updated = draft
+        location.mutate(&updated) { page in
+            if let index = page.assignments.firstIndex(where: { $0.id == assignmentId }) {
+                page.assignments[index].crop = crop
             }
         }
         return updated

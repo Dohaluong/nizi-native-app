@@ -17,6 +17,9 @@ struct AlbumPageCardView: View {
     /// § user request — drag-to-swap between two slots on this same Page. `nil` outside edit
     /// mode, same convention `onTapPhoto` already uses.
     var onSwapPhotos: ((_ from: AlbumPhotoAssignment, _ to: AlbumPhotoAssignment) -> Void)? = nil
+    /// § user request — quick-tap to open the crop editor for a Page's photo. `nil` outside edit
+    /// mode, same convention `onSwapPhotos` already uses.
+    var onCropPhoto: ((_ assignment: AlbumPhotoAssignment, _ frameAspectRatio: CGFloat) -> Void)? = nil
     /// § user request — reports whenever a drag-to-swap is picked up/released, so the Viewer can
     /// lock page-turning out for the duration (see `AlbumPagingLockView`).
     var onDragActiveChanged: ((Bool) -> Void)? = nil
@@ -29,6 +32,7 @@ struct AlbumPageCardView: View {
                     photoProvider: ProductionAlbumSlotPhotoProvider(),
                     onTapPhoto: onTapPhoto,
                     onSwapPhotos: onSwapPhotos,
+                    onCropPhoto: onCropPhoto,
                     onDragActiveChanged: onDragActiveChanged
                 )
             } else {

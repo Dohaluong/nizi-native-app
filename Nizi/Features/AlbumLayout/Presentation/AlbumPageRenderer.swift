@@ -36,6 +36,12 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
     /// already uses; the caller is responsible for the actual data mutation (e.g.
     /// `AlbumEditAction.swapPhotos`) and for only ever passing this while actively editing.
     var onSwapPhotos: ((_ from: AlbumPhotoAssignment, _ to: AlbumPhotoAssignment) -> Void)? = nil
+    /// § user request — quick-tap (not held) a slot's photo to open a crop editor for it, reported
+    /// alongside the on-screen aspect ratio (`rect.width / rect.height`) of the slot it's currently
+    /// in — the crop editor defaults its own frame to that same ratio ("Khung crop mặc định bằng
+    /// tỉ lệ frame chứa ảnh"). `nil` (the default) attaches no tap-detection at all; same opt-in
+    /// shape as `onSwapPhotos`.
+    var onCropPhoto: ((_ assignment: AlbumPhotoAssignment, _ frameAspectRatio: CGFloat) -> Void)? = nil
     /// § user request — reports whenever a drag-to-swap goes from not-picked-up to picked-up (or
     /// back). The caller uses this to lock `TabView(.page)`'s own paging out for as long as a
     /// drag is actually in flight (see `AlbumPagingLockView` — SwiftUI-level gesture priority
@@ -185,13 +191,15 @@ struct AlbumPageRenderer<Provider: AlbumSlotPhotoProviding>: View {
         // whole chain intact.
         .animation(.easeInOut(duration: 0.35), value: rect)
         .albumSlotSwapGesture(
-            isEnabled: onSwapPhotos != nil,
+            isEnabled: onSwapPhotos != nil || onCropPhoto != nil,
+            canSwap: onSwapPhotos != nil,
             slot: slot, assignment: assignment, slotRect: rect, slotFrames: slotFrames,
             assignmentsBySlotId: assignmentsBySlotId,
             dragState: $dragState,
             pendingPress: $pendingPress,
             canvasOrigin: canvasOrigin,
-            onDropped: { source, target in beginSwapRipple(source: source, target: target) }
+            onDropped: { source, target in beginSwapRipple(source: source, target: target) },
+            onTap: onCropPhoto != nil ? { tapped in onCropPhoto?(tapped, rect.width / rect.height) } : nil
         )
     }
 

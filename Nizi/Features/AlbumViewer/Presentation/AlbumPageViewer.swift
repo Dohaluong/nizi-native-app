@@ -25,6 +25,7 @@ struct AlbumPageViewer: View {
 
     @State private var changeCoverTarget: Bool = false
     @State private var swapSourcePage: AlbumViewerPage?
+    @State private var cropTarget: AlbumPhotoCropTarget?
     @State private var removePhotoTarget: AlbumViewerPage?
     @State private var removeSpreadConfirmation: AlbumViewerPage?
     @State private var removePhotoBlockedAlert = false
@@ -139,6 +140,16 @@ struct AlbumPageViewer: View {
                 removePhotoTarget = nil
             }
         }
+        .sheet(item: $cropTarget) { target in
+            AlbumPhotoCropSheet(
+                assignment: target.assignment, frameAspectRatio: target.frameAspectRatio,
+                onSave: { crop in
+                    apply(.updatePhotoCrop(assignmentId: target.assignment.id, crop: crop))
+                    cropTarget = nil
+                },
+                onCancel: { cropTarget = nil }
+            )
+        }
     }
 
     // MARK: - Items
@@ -165,6 +176,9 @@ struct AlbumPageViewer: View {
                 // leave the ripple's "new photo" reveal showing the same old photo underneath.
                 onSwapPhotos: isEditing
                     ? { from, to in apply(.swapPhotos(firstAssignmentId: from.id, secondAssignmentId: to.id)) }
+                    : nil,
+                onCropPhoto: isEditing
+                    ? { assignment, aspectRatio in cropTarget = AlbumPhotoCropTarget(assignment: assignment, frameAspectRatio: aspectRatio) }
                     : nil,
                 onDragActiveChanged: { isPhotoDragActive = $0 }
             )

@@ -31,6 +31,10 @@ enum AlbumEditAction {
     case changeCover(photo: AlbumPhotoReference)
     case changePageLayout(pageId: String, layoutId: String)
     case swapPhotos(firstAssignmentId: String, secondAssignmentId: String)
+    /// § user request — quick-tap a photo to pinch/pan how it fills its slot. Only ever changes
+    /// `AlbumPhotoAssignment.crop` (scale/offset) — never touches the underlying `AlbumPhotoReference`
+    /// or the original asset itself.
+    case updatePhotoCrop(assignmentId: String, crop: AlbumPhotoCrop)
     case removePhoto(pageId: String, slotId: String)
     case removeSpread(spreadId: String)
 }
