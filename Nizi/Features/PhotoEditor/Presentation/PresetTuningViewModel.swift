@@ -137,6 +137,30 @@ final class PresetTuningViewModel {
 
     var presetIntensityPercent: Double { Double(working.defaultIntensity) * 100 }
 
+    // MARK: - HSL (selective color)
+
+    func hslDisplayValue(_ component: HSLTuningComponent, for band: HSLColorBand) -> Double {
+        component.displayValue(in: working.hsl[band])
+    }
+
+    func setHSLDisplayValue(_ value: Double, _ component: HSLTuningComponent, for band: HSLColorBand) {
+        var adjustment = working.hsl[band]
+        component.setDisplayValue(value, in: &adjustment)
+        working.hsl[band] = adjustment
+        Task { await refreshPreview(debounced: true) }
+    }
+
+    func isHSLBandEdited(_ band: HSLColorBand) -> Bool {
+        !working.hsl[band].isIdentity
+    }
+
+    /// Resets just the one currently-selected band — matches the reference tool's own "Reset"
+    /// button, which clears whichever color channel is active rather than every band at once.
+    func resetHSLBand(_ band: HSLColorBand) {
+        working.hsl[band] = HSLBandAdjustment()
+        Task { await refreshPreview() }
+    }
+
     // MARK: - LUT
 
     func selectLUT(resourceName: String?, dimension: Int?) {
@@ -243,6 +267,7 @@ final class PresetTuningViewModel {
             toneCurveAmount: \(f(working.toneCurveAmount)),
             grainAmount: \(f(working.grainAmount)), grainSize: \(f(working.grainSize)), bloomAmount: \(f(working.bloomAmount)), bloomRadius: \(f(working.bloomRadius)),
             vignetteAmount: \(f(working.vignetteAmount)), vignetteRadius: \(f(working.vignetteRadius)), sharpnessAmount: \(f(working.sharpnessAmount)), clarityOffset: \(f(working.clarityOffset)),
+            hsl: \(Self.hslLiteral(working.hsl, f)),
             protectSkinTones: true, isMonochrome: false,
             thumbnailAssetName: nil, sortOrder: 0, isActive: true, isPrototype: false
         )
@@ -281,6 +306,7 @@ final class PresetTuningViewModel {
             bloomAmount: candidate.bloomAmount, bloomRadius: candidate.bloomRadius,
             vignetteAmount: candidate.vignetteAmount, vignetteRadius: candidate.vignetteRadius,
             sharpnessAmount: candidate.sharpnessAmount, clarityOffset: candidate.clarityOffset,
+            hsl: candidate.hsl,
             protectSkinTones: true, isMonochrome: false,
             thumbnailAssetName: nil, sortOrder: 0, isActive: true, isPrototype: false
         )
@@ -350,6 +376,20 @@ final class PresetTuningViewModel {
         var ids: [String] = []
         result.enumerateObjects { asset, _, _ in ids.append(asset.localIdentifier) }
         return Array(ids.shuffled().prefix(limit))
+    }
+
+    /// `PresetHSLAdjustments()` (the plain no-op default) when every band is still identity — the
+    /// common case, since most presets never touch HSL — otherwise a full 8-band literal.
+    private static func hslLiteral(_ hsl: PresetHSLAdjustments, _ f: (Float) -> String) -> String {
+        guard !hsl.isIdentity else { return "PresetHSLAdjustments()" }
+        func band(_ name: String, _ adjustment: HSLBandAdjustment) -> String {
+            "\(name): HSLBandAdjustment(hue: \(f(adjustment.hue)), saturation: \(f(adjustment.saturation)), lightness: \(f(adjustment.lightness)))"
+        }
+        let bands = [
+            band("red", hsl.red), band("orange", hsl.orange), band("yellow", hsl.yellow), band("green", hsl.green),
+            band("aqua", hsl.aqua), band("blue", hsl.blue), band("purple", hsl.purple), band("magenta", hsl.magenta),
+        ].joined(separator: ", ")
+        return "PresetHSLAdjustments(\(bands))"
     }
 
     private static func slugify(_ name: String) -> String {

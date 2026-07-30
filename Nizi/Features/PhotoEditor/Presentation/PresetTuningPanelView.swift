@@ -19,6 +19,7 @@ struct PresetTuningPanelView: View {
     @State private var viewModel: PresetTuningViewModel?
     @State private var isImportingLUT = false
     @State private var isPickingPhoto = false
+    @State private var selectedHSLBand: HSLColorBand = .red
 
     var body: some View {
         Group {
@@ -61,6 +62,8 @@ struct PresetTuningPanelView: View {
                     ForEach(PresetTuningParameter.bySection, id: \.0) { section, parameters in
                         sliderSection(section.rawValue, parameters, viewModel)
                     }
+
+                    hslSection(viewModel)
 
                     histogramView(viewModel)
                     jsonPanel(viewModel)
@@ -221,6 +224,67 @@ struct PresetTuningPanelView: View {
         }
     }
 
+    // MARK: - HSL (selective color)
+
+    /// 8 color swatches (one per `HSLColorBand`, in hue-wheel order) select which band the
+    /// Hue/Saturation/Lightness sliders below edit — same tool shape as the reference screenshot
+    /// this section was built from, right down to the per-band "Reset" button.
+    private func hslSection(_ viewModel: PresetTuningViewModel) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("HSL").font(.headline)
+                Spacer()
+                Button("Reset", role: .destructive) {
+                    viewModel.resetHSLBand(selectedHSLBand)
+                }
+                .font(.caption)
+            }
+            hslSwatchRow(viewModel)
+            ForEach(HSLTuningComponent.allCases) { component in
+                sliderRow(
+                    title: component.title,
+                    valueLabel: String(format: "%.0f", viewModel.hslDisplayValue(component, for: selectedHSLBand)),
+                    value: Binding(
+                        get: { viewModel.hslDisplayValue(component, for: selectedHSLBand) },
+                        set: { viewModel.setHSLDisplayValue($0, component, for: selectedHSLBand) }
+                    ),
+                    range: component.displayRange
+                )
+            }
+        }
+    }
+
+    private func hslSwatchRow(_ viewModel: PresetTuningViewModel) -> some View {
+        HStack(spacing: 14) {
+            ForEach(HSLColorBand.allCases) { band in
+                Button {
+                    selectedHSLBand = band
+                } label: {
+                    Circle()
+                        .fill(band.swatchColor)
+                        .frame(width: 30, height: 30)
+                        .overlay {
+                            Circle()
+                                .stroke(Color.primary, lineWidth: band == selectedHSLBand ? 3 : 0)
+                                .padding(-4)
+                        }
+                        .overlay(alignment: .topTrailing) {
+                            // A small dot marks any band that already has a non-zero offset —
+                            // the reference tool has no equivalent, but with 8 independently
+                            // tunable bands it's easy to lose track of which ones were touched.
+                            if viewModel.isHSLBandEdited(band) {
+                                Circle()
+                                    .fill(Color.primary)
+                                    .frame(width: 7, height: 7)
+                                    .offset(x: 2, y: -2)
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
     private func sliderRow(title: String, valueLabel: String, value: Binding<Double>, range: ClosedRange<Double>) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
@@ -317,5 +381,15 @@ struct PresetTuningPanelView: View {
             Button("Apply Imported JSON") { viewModel.applyImportedJSON() }
                 .font(.caption)
         }
+    }
+}
+
+private extension HSLColorBand {
+    /// A representative swatch color computed straight from this band's own `hueDegrees` — not
+    /// a hand-picked SwiftUI named color, so the swatch's hue always matches exactly what
+    /// `PresetRenderer.applySelectiveHSL`'s tent-falloff actually centers this band's influence
+    /// on.
+    var swatchColor: Color {
+        Color(hue: Double(hueDegrees) / 360, saturation: 0.8, brightness: 0.92)
     }
 }

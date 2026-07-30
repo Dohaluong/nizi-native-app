@@ -129,3 +129,47 @@ enum PresetTuningParameter: String, CaseIterable, Identifiable {
         }
     }
 }
+
+/// Drives the HSL tool's 3 sliders (Hue/Saturation/Lightness) for whichever `HSLColorBand` is
+/// currently selected — same "display units, not the engine's own `-1...1` storage" shape
+/// `PresetTuningParameter` uses above, just scoped to one band's `HSLBandAdjustment` instead of
+/// the whole `PresetDefinition`. Hue's display range (`-60...60`) is deliberately narrower than
+/// Saturation/Lightness's `-100...100` — a full ±180° hue spin is rarely a useful selective-color
+/// move, where ±60° already covers "nudge this band toward its neighbor" through "push it most of
+/// the way to the opposite side."
+enum HSLTuningComponent: String, CaseIterable, Identifiable {
+    case hue, saturation, lightness
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .hue: "Hue"
+        case .saturation: "Saturation"
+        case .lightness: "Lightness"
+        }
+    }
+
+    var displayRange: ClosedRange<Double> {
+        switch self {
+        case .hue: -60...60
+        case .saturation, .lightness: -100...100
+        }
+    }
+
+    func displayValue(in adjustment: HSLBandAdjustment) -> Double {
+        switch self {
+        case .hue: Double(adjustment.hue) * 60
+        case .saturation: Double(adjustment.saturation) * 100
+        case .lightness: Double(adjustment.lightness) * 100
+        }
+    }
+
+    func setDisplayValue(_ value: Double, in adjustment: inout HSLBandAdjustment) {
+        switch self {
+        case .hue: adjustment.hue = Float(value / 60)
+        case .saturation: adjustment.saturation = Float(value / 100)
+        case .lightness: adjustment.lightness = Float(value / 100)
+        }
+    }
+}

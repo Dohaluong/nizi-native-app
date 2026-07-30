@@ -39,7 +39,8 @@ struct PresetRenderer: PresetRendering {
         let afterLUT = applyLUT(preset: preset, strength: strength, to: input)
         let afterCurve = applyToneCurve(preset: preset, strength: strength, to: afterLUT)
         let afterSignature = applySignatureAdjustments(preset: preset, strength: strength, to: afterCurve)
-        return applyTexture(preset: preset, intensity: strength, to: afterSignature)
+        let afterHSL = applySelectiveHSL(preset: preset, strength: strength, to: afterSignature)
+        return applyTexture(preset: preset, intensity: strength, to: afterHSL)
     }
 
     // MARK: - LUT (color transform only — no strength-scaling of the cube itself, just of the
@@ -155,6 +156,130 @@ struct PresetRenderer: PresetRendering {
             result = filter.outputImage ?? result
         }
         return result
+    }
+
+    // MARK: - Selective color (HSL tool — ADDEDUM-adjacent, Preset Tuning Panel's "HSL" section)
+
+    /// 8 independent Hue/Saturation/Lightness offsets, one per `HSLColorBand`, each affecting only
+    /// the pixels near its own hue — built as a small procedurally-generated 3D color cube (not
+    /// parsed from a `.cube` file, and not a custom Metal kernel either) and applied through the
+    /// exact same `CIColorCube` mechanism `applyLUT` already uses for real LUTs, since this is
+    /// still fundamentally just an RGB→RGB lookup table. Computing it on the CPU (a `17³` cube is
+    /// under 5,000 cells) is fast enough to redo on every debounced slider drag with no caching.
+    private func applySelectiveHSL(preset: PresetDefinition, strength: Float, to image: CIImage) -> CIImage {
+        guard !preset.hsl.isIdentity else { return image }
+
+        let filter = CIFilter.colorCube()
+        filter.inputImage = image
+        filter.cubeDimension = Float(Self.hslCubeDimension)
+        filter.cubeData = Self.selectiveHSLCubeData(preset.hsl, strength: strength)
+        return filter.outputImage ?? image
+    }
+
+    private static let hslCubeDimension = 17
+
+    private static func selectiveHSLCubeData(_ hsl: PresetHSLAdjustments, strength: Float) -> Data {
+        let dimension = hslCubeDimension
+        let bands = hsl.allBands.map { band, adjustment in
+            (hueDegrees: band.hueDegrees, hue: adjustment.hue * strength, saturation: adjustment.saturation * strength, lightness: adjustment.lightness * strength)
+        }
+
+        var floats = [Float](repeating: 0, count: dimension * dimension * dimension * 4)
+        var index = 0
+        // `.cube`'s own convention (`CubeFileParser`: "red fastest, blue slowest") — `CIColorCube`
+        // expects the same layout regardless of whether the data came from a file or, as here,
+        // was generated in Swift.
+        for blueIndex in 0..<dimension {
+            let blue = Float(blueIndex) / Float(dimension - 1)
+            for greenIndex in 0..<dimension {
+                let green = Float(greenIndex) / Float(dimension - 1)
+                for redIndex in 0..<dimension {
+                    let red = Float(redIndex) / Float(dimension - 1)
+                    let (h, s, l) = rgbToHSL(r: red, g: green, b: blue)
+
+                    var weightedHue: Float = 0, weightedSaturation: Float = 0, weightedLightness: Float = 0, totalWeight: Float = 0
+                    for band in bands {
+                        // A linear "tent" falloff to zero at 45° from the band's own center —
+                        // since all 8 bands sit exactly 45° apart, any hue's two nearest bands'
+                        // weights always sum to exactly 1 (verified by the guard below, which
+                        // only normalizes as a defensive measure against float rounding, not
+                        // because the math can otherwise disagree).
+                        let distance = angularDistance(h, band.hueDegrees)
+                        let weight = max(0, 1 - distance / 45)
+                        guard weight > 0 else { continue }
+                        weightedHue += weight * band.hue
+                        weightedSaturation += weight * band.saturation
+                        weightedLightness += weight * band.lightness
+                        totalWeight += weight
+                    }
+                    if totalWeight > 0 {
+                        weightedHue /= totalWeight
+                        weightedSaturation /= totalWeight
+                        weightedLightness /= totalWeight
+                    }
+
+                    let newHue = wrap360(h + weightedHue * 60)
+                    let newSaturation = min(max(s * (1 + weightedSaturation), 0), 1)
+                    let newLightness = min(max(l + weightedLightness * 0.5, 0), 1)
+
+                    let (outR, outG, outB) = hslToRGB(h: newHue, s: newSaturation, l: newLightness)
+                    floats[index] = outR
+                    floats[index + 1] = outG
+                    floats[index + 2] = outB
+                    floats[index + 3] = 1
+                    index += 4
+                }
+            }
+        }
+
+        return floats.withUnsafeBufferPointer { Data(buffer: $0) }
+    }
+
+    private static func angularDistance(_ a: Float, _ b: Float) -> Float {
+        let diff = abs(a - b).truncatingRemainder(dividingBy: 360)
+        return min(diff, 360 - diff)
+    }
+
+    private static func wrap360(_ degrees: Float) -> Float {
+        let wrapped = degrees.truncatingRemainder(dividingBy: 360)
+        return wrapped < 0 ? wrapped + 360 : wrapped
+    }
+
+    private static func rgbToHSL(r: Float, g: Float, b: Float) -> (h: Float, s: Float, l: Float) {
+        let maxC = max(r, g, b), minC = min(r, g, b)
+        let delta = maxC - minC
+        let lightness = (maxC + minC) / 2
+
+        guard delta > 0.0001 else { return (0, 0, lightness) }
+
+        let saturation = delta / (1 - abs(2 * lightness - 1))
+        var hue: Float
+        if maxC == r {
+            hue = 60 * (((g - b) / delta).truncatingRemainder(dividingBy: 6))
+        } else if maxC == g {
+            hue = 60 * (((b - r) / delta) + 2)
+        } else {
+            hue = 60 * (((r - g) / delta) + 4)
+        }
+        if hue < 0 { hue += 360 }
+        return (hue, saturation, lightness)
+    }
+
+    private static func hslToRGB(h: Float, s: Float, l: Float) -> (r: Float, g: Float, b: Float) {
+        let c = (1 - abs(2 * l - 1)) * s
+        let x = c * (1 - abs((h / 60).truncatingRemainder(dividingBy: 2) - 1))
+        let m = l - c / 2
+
+        let (r1, g1, b1): (Float, Float, Float)
+        switch h {
+        case 0..<60: (r1, g1, b1) = (c, x, 0)
+        case 60..<120: (r1, g1, b1) = (x, c, 0)
+        case 120..<180: (r1, g1, b1) = (0, c, x)
+        case 180..<240: (r1, g1, b1) = (0, x, c)
+        case 240..<300: (r1, g1, b1) = (x, 0, c)
+        default: (r1, g1, b1) = (c, 0, x)
+        }
+        return (r1 + m, g1 + m, b1 + m)
     }
 
     // MARK: - Texture style (ADDEDUM § 8.2 — non-linear vs. the color blend above)

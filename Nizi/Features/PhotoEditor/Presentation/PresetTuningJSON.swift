@@ -7,6 +7,30 @@
 
 import Foundation
 
+/// One `HSLColorBand`'s own Hue/Saturation/Lightness, in the same *display* units
+/// `HSLTuningComponent` uses (± degrees / ± percent) — the HSL counterpart to
+/// `PresetTuningJSON`'s own top-level fields, nested once per band below.
+struct PresetTuningHSLBandJSON: Codable, Equatable {
+    var hue: Double = 0
+    var saturation: Double = 0
+    var lightness: Double = 0
+}
+
+/// All 8 bands, named the same as `PresetHSLAdjustments`'s own fields so `presets.json`/pasted
+/// JSON both read as a plain `{"red": {...}, "orange": {...}, ...}` object — never a
+/// `Dictionary<HSLColorBand, _>`, which Codable would instead round-trip as an alternating
+/// key/value array.
+struct PresetTuningHSLJSON: Codable, Equatable {
+    var red = PresetTuningHSLBandJSON()
+    var orange = PresetTuningHSLBandJSON()
+    var yellow = PresetTuningHSLBandJSON()
+    var green = PresetTuningHSLBandJSON()
+    var aqua = PresetTuningHSLBandJSON()
+    var blue = PresetTuningHSLBandJSON()
+    var purple = PresetTuningHSLBandJSON()
+    var magenta = PresetTuningHSLBandJSON()
+}
+
 /// The Preset Tuning Panel's "Copy JSON"/"Import JSON" shape — deliberately *not* `PresetDefinition`
 /// itself (which carries id/name/nameKey/sortOrder/etc. that a color-grading pass over an existing
 /// preset never needs to retype). Every numeric field is in the same *display* units the sliders
@@ -34,10 +58,13 @@ struct PresetTuningJSON: Codable, Equatable {
     /// Absent from the spec's own example JSON (written before `clarityOffset` existed) —
     /// `decodeIfPresent` so a pasted legacy snippet without this key still imports cleanly.
     var clarity: Double
+    /// Absent from every JSON snapshot taken before the HSL tool existed — `decodeIfPresent` with
+    /// an all-zero default, same reasoning `clarity`/`toneCurve` above already have.
+    var hsl: PresetTuningHSLJSON
 
     private enum CodingKeys: String, CodingKey {
         case lut, defaultIntensity, toneCurve, exposure, contrast, highlights, shadows, whites, blacks,
-             warmth, tint, saturation, vibrance, bloom, grain, vignette, sharpness, clarity
+             warmth, tint, saturation, vibrance, bloom, grain, vignette, sharpness, clarity, hsl
     }
 
     init(from decoder: Decoder) throws {
@@ -62,6 +89,7 @@ struct PresetTuningJSON: Codable, Equatable {
         vignette = try container.decode(Double.self, forKey: .vignette)
         sharpness = try container.decode(Double.self, forKey: .sharpness)
         clarity = try container.decodeIfPresent(Double.self, forKey: .clarity) ?? 0
+        hsl = try container.decodeIfPresent(PresetTuningHSLJSON.self, forKey: .hsl) ?? PresetTuningHSLJSON()
     }
 
     init(preset: PresetDefinition) {
@@ -83,6 +111,28 @@ struct PresetTuningJSON: Codable, Equatable {
         vignette = PresetTuningParameter.vignette.displayValue(in: preset)
         sharpness = PresetTuningParameter.sharpness.displayValue(in: preset)
         clarity = PresetTuningParameter.clarity.displayValue(in: preset)
+        hsl = PresetTuningHSLJSON(
+            red: Self.jsonBand(preset.hsl.red), orange: Self.jsonBand(preset.hsl.orange),
+            yellow: Self.jsonBand(preset.hsl.yellow), green: Self.jsonBand(preset.hsl.green),
+            aqua: Self.jsonBand(preset.hsl.aqua), blue: Self.jsonBand(preset.hsl.blue),
+            purple: Self.jsonBand(preset.hsl.purple), magenta: Self.jsonBand(preset.hsl.magenta)
+        )
+    }
+
+    private static func jsonBand(_ adjustment: HSLBandAdjustment) -> PresetTuningHSLBandJSON {
+        PresetTuningHSLBandJSON(
+            hue: HSLTuningComponent.hue.displayValue(in: adjustment),
+            saturation: HSLTuningComponent.saturation.displayValue(in: adjustment),
+            lightness: HSLTuningComponent.lightness.displayValue(in: adjustment)
+        )
+    }
+
+    private static func domainBand(_ json: PresetTuningHSLBandJSON) -> HSLBandAdjustment {
+        var adjustment = HSLBandAdjustment()
+        HSLTuningComponent.hue.setDisplayValue(json.hue, in: &adjustment)
+        HSLTuningComponent.saturation.setDisplayValue(json.saturation, in: &adjustment)
+        HSLTuningComponent.lightness.setDisplayValue(json.lightness, in: &adjustment)
+        return adjustment
     }
 
     /// Applies every field onto a copy of `preset` — `id`/`name`/`nameKey`/`sortOrder`/etc. (nothing
@@ -107,6 +157,12 @@ struct PresetTuningJSON: Codable, Equatable {
         PresetTuningParameter.vignette.setDisplayValue(vignette, in: &updated)
         PresetTuningParameter.sharpness.setDisplayValue(sharpness, in: &updated)
         PresetTuningParameter.clarity.setDisplayValue(clarity, in: &updated)
+        updated.hsl = PresetHSLAdjustments(
+            red: Self.domainBand(hsl.red), orange: Self.domainBand(hsl.orange),
+            yellow: Self.domainBand(hsl.yellow), green: Self.domainBand(hsl.green),
+            aqua: Self.domainBand(hsl.aqua), blue: Self.domainBand(hsl.blue),
+            purple: Self.domainBand(hsl.purple), magenta: Self.domainBand(hsl.magenta)
+        )
         return updated
     }
 

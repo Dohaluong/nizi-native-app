@@ -84,6 +84,13 @@ struct PresetDefinition: Codable, Identifiable, Equatable, Sendable {
     /// `protectSkinTones` already has below.
     var clarityOffset: Float
 
+    /// Selective color — one Hue/Saturation/Lightness offset per `HSLColorBand`, applied by
+    /// `PresetRenderer.applySelectiveHSL` after the signature adjustments above. Diagnostics-only
+    /// addition (Preset Tuning Panel's "HSL" tool), same missing-key-defaults-to-identity
+    /// reasoning `blacksOffset`/`whitesOffset`/etc. above already have — absent from every preset
+    /// shipped before this tool existed.
+    var hsl: PresetHSLAdjustments
+
     /// Schema-only in V1 — real per-region skin-tone protection is masked/HSL-aware processing,
     /// explicitly out of scope for this app's Photo Editor (see ADDEDUM § 12–14 and
     /// docs/modules/PHOTO-EDITOR-PRESET-GUIDE.md). Parsed and carried through, never acted on by
@@ -119,6 +126,7 @@ struct PresetDefinition: Codable, Identifiable, Equatable, Sendable {
         toneCurveAmount: Float = 0,
         grainAmount: Float, grainSize: Float, bloomAmount: Float, bloomRadius: Float,
         vignetteAmount: Float, vignetteRadius: Float, sharpnessAmount: Float = 0, clarityOffset: Float = 0,
+        hsl: PresetHSLAdjustments = .identity,
         protectSkinTones: Bool, isMonochrome: Bool,
         thumbnailAssetName: String?, sortOrder: Int, isActive: Bool, isPrototype: Bool
     ) {
@@ -149,6 +157,7 @@ struct PresetDefinition: Codable, Identifiable, Equatable, Sendable {
         self.vignetteRadius = vignetteRadius
         self.sharpnessAmount = sharpnessAmount
         self.clarityOffset = clarityOffset
+        self.hsl = hsl
         self.protectSkinTones = protectSkinTones
         self.isMonochrome = isMonochrome
         self.thumbnailAssetName = thumbnailAssetName
@@ -192,6 +201,7 @@ struct PresetDefinition: Codable, Identifiable, Equatable, Sendable {
         vignetteRadius = try container.decode(Float.self, forKey: .vignetteRadius)
         sharpnessAmount = try container.decodeIfPresent(Float.self, forKey: .sharpnessAmount) ?? 0
         clarityOffset = try container.decodeIfPresent(Float.self, forKey: .clarityOffset) ?? 0
+        hsl = try container.decodeIfPresent(PresetHSLAdjustments.self, forKey: .hsl) ?? .identity
         protectSkinTones = try container.decode(Bool.self, forKey: .protectSkinTones)
         isMonochrome = try container.decode(Bool.self, forKey: .isMonochrome)
         thumbnailAssetName = try container.decodeIfPresent(String.self, forKey: .thumbnailAssetName)
