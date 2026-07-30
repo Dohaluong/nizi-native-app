@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { AlbumPageFormat } from "../domain/albumLayout";
-import { useLayoutStudioStore, slugify } from "../store/layoutStudioStore";
+import { useLayoutStudioStore, slugify, nextUniqueId } from "../store/layoutStudioStore";
 
 /** § 9/§ 10 — layouts grouped by `photoCount` (1/2/3/4 Photos), each with select/duplicate/
  * delete, plus a small "New Layout" form (photoCount + id, § 10). */
@@ -29,7 +29,7 @@ export function LayoutLibraryPanel() {
 
   function submitNewLayout() {
     const baseId = `${newFormat}.${newPhotoCount}.${slugify(newName || "untitled")}`;
-    const id = existingIds.has(baseId) ? `${baseId}-${Date.now()}` : baseId;
+    const id = nextUniqueId(baseId, existingIds);
     createLayout(newPhotoCount, id, newFormat);
     setIsCreating(false);
     setNewName("");

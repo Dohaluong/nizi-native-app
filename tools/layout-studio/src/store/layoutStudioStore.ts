@@ -22,9 +22,14 @@ const AUTOSAVE_DEBOUNCE_MS = 400;
 function slugify(name: string): string {
   const lowered = name.toLowerCase();
   const slug = lowered.replace(/[^a-z0-9]+/g, "-").replace(/(^-+)|(-+$)/g, "");
-  return slug.length > 0 ? slug : `layout-${Date.now()}`;
+  return slug.length > 0 ? slug : "layout";
 }
 
+/** § user request: "Mỗi khi clone hoặc thêm layout mới thì tự động sinh tên để không trùng" —
+ * every id-collision path (New Layout with a blank/repeated variant name, Duplicate Layout,
+ * Duplicate Slot) goes through this, never a raw timestamp suffix: `"square.1.untitled"`,
+ * `"square.1.untitled-2"`, `"square.1.untitled-3"`, … — short, predictable, and still easy to
+ * rename by hand later. */
 function nextUniqueId(baseId: string, existing: Set<string>): string {
   if (!existing.has(baseId)) return baseId;
   let counter = 2;
@@ -482,4 +487,4 @@ export function slotOrientationOptions(): AlbumSlotOrientation[] {
   return ["landscape", "portrait", "square", "any"];
 }
 
-export { slugify, STUDIO_PROJECT_FILENAME };
+export { slugify, nextUniqueId, STUDIO_PROJECT_FILENAME };
