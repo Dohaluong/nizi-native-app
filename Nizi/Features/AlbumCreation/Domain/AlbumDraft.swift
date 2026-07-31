@@ -61,6 +61,17 @@ struct AlbumDraftPage: Identifiable, Codable, Hashable {
         self.textAssignments = textAssignments
     }
 
+    /// § user request — "Thêm trang ... tạo ra 1 trang trắng. Click vào có thể thêm ảnh sau": the
+    /// sentinel `layoutId` for a Page with no photos yet that should still show up in the Viewer
+    /// as a tappable "add a photo" placeholder — as opposed to a genuinely empty Page with 0
+    /// assignments that `AlbumEditActionApplying.removePage`/`addBlankPage` leave sitting
+    /// unfilled purely as internal Spread padding (any other `layoutId`, invisible — see
+    /// `AlbumViewerItemBuilder`). Never a real id in `AlbumLayoutRepository`; every read site that
+    /// resolves a Page's actual layout geometry already tolerates `repository.layout(id:)` failing
+    /// (falls back to a placeholder), so this never needs special-casing there.
+    static let blankLayoutId = "blank"
+    var isBlank: Bool { layoutId == Self.blankLayoutId }
+
     private enum CodingKeys: String, CodingKey {
         case id, order, layoutId, format, assignments, sourceEventIds
         case heroPhotoId, primaryPlace, layoutScore, assignmentScore, textAssignments
@@ -161,6 +172,30 @@ struct AlbumDraft: Identifiable, Codable, Hashable {
     /// `AlbumDraftPlanner` always sets this to `1` explicitly (§ 8.1).
     var planningVersion: Int?
     var planningLog: AlbumPlanningLog?
+
+    /// § user request — "trang bìa sẽ có cấu trúc như trang ruột ... chức năng chạm vào để crop
+    /// ảnh ... tương tự như trang khác": the cover photo's crop, unified with the same
+    /// `AlbumPhotoAssignment.crop`-shaped machinery every content-Page photo already has. `nil`
+    /// means never customized — same "centered, no adjustment" default `AlbumPhotoCrop.centered`
+    /// itself is.
+    var coverPhotoCrop: AlbumPhotoCrop? = nil
+
+    /// § user request — "square.1.cover là layout mặc định cho ảnh bìa, sau này có thể thay layout
+    /// khác": `nil` means the fixed default (`AlbumPageViewer.coverLayoutId`, `"square.1.cover"`) —
+    /// mirrors `AlbumDraftPage.layoutId`, minus the non-optionality (a content Page always has a
+    /// real layout from the moment it's planned; the cover only needs a stored override once a
+    /// user actually picks something different from the default).
+    var coverLayoutId: String? = nil
+
+    /// § user request — the cover's title/subtitle/paragraph text blocks (matched by
+    /// `AlbumTextBlock.kind` in the `square.1.cover` layout), independently editable exactly like
+    /// a content Page's `AlbumDraftPage.textAssignments` once tapped — seeded the *first* time
+    /// from the Album's own `title`/date/location ("tương ứng với những nội dung sẵn có của
+    /// Album: Tên, ngày tháng, địa điểm" — see `AlbumPageViewer.defaultCoverText`). Kept
+    /// `Optional` (not `[]`-defaulted) purely so `AlbumDraft` doesn't need its own custom
+    /// `Codable` just for this one field's legacy fallback — every read site treats `nil` and
+    /// `[]` identically.
+    var coverTextAssignments: [AlbumTextAssignment]? = nil
 
     var numberOfPages: Int {
         spreads.count * 2

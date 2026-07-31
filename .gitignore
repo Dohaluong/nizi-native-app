@@ -1,6 +1,7 @@
 # Xcode
 DerivedData/
 *.xcuserstate
+xcuserdata/
 .DS_Store
 
 # Licensed/purchased LUT preset packs — reference material only, never redistributed via git.

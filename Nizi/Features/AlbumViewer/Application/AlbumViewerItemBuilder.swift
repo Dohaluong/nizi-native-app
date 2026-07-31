@@ -18,10 +18,13 @@ struct DefaultAlbumViewerItemBuilder: AlbumViewerItemBuilding {
     func makeItems(from draft: AlbumDraft) -> [AlbumViewerItem] {
         var items: [AlbumViewerItem] = [.cover(makeCoverConfiguration(from: draft))]
 
-        // § 6 rule 7 — a Page with no assignments is never shown; § 22.2 guarantees this
-        // shouldn't happen for a valid Draft, but the builder itself doesn't silently drop
-        // anything a validator should have caught (rule 9) — it just never *renders* an empty
-        // Page, which is a presentation concern, not a data-integrity one.
+        // § 6 rule 7 — a Page with no assignments is never shown, *unless* it's a deliberate
+        // "blank, tap to add a photo" placeholder (`AlbumDraftPage.isBlank`, from § user request
+        // "Thêm trang"). A Page can be empty for two different reasons now: genuinely deleted/
+        // not-yet-used Spread padding (`AlbumEditActionApplying.removePage`/`addBlankPage`'s
+        // padding side) — stays hidden, same as always — or a Page the user explicitly emptied/
+        // added and hasn't filled yet — shown as a placeholder card (`AlbumPageCardView`'s own
+        // blank-state branch) so they can tap back into it.
         struct Entry {
             let spreadIndex: Int
             let spreadId: String
@@ -31,10 +34,10 @@ struct DefaultAlbumViewerItemBuilder: AlbumViewerItemBuilding {
 
         var entries: [Entry] = []
         for (spreadIndex, spread) in draft.spreads.enumerated() {
-            if !spread.leftPage.assignments.isEmpty {
+            if !spread.leftPage.assignments.isEmpty || spread.leftPage.isBlank {
                 entries.append(Entry(spreadIndex: spreadIndex, spreadId: spread.id, position: .left, page: spread.leftPage))
             }
-            if !spread.rightPage.assignments.isEmpty {
+            if !spread.rightPage.assignments.isEmpty || spread.rightPage.isBlank {
                 entries.append(Entry(spreadIndex: spreadIndex, spreadId: spread.id, position: .right, page: spread.rightPage))
             }
         }
@@ -67,7 +70,10 @@ struct DefaultAlbumViewerItemBuilder: AlbumViewerItemBuilding {
         )
     }
 
-    private static func dateText(draft: AlbumDraft) -> String? {
+    /// § user request — "trang bìa sẽ có cấu trúc như trang ruột": internal (not `private`) so
+    /// `AlbumPageViewer.defaultCoverText` can reuse this exact same date-range formatting for the
+    /// cover's own "subtitle" text block, rather than re-deriving it.
+    static func dateText(draft: AlbumDraft) -> String? {
         guard let start = draft.startDate else { return nil }
         guard let end = draft.endDate, !Calendar.current.isDate(start, inSameDayAs: end) else {
             return start.formatted(date: .abbreviated, time: .omitted)

@@ -33,6 +33,12 @@ struct AlbumPhotoPreviewView: View {
     /// `slotId`) to call `AlbumEditActionApplying.apply(.removePhoto(pageId:slotId:), to:)` for
     /// the "Hide from Album" menu action.
     let pageId: String
+    /// Memory reuses this proven viewer but edits must retain their Event source scope rather than
+    /// pretending the photos belong to an Album.
+    let editorSourceType: EditorSourceType
+    /// "Hide from Album" is meaningful only for actual Album pages. Other callers (Memory) keep
+    /// the viewer's zoom/info/edit experience without exposing that destructive-looking action.
+    let allowsHidingPhotos: Bool
     let onDismiss: () -> Void
     /// Called after Photo Editor's Album "save as new asset" flow (`PhotoAssetExporting`) creates
     /// a brand-new `PHAsset` for the photo that used to be `oldPhotoId` — this view has no direct
@@ -41,9 +47,11 @@ struct AlbumPhotoPreviewView: View {
     /// result. A no-op default so every other caller of this view is unaffected.
     var onPhotoReplaced: (_ oldPhotoId: String, _ newPhoto: AlbumPhotoReference) -> Void = { _, _ in }
     /// "Hide from Album" — removes just this one photo's assignment from its Page (never touches
-    /// the Photos library itself, see § "album.photosRemainInLibrary"). Returns `false` when
-    /// `AlbumEditActionApplying` refuses the removal (e.g. `cannotRemoveLastPhotoOnPage`), which
-    /// this view surfaces as its own alert rather than silently doing nothing.
+    /// the Photos library itself, see § "album.photosRemainInLibrary"). § user request "chức năng
+    /// xoá ảnh sẽ cho phép trang xoá hết ảnh" — removing a Page's last photo now succeeds (the
+    /// Page becomes a blank "tap to add a photo" placeholder), so `false` here is only ever a
+    /// genuine failure (e.g. the Page vanished from under this preview mid-edit), surfaced as its
+    /// own generic alert rather than silently doing nothing.
     var onHidePhoto: (_ pageId: String, _ slotId: String) async -> Bool = { _, _ in false }
 
     @Environment(\.modelContext) private var modelContext
@@ -61,6 +69,8 @@ struct AlbumPhotoPreviewView: View {
         allAlbumPhotoIds: [String],
         pageId: String,
         startIndex: Int,
+        editorSourceType: EditorSourceType = .album,
+        allowsHidingPhotos: Bool = true,
         onPhotoReplaced: @escaping (_ oldPhotoId: String, _ newPhoto: AlbumPhotoReference) -> Void = { _, _ in },
         onHidePhoto: @escaping (_ pageId: String, _ slotId: String) async -> Bool = { _, _ in false },
         onDismiss: @escaping () -> Void
@@ -69,6 +79,8 @@ struct AlbumPhotoPreviewView: View {
         self.albumId = albumId
         self.allAlbumPhotoIds = allAlbumPhotoIds
         self.pageId = pageId
+        self.editorSourceType = editorSourceType
+        self.allowsHidingPhotos = allowsHidingPhotos
         self.onPhotoReplaced = onPhotoReplaced
         self.onHidePhoto = onHidePhoto
         self.onDismiss = onDismiss
@@ -111,7 +123,7 @@ struct AlbumPhotoPreviewView: View {
         .alert("album.edit.remove_last_photo_title", isPresented: $hideBlockedAlert) {
             Button("common.action.cancel", role: .cancel) {}
         } message: {
-            Text("album.eachPageNeedsPhoto")
+            Text("album.edit.hide_photo_failed_message")
         }
         .fullScreenCover(item: $editorContext) { context in
             PhotoEditorView(
@@ -181,7 +193,7 @@ struct AlbumPhotoPreviewView: View {
     private func openEditor() {
         guard photos.indices.contains(currentIndex) else { return }
         let photoId = photos[currentIndex].photo.sourceIdentifier
-        editorContext = EditorContext(sourceType: .album, sourceId: albumId, photoId: photoId, photoIds: allAlbumPhotoIds)
+        editorContext = EditorContext(sourceType: editorSourceType, sourceId: albumId, photoId: photoId, photoIds: allAlbumPhotoIds)
     }
 
     private func hideCurrentPhoto() {
@@ -205,8 +217,10 @@ struct AlbumPhotoPreviewView: View {
             Button { openEditor() } label: {
                 Label("album.photoPreview.editPhoto", systemImage: "wand.and.stars")
             }
-            Button(role: .destructive) { showHideConfirmation = true } label: {
-                Label("album.photoPreview.hideFromAlbum", systemImage: "eye.slash")
+            if allowsHidingPhotos {
+                Button(role: .destructive) { showHideConfirmation = true } label: {
+                    Label("album.photoPreview.hideFromAlbum", systemImage: "eye.slash")
+                }
             }
         } label: {
             Image(systemName: "ellipsis")

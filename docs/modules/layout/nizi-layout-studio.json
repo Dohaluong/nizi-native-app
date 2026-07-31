@@ -1,0 +1,164 @@
+{
+  "studioSchemaVersion": 1,
+  "layouts": [
+    {
+      "layout": {
+        "id": "square.1.untitled",
+        "name": "square.1.untitled",
+        "nameKey": "album.layout.square_1_untitled",
+        "photoCount": 2,
+        "supportedFormats": [
+          "square",
+          "portrait"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "any",
+            "frame": {
+              "x": 20,
+              "y": 20,
+              "width": 470,
+              "height": 680
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "any",
+            "frame": {
+              "x": 510,
+              "y": 300,
+              "width": 470,
+              "height": 680
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:25:04.960Z",
+        "updatedAt": "2026-07-30T02:25:04.960Z"
+      }
+    },
+    {
+      "layout": {
+        "id": "square.1.untitled-1785378769701",
+        "name": "square.1.untitled-1785378769701",
+        "nameKey": "album.layout.square_1_untitled-1785378769701",
+        "photoCount": 1,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "any",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 1000,
+              "height": 1000
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:32:49.701Z",
+        "updatedAt": "2026-07-30T02:32:49.701Z"
+      }
+    },
+    {
+      "layout": {
+        "id": "square.1.untitled-1785378779586",
+        "name": "square.1.untitled-1785378779586",
+        "nameKey": "album.layout.square_1_untitled-1785378779586",
+        "photoCount": 2,
+        "supportedFormats": [
+          "square",
+          "landscape"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "any",
+            "frame": {
+              "x": 20,
+              "y": 20,
+              "width": 960,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "any",
+            "frame": {
+              "x": 20,
+              "y": 510,
+              "width": 960,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:32:59.586Z",
+        "updatedAt": "2026-07-30T02:32:59.586Z"
+      }
+    }
+  ],
+  "selectedLayoutId": "square.1.untitled-1785378779586",
+  "selectedSlotId": null,
+  "snapEnabled": true
+}

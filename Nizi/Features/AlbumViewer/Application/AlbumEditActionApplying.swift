@@ -63,13 +63,31 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
             return try assignPhoto(assignmentId: assignmentId, photo: photo, in: draft)
         case let .removePhoto(pageId, slotId):
             return try await removePhoto(pageId: pageId, slotId: slotId, in: draft)
+        case let .addPhoto(pageId, photo):
+            return try await addPhoto(pageId: pageId, photo: photo, in: draft)
+        case let .removePage(pageId):
+            return try removePage(pageId: pageId, in: draft)
+        case .addBlankPage:
+            return addBlankPage(in: draft)
         case let .removeSpread(spreadId):
             return try removeSpread(spreadId: spreadId, in: draft)
-        case let .updateTextBlock(pageId, textBlockId, text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontStyle):
+        case let .updateTextBlock(pageId, textBlockId, text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontStyle, textColor):
             return try updateTextBlock(
                 pageId: pageId, textBlockId: textBlockId, text: text,
                 horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
-                fontFamily: fontFamily, fontSize: fontSize, fontStyle: fontStyle, in: draft
+                fontFamily: fontFamily, fontSize: fontSize, fontStyle: fontStyle, textColor: textColor, in: draft
+            )
+        case let .updateCoverPhotoCrop(crop):
+            var updated = draft
+            updated.coverPhotoCrop = crop
+            return updated
+        case let .changeCoverLayout(layoutId):
+            return try changeCoverLayout(layoutId: layoutId, in: draft)
+        case let .updateCoverTextBlock(textBlockId, text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontStyle, textColor):
+            return updateCoverTextBlock(
+                textBlockId: textBlockId, text: text,
+                horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
+                fontFamily: fontFamily, fontSize: fontSize, fontStyle: fontStyle, textColor: textColor, in: draft
             )
         }
     }
@@ -82,6 +100,10 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
         }
         var updated = draft
         updated.coverPhotoId = photo.id
+        // § user request "trang bìa ... crop ảnh": a different photo's old crop offset is
+        // meaningless on the new one — matches `swapPhotos`/`assignPhoto`'s own "never carry the
+        // old photo's crop onto the new one" convention (§ 21.2).
+        updated.coverPhotoCrop = nil
         // § 19.2 — hero display + coverPhotoId only; never re-runs the Planner, never reorders Pages.
         return updated
     }
@@ -196,12 +218,22 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
     private func removePhoto(pageId: String, slotId: String, in draft: AlbumDraft) async throws -> AlbumDraft {
         guard let location = locatePage(pageId, in: draft) else { throw AlbumEditError.pageNotFound }
         let page = location.page(draft)
-        guard page.assignments.count > 1 else {
-            throw AlbumEditError.cannotRemoveLastPhotoOnPage
-        }
 
         let remainingAssignments = page.assignments.filter { $0.slotId != slotId }
         let remainingCount = remainingAssignments.count
+
+        // § user request — "chức năng xoá ảnh sẽ cho phép trang xoá hết ảnh": removing the very
+        // last photo used to throw `cannotRemoveLastPhotoOnPage`; now the Page just becomes a
+        // visible "blank, tap to add a photo" placeholder instead. No layout has `photoCount ==
+        // 0` to re-resolve against, so this skips the slot-assigner path entirely rather than
+        // going through `layoutRepository.layouts(photoCount: 0, ...)`.
+        guard remainingCount > 0 else {
+            var updated = draft
+            location.mutate(&updated) { page in
+                page = emptiedPage(from: page, visible: true)
+            }
+            return updated
+        }
 
         let candidateLayouts = try layoutRepository.layouts(photoCount: remainingCount, format: page.format)
         guard let newLayout = candidateLayouts.first else {
@@ -228,6 +260,126 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
                 .flatMap { heroSlot in page.assignments.first { $0.slotId == heroSlot.id }?.photoId }
             page.textAssignments = freshTextAssignments(for: newLayout, pageId: page.id)
         }
+        return updated
+    }
+
+    // MARK: - Add Photo
+
+    /// Mirrors `removePhoto` exactly, just growing the Page's assignment count by one (the new
+    /// photo appended after the existing ones) instead of shrinking it. `noCompatibleLayout` here
+    /// means this format has no layout with one more slot than the Page already has — the caller
+    /// (`AlbumPageViewer`) checks this same condition before ever presenting the picker, so this
+    /// throw is a defensive backstop, not the primary way the "frame limit" is enforced.
+    private func addPhoto(pageId: String, photo: AlbumPhotoReference, in draft: AlbumDraft) async throws -> AlbumDraft {
+        guard let location = locatePage(pageId, in: draft) else { throw AlbumEditError.pageNotFound }
+        let page = location.page(draft)
+
+        let newCount = page.assignments.count + 1
+        let candidateLayouts = try layoutRepository.layouts(photoCount: newCount, format: page.format)
+        guard let newLayout = candidateLayouts.first else {
+            throw AlbumEditError.noCompatibleLayout
+        }
+
+        let references = page.assignments.map(\.photo) + [photo]
+        let photos = scoredPhotos(for: references)
+        let orderedPhotos = references.compactMap { reference in photos.first { $0.id == reference.id } }
+        let result = slotAssigner.assign(photos: orderedPhotos, to: newLayout)
+
+        var updated = draft
+        location.mutate(&updated) { page in
+            page.layoutId = newLayout.id
+            page.assignments = result.assignments.map { assignment in
+                let reference = references.first { $0.id == assignment.photoId }
+                    ?? AlbumPhotoReference(id: assignment.photoId, source: .applePhotos, sourceIdentifier: assignment.photoId, originalFilename: nil)
+                return AlbumPhotoAssignment(id: assignment.id, slotId: assignment.slotId, photo: reference, crop: .centered)
+            }
+            page.layoutScore = nil
+            page.assignmentScore = result.score
+            page.heroPhotoId = newLayout.slots.first { $0.role == .hero }
+                .flatMap { heroSlot in page.assignments.first { $0.slotId == heroSlot.id }?.photoId }
+            page.textAssignments = freshTextAssignments(for: newLayout, pageId: page.id)
+        }
+        return updated
+    }
+
+    // MARK: - Remove Page (single Page, not the whole Spread)
+
+    /// § user request — "Cho phép xoá 1 trang chứ không phải xoá cả spread": unlike the old
+    /// `removeSpread` (still below, now unused by any button but kept for whatever still calls
+    /// it directly), this only ever touches the one Page identified by `pageId` — its
+    /// Spread-sibling is left completely alone. No "can't remove the last Page" guard: `draft
+    /// .spreads` never shrinks here (only `removeSpread` does that), so `AlbumDraftValidator`'s
+    /// own `!draft.spreads.isEmpty` guard can never be at risk from this action.
+    private func removePage(pageId: String, in draft: AlbumDraft) throws -> AlbumDraft {
+        guard let location = locatePage(pageId, in: draft) else { throw AlbumEditError.pageNotFound }
+        var updated = draft
+        location.mutate(&updated) { page in
+            page = emptiedPage(from: page, visible: false)
+        }
+        return updated
+    }
+
+    // MARK: - Add Blank Page
+
+    /// § user request — "Thêm trang ... tạo ra 1 trang trắng": always adds exactly *one* new
+    /// visible Page, reusing the last Spread's already-hidden padding Page when one's available
+    /// (so `spreads.count` doesn't grow on every tap) and otherwise starting a fresh Spread whose
+    /// own padding side starts out hidden (ready for the *next* `addBlankPage` to reuse, rather
+    /// than showing an unwanted second blank Page immediately).
+    private func addBlankPage(in draft: AlbumDraft) -> AlbumDraft {
+        var updated = draft
+
+        if let lastIndex = updated.spreads.indices.last {
+            let last = updated.spreads[lastIndex]
+            if last.rightPage.assignments.isEmpty, !last.rightPage.isBlank {
+                updated.spreads[lastIndex].rightPage = blankPage(
+                    id: last.rightPage.id, order: last.rightPage.order, sourceEventIds: last.rightPage.sourceEventIds
+                )
+                return updated
+            }
+            if last.leftPage.assignments.isEmpty, !last.leftPage.isBlank {
+                // Defensive — nothing in this codebase actually leaves `leftPage` hidden today
+                // (`removePage`/this same reuse branch only ever touch `rightPage` first), but
+                // honoring it costs nothing and avoids an unnecessary new Spread if that changes.
+                updated.spreads[lastIndex].leftPage = blankPage(
+                    id: last.leftPage.id, order: last.leftPage.order, sourceEventIds: last.leftPage.sourceEventIds
+                )
+                return updated
+            }
+        }
+
+        let newSpreadIndex = updated.spreads.count
+        let spreadId = "spread-\(UUID().uuidString)"
+        let newLeftPage = blankPage(id: "\(spreadId)-left", order: newSpreadIndex * 2, sourceEventIds: [])
+        var newRightPage = blankPage(id: "\(spreadId)-right", order: newSpreadIndex * 2 + 1, sourceEventIds: [])
+        newRightPage.layoutId = Self.hiddenLayoutId // padding for a future `addBlankPage` — not shown yet
+        updated.spreads.append(
+            AlbumDraftSpread(id: spreadId, order: newSpreadIndex, sourceEventIds: [], leftPage: newLeftPage, rightPage: newRightPage)
+        )
+        return updated
+    }
+
+    private func blankPage(id: String, order: Int, sourceEventIds: [String]) -> AlbumDraftPage {
+        AlbumDraftPage(id: id, order: order, layoutId: AlbumDraftPage.blankLayoutId, format: .square, assignments: [], sourceEventIds: sourceEventIds)
+    }
+
+    /// Never a real `AlbumLayoutRepository` id — the invisible counterpart to `AlbumDraftPage
+    /// .blankLayoutId` (§ that constant's own doc comment): Spread padding nothing has filled in
+    /// yet, deliberately excluded from the Viewer's flattened item list (`AlbumViewerItemBuilder`).
+    private static let hiddenLayoutId = "hidden"
+
+    /// Shared end-state for a Page emptied down to 0 assignments — `visible` picks which
+    /// sentinel `layoutId` it lands on: `AlbumDraftPage.blankLayoutId` (a tappable "add a photo"
+    /// placeholder — `removePhoto` reaching 0, `addBlankPage`'s new Page) or `Self.hiddenLayoutId`
+    /// (invisible Spread padding — `removePage`, `addBlankPage`'s own padding sibling).
+    private func emptiedPage(from page: AlbumDraftPage, visible: Bool) -> AlbumDraftPage {
+        var updated = page
+        updated.layoutId = visible ? AlbumDraftPage.blankLayoutId : Self.hiddenLayoutId
+        updated.assignments = []
+        updated.textAssignments = []
+        updated.heroPhotoId = nil
+        updated.layoutScore = nil
+        updated.assignmentScore = nil
         return updated
     }
 
@@ -267,7 +419,7 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
     private func updateTextBlock(
         pageId: String, textBlockId: String, text: String,
         horizontalAlignment: AlbumTextHorizontalAlignment, verticalAlignment: AlbumTextVerticalAlignment,
-        fontFamily: AlbumTextFontFamily, fontSize: Double, fontStyle: AlbumTextFontStyle,
+        fontFamily: AlbumTextFontFamily, fontSize: Double, fontStyle: AlbumTextFontStyle, textColor: String,
         in draft: AlbumDraft
     ) throws -> AlbumDraft {
         guard let location = locatePage(pageId, in: draft) else { throw AlbumEditError.pageNotFound }
@@ -277,7 +429,7 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
                 id: page.textAssignments.first { $0.textBlockId == textBlockId }?.id ?? "\(page.id)-\(textBlockId)",
                 textBlockId: textBlockId, text: text,
                 horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
-                fontFamily: fontFamily, fontSize: fontSize, fontStyle: fontStyle
+                fontFamily: fontFamily, fontSize: fontSize, fontStyle: fontStyle, textColor: textColor
             )
             if let index = page.textAssignments.firstIndex(where: { $0.textBlockId == textBlockId }) {
                 page.textAssignments[index] = updatedAssignment
@@ -285,6 +437,52 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
                 page.textAssignments.append(updatedAssignment)
             }
         }
+        return updated
+    }
+
+    // MARK: - Change Cover Layout
+
+    /// § user request — "square.1.cover là layout mặc định cho ảnh bìa, sau này có thể thay layout
+    /// khác": validates `layoutId` resolves *before* accepting it — the exact class of bug that
+    /// blocked Save entirely (an unresolvable `layoutId` sitting in the Draft with nothing to
+    /// catch it before validation) must never be introduced by this action itself. Resets
+    /// `coverPhotoCrop`/`coverTextAssignments`, mirroring `changePageLayout`'s own "a different
+    /// layout can mean a different slot shape/text block ids" reasoning exactly.
+    private func changeCoverLayout(layoutId: String, in draft: AlbumDraft) throws -> AlbumDraft {
+        _ = try layoutRepository.layout(id: layoutId)
+        var updated = draft
+        updated.coverLayoutId = layoutId
+        updated.coverPhotoCrop = nil
+        updated.coverTextAssignments = nil
+        return updated
+    }
+
+    // MARK: - Update Cover Text Block
+
+    /// § user request — "trang bìa ... chạm vào để sửa chữ tương tự như trang khác": mirrors
+    /// `updateTextBlock` exactly, upserting into `AlbumDraft.coverTextAssignments` instead of a
+    /// content Page's own array (there's no `pageId` to locate here — the cover isn't one of
+    /// `draft.spreads`).
+    private func updateCoverTextBlock(
+        textBlockId: String, text: String,
+        horizontalAlignment: AlbumTextHorizontalAlignment, verticalAlignment: AlbumTextVerticalAlignment,
+        fontFamily: AlbumTextFontFamily, fontSize: Double, fontStyle: AlbumTextFontStyle, textColor: String,
+        in draft: AlbumDraft
+    ) -> AlbumDraft {
+        var updated = draft
+        var assignments = updated.coverTextAssignments ?? []
+        let updatedAssignment = AlbumTextAssignment(
+            id: assignments.first { $0.textBlockId == textBlockId }?.id ?? "cover-\(textBlockId)",
+            textBlockId: textBlockId, text: text,
+            horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
+            fontFamily: fontFamily, fontSize: fontSize, fontStyle: fontStyle, textColor: textColor
+        )
+        if let index = assignments.firstIndex(where: { $0.textBlockId == textBlockId }) {
+            assignments[index] = updatedAssignment
+        } else {
+            assignments.append(updatedAssignment)
+        }
+        updated.coverTextAssignments = assignments
         return updated
     }
 
@@ -298,7 +496,7 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
             AlbumTextAssignment(
                 id: "\(pageId)-\(block.id)", textBlockId: block.id, text: "",
                 horizontalAlignment: block.horizontalAlignment, verticalAlignment: block.verticalAlignment,
-                fontFamily: block.fontFamily, fontSize: block.fontSize, fontStyle: block.fontStyle
+                fontFamily: block.fontFamily, fontSize: block.fontSize, fontStyle: block.fontStyle, textColor: block.textColor
             )
         }
     }
@@ -329,7 +527,11 @@ struct DefaultAlbumEditActionApplying: AlbumEditActionApplying {
     }
 
     private func scoredPhotos(for page: AlbumDraftPage) -> [AlbumPlanningPhoto] {
-        let assetIDs = page.assignments.map(\.photo.sourceIdentifier)
+        scoredPhotos(for: page.assignments.map(\.photo))
+    }
+
+    private func scoredPhotos(for references: [AlbumPhotoReference]) -> [AlbumPlanningPhoto] {
+        let assetIDs = references.map(\.sourceIdentifier)
         let photos = planningPhotosLookup(assetIDs)
         let importanceById = importanceEvaluator.evaluate(photos: photos)
         return photos.map { photo in

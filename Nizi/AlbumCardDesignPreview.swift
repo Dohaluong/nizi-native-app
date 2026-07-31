@@ -122,15 +122,18 @@ struct AlbumCardDesignPreview: View {
 struct YearFilterBar: View {
     let years: [Int]
     @Binding var selectedYear: Int?
+    /// Albums keep the established leading "All" chip; EventList uses a trailing one so the
+    /// chronological years read naturally from newest down to oldest.
+    var placesAllLast: Bool = false
+    /// EventList can render directly on its grouped background, avoiding a visible horizontal
+    /// fill strip around the embedded year `ScrollView`.
+    var showsBackground: Bool = true
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
-                    yearButton(title: localizedString("album.year_filter.all", defaultValue: "All"), selected: selectedYear == nil) {
-                        select(nil, proxy: proxy)
-                    }
-                    .id(Optional<Int>.none)
+                    if !placesAllLast { allButton(proxy: proxy) }
 
                     ForEach(years, id: \.self) { year in
                         yearButton(title: String(year), selected: selectedYear == year) {   // Không dùng formatted()
@@ -138,12 +141,21 @@ struct YearFilterBar: View {
                         }
                         .id(Optional(year))
                     }
+
+                    if placesAllLast { allButton(proxy: proxy) }
                 }
                 .padding(6)
             }
-            .background(Color(.tertiarySystemFill))
+            .background(showsBackground ? Color(.tertiarySystemFill) : .clear)
             .clipShape(Capsule())
         }
+    }
+
+    private func allButton(proxy: ScrollViewProxy) -> some View {
+        yearButton(title: localizedString("album.year_filter.all", defaultValue: "All"), selected: selectedYear == nil) {
+            select(nil, proxy: proxy)
+        }
+        .id(Optional<Int>.none)
     }
 
     private func select(_ year: Int?, proxy: ScrollViewProxy) {

@@ -156,14 +156,15 @@ struct AlbumEditingSessionTests {
         #expect(layout.photoCount == 3)
     }
 
-    @Test func cannotRemoveTheLastPhotoOnAPage() async {
+    @Test func removingTheLastPhotoLeavesABlankPlaceholderPage() async throws {
         let applier = makeApplier()
         var draft = makeDraft()
         draft.spreads[0].leftPage = page(id: "spread-0-left", photoIds: ["p1"], layoutId: "square.1.inset")
 
-        await #expect(throws: AlbumEditError.cannotRemoveLastPhotoOnPage) {
-            try await applier.apply(.removePhoto(pageId: "spread-0-left", slotId: "photo-1"), to: draft)
-        }
+        let updated = try await applier.apply(.removePhoto(pageId: "spread-0-left", slotId: "photo-1"), to: draft)
+        let updatedPage = updated.spreads[0].leftPage
+        #expect(updatedPage.assignments.isEmpty)
+        #expect(updatedPage.isBlank)
     }
 
     @Test func removePhotoKeepsSpreadWithinBounds() async throws {
@@ -171,6 +172,97 @@ struct AlbumEditingSessionTests {
         let draft = makeDraft()
         let updated = try await applier.apply(.removePhoto(pageId: "spread-0-left", slotId: "photo-1"), to: draft)
         #expect((2...6).contains(updated.spreads[0].photoCount))
+    }
+
+    // MARK: - Add Photo
+
+    @Test func addPhotoGrowsATwoPhotoPageToAThreePhotoLayout() async throws {
+        let applier = makeApplier()
+        let draft = makeDraft()
+
+        let updated = try await applier.apply(.addPhoto(pageId: "spread-0-left", photo: reference("p6")), to: draft)
+        let updatedPage = updated.spreads[0].leftPage
+        #expect(updatedPage.assignments.count == 3)
+        #expect(Set(updatedPage.assignments.map(\.photoId)) == Set(["p1", "p2", "p6"]))
+        let layout = try BundleAlbumLayoutRepository().layout(id: updatedPage.layoutId)
+        #expect(layout.photoCount == 3)
+    }
+
+    @Test func cannotAddAPhotoPastTheFormatsLargestLayout() async {
+        let applier = makeApplier()
+        var draft = makeDraft()
+        // Every square layout in the library tops out at 4 photos (§ "quá giới hạn frame ảnh").
+        draft.spreads[0].leftPage = page(id: "spread-0-left", photoIds: ["p1", "p2", "p6", "p7"], layoutId: "square.4.grid")
+
+        await #expect(throws: AlbumEditError.noCompatibleLayout) {
+            try await applier.apply(.addPhoto(pageId: "spread-0-left", photo: reference("p8")), to: draft)
+        }
+    }
+
+    // MARK: - Remove Page (single Page, not the whole Spread)
+
+    @Test func removePageOnlyEmptiesThatOnePage() async throws {
+        let applier = makeApplier()
+        let draft = makeDraft()
+
+        let updated = try await applier.apply(.removePage(pageId: "spread-0-left"), to: draft)
+        let leftPage = updated.spreads[0].leftPage
+        let rightPage = updated.spreads[0].rightPage
+        #expect(leftPage.assignments.isEmpty)
+        #expect(!leftPage.isBlank) // hidden padding, not a visible "tap to add" placeholder
+        #expect(rightPage.assignments.map(\.photoId) == ["p3", "p4", "p5"]) // sibling untouched
+    }
+
+    @Test func removedPageIsHiddenFromTheFlattenedViewerItems() async throws {
+        let applier = makeApplier()
+        let draft = makeDraft()
+        let updated = try await applier.apply(.removePage(pageId: "spread-0-left"), to: draft)
+
+        let pageIds = DefaultAlbumViewerItemBuilder().makeItems(from: updated).compactMap { item -> String? in
+            guard case let .page(viewerPage) = item else { return nil }
+            return viewerPage.page.id
+        }
+        #expect(!pageIds.contains("spread-0-left"))
+        #expect(pageIds.contains("spread-0-right"))
+    }
+
+    // MARK: - Add Blank Page
+
+    @Test func addBlankPageAppendsOneVisiblePlaceholderPage() async throws {
+        let applier = makeApplier()
+        let draft = makeDraft()
+
+        let updated = try await applier.apply(.addBlankPage, to: draft)
+        #expect(updated.spreads.count == 2)
+        let newSpread = updated.spreads[1]
+        #expect(newSpread.leftPage.isBlank)
+        #expect(newSpread.leftPage.assignments.isEmpty)
+        #expect(!newSpread.rightPage.isBlank) // hidden padding, not shown yet
+        #expect(newSpread.rightPage.assignments.isEmpty)
+    }
+
+    @Test func addBlankPageTwiceReusesThePaddingSlotBeforeANewSpread() async throws {
+        let applier = makeApplier()
+        let draft = makeDraft()
+
+        let firstAdd = try await applier.apply(.addBlankPage, to: draft)
+        let secondAdd = try await applier.apply(.addBlankPage, to: firstAdd)
+
+        #expect(secondAdd.spreads.count == 2) // reused the first add's padding Page, no 3rd Spread
+        #expect(secondAdd.spreads[1].leftPage.isBlank)
+        #expect(secondAdd.spreads[1].rightPage.isBlank)
+    }
+
+    @Test func addBlankPageShowsUpInTheFlattenedViewerItems() async throws {
+        let applier = makeApplier()
+        let draft = makeDraft()
+        let updated = try await applier.apply(.addBlankPage, to: draft)
+
+        let blankPageShown = DefaultAlbumViewerItemBuilder().makeItems(from: updated).contains { item in
+            guard case let .page(viewerPage) = item else { return false }
+            return viewerPage.page.isBlank
+        }
+        #expect(blankPageShown)
     }
 
     // MARK: - § 23 Remove Spread

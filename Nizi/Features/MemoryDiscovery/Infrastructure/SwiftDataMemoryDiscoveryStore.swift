@@ -12,7 +12,7 @@ import SwiftData
 /// `@ModelActor` gives this its own isolated `ModelContext`, so batch scanning never
 /// touches the main actor's context and can't freeze the UI.
 @ModelActor
-actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointRepository, PhotoSessionRepository, PhotoEventRepository, EventCurationRepository {
+actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointRepository, PhotoSessionRepository, PhotoEventRepository, EventCurationRepository, MemoryCandidateRepository, LocationIntelligenceRepository, PhotoTripRepository {
     // MARK: LocalAssetRepository
 
     @discardableResult
@@ -126,6 +126,11 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
         try modelContext.delete(model: MDEventCurationResult.self)
         try modelContext.delete(model: MDPhotoCurationGroup.self)
         try modelContext.delete(model: MDPhotoCurationItem.self)
+        try modelContext.delete(model: MDMemoryCandidate.self)
+        try modelContext.delete(model: MDLocationCluster.self)
+        try modelContext.delete(model: MDHomeAnchor.self)
+        try modelContext.delete(model: MDFamiliarPlace.self)
+        try modelContext.delete(model: MDPhotoTrip.self)
         try modelContext.save()
     }
 
@@ -188,11 +193,19 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
             PhotoEventStatus.convertedToAlbum.rawValue
         ]
         let existing = try modelContext.fetch(FetchDescriptor<MDEventCandidate>())
+        // Event discovery deliberately mints fresh IDs. Preserve the one user-owned state this
+        // flow stores by matching an otherwise identical event's asset membership before old
+        // rebuildable rows are removed. This is intentionally a narrow bridge, not stable Event
+        // identity: changed cluster membership will not match and needs a future identity sprint.
+        let lovedAssetKeys = Set(existing.filter(\.isLoved).map { eventAssetKey($0.assetIdentifiers) })
         for model in existing where !committedStatuses.contains(model.status) {
             modelContext.delete(model)
         }
 
-        for event in events {
+        for var event in events {
+            if lovedAssetKeys.contains(eventAssetKey(event.assetIDs)) {
+                event.isLoved = true
+            }
             modelContext.insert(MDEventCandidate(event: event))
         }
         try modelContext.save()
@@ -207,6 +220,107 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
             descriptor = FetchDescriptor(sortBy: [SortDescriptor(\.startDate, order: .reverse)])
         }
         return try modelContext.fetch(descriptor).map(PhotoEvent.init)
+    }
+
+    func fetchLovedEvents() async throws -> [PhotoEvent] {
+        let descriptor = FetchDescriptor<MDEventCandidate>(
+            predicate: #Predicate { $0.isLoved },
+            sortBy: [SortDescriptor(\.startDate, order: .reverse)]
+        )
+        return try modelContext.fetch(descriptor).map(PhotoEvent.init)
+    }
+
+    func setEventLoved(eventID: UUID, isLoved: Bool) async throws {
+        var descriptor = FetchDescriptor<MDEventCandidate>(predicate: #Predicate { $0.candidateID == eventID })
+        descriptor.fetchLimit = 1
+        guard let event = try modelContext.fetch(descriptor).first else { return }
+        event.isLoved = isLoved
+        event.updatedAt = Date()
+        try modelContext.save()
+    }
+
+    func setEventPlace(eventID: UUID, place: EventPlace?, state: EventPlaceResolutionState) async throws {
+        var descriptor = FetchDescriptor<MDEventCandidate>(predicate: #Predicate { $0.candidateID == eventID })
+        descriptor.fetchLimit = 1
+        guard let event = try modelContext.fetch(descriptor).first else { return }
+        event.placeLatitude = place?.coordinate.latitude
+        event.placeLongitude = place?.coordinate.longitude
+        event.placeSubLocality = place?.subLocality
+        event.placeLocality = place?.locality
+        event.placeSubAdministrativeArea = place?.subAdministrativeArea
+        event.placeAdministrativeArea = place?.administrativeArea
+        event.placeCountry = place?.country
+        event.placeCountryCode = place?.countryCode
+        event.placeDisplayName = place?.displayName
+        event.primaryLocationLabel = place?.displayName
+        event.placeResolutionState = state.rawValue
+        event.placeResolvedAt = place == nil ? nil : Date()
+        event.updatedAt = Date()
+        try modelContext.save()
+    }
+
+    func deleteEvent(id: UUID) async throws {
+        try deleteCurationData(for: id)
+        try modelContext.delete(model: MDEventCandidate.self, where: #Predicate { $0.candidateID == id })
+        try modelContext.save()
+    }
+
+    func mergeEvent(sourceID: UUID, into destinationID: UUID) async throws {
+        guard sourceID != destinationID else { return }
+
+        var sourceDescriptor = FetchDescriptor<MDEventCandidate>(predicate: #Predicate { $0.candidateID == sourceID })
+        sourceDescriptor.fetchLimit = 1
+        var destinationDescriptor = FetchDescriptor<MDEventCandidate>(predicate: #Predicate { $0.candidateID == destinationID })
+        destinationDescriptor.fetchLimit = 1
+
+        guard
+            let source = try modelContext.fetch(sourceDescriptor).first,
+            let destination = try modelContext.fetch(destinationDescriptor).first
+        else { return }
+
+        destination.startDate = min(destination.startDate, source.startDate)
+        destination.endDate = max(destination.endDate, source.endDate)
+        destination.sessionIdentifiers = orderedUnique(destination.sessionIdentifiers + source.sessionIdentifiers)
+        destination.assetIdentifiers = orderedUnique(destination.assetIdentifiers + source.assetIdentifiers)
+        destination.coverAssetID = destination.coverAssetID ?? source.coverAssetID
+        // The dominant coordinate can change after combining two Events. Discard both stale
+        // place snapshots and let the visible merged card lazily resolve from its new asset set.
+        destination.primaryLocationLabel = nil
+        destination.placeLatitude = nil
+        destination.placeLongitude = nil
+        destination.placeSubLocality = nil
+        destination.placeLocality = nil
+        destination.placeSubAdministrativeArea = nil
+        destination.placeAdministrativeArea = nil
+        destination.placeCountry = nil
+        destination.placeCountryCode = nil
+        destination.placeDisplayName = nil
+        destination.placeResolutionState = EventPlaceResolutionState.unresolved.rawValue
+        destination.placeResolvedAt = nil
+        destination.score = max(destination.score, source.score)
+        destination.updatedAt = Date()
+
+        // Curation rows are derived from the original Event membership. Once sessions/assets have
+        // changed they cannot safely be reused, so remove them with the source Event as well.
+        try deleteCurationData(for: sourceID)
+        try deleteCurationData(for: destinationID)
+        modelContext.delete(source)
+        try modelContext.save()
+    }
+
+    private func deleteCurationData(for eventID: UUID) throws {
+        try modelContext.delete(model: MDEventCurationResult.self, where: #Predicate { $0.eventCandidateID == eventID })
+        try modelContext.delete(model: MDPhotoCurationGroup.self, where: #Predicate { $0.eventCandidateID == eventID })
+        try modelContext.delete(model: MDPhotoCurationItem.self, where: #Predicate { $0.eventCandidateID == eventID })
+    }
+
+    private func orderedUnique<Element: Hashable>(_ values: [Element]) -> [Element] {
+        var seen = Set<Element>()
+        return values.filter { seen.insert($0).inserted }
+    }
+
+    private func eventAssetKey(_ assetIDs: [String]) -> String {
+        assetIDs.sorted().joined(separator: "\u{1F}")
     }
 
     // MARK: EventCurationRepository
@@ -246,7 +360,8 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
                         similarityClusterID: itemModel.similarityClusterIdentifier,
                         isSuggested: itemModel.isSuggested,
                         isSelected: itemModel.isSelected,
-                        selectionSource: SelectionSource(rawValue: itemModel.selectionSource) ?? .systemSuggested
+                        selectionSource: SelectionSource(rawValue: itemModel.selectionSource) ?? .systemSuggested,
+                        rejectionReason: itemModel.rejectionReason.flatMap(CurationRejectionReason.init(rawValue:))
                     )
                 }
             )
@@ -260,6 +375,7 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
             updatedAt: resultModel.updatedAt,
             completedAt: resultModel.completedAt,
             sourceAssetCount: resultModel.sourceAssetCount,
+            sourceAssetFingerprint: resultModel.sourceAssetFingerprint,
             errorMessage: resultModel.errorMessage,
             groups: groups
         )
@@ -277,6 +393,7 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
         resultModel.updatedAt = result.updatedAt
         resultModel.completedAt = result.completedAt
         resultModel.sourceAssetCount = result.sourceAssetCount
+        resultModel.sourceAssetFingerprint = result.sourceAssetFingerprint
         resultModel.errorMessage = result.errorMessage
         modelContext.insert(resultModel)
 
@@ -335,5 +452,113 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
         try modelContext.delete(model: MDPhotoCurationGroup.self, where: #Predicate { $0.eventCandidateID == photoEventID })
         try modelContext.delete(model: MDPhotoCurationItem.self, where: #Predicate { $0.eventCandidateID == photoEventID })
         try modelContext.save()
+    }
+
+    // MARK: MemoryCandidateRepository
+
+    func save(_ candidate: MemoryCandidate) async throws {
+        let targetID = candidate.id
+        var descriptor = FetchDescriptor<MDMemoryCandidate>(
+            predicate: #Predicate { $0.candidateID == targetID }
+        )
+        descriptor.fetchLimit = 1
+
+        if let existing = try modelContext.fetch(descriptor).first {
+            existing.eventID = candidate.eventID
+            existing.title = candidate.title
+            existing.subtitle = candidate.subtitle
+            existing.startDate = candidate.startDate
+            existing.endDate = candidate.endDate
+            existing.placeName = candidate.placeName
+            existing.coverAssetID = candidate.coverAssetID
+            existing.selectedAssetIdentifiers = candidate.selectedAssetIDs
+            existing.totalPhotoCount = candidate.totalPhotoCount
+            existing.score = candidate.score
+            existing.status = candidate.status.rawValue
+            existing.updatedAt = candidate.updatedAt
+        } else {
+            modelContext.insert(MDMemoryCandidate(candidate: candidate))
+        }
+        try modelContext.save()
+    }
+
+    func fetchLatest() async throws -> MemoryCandidate? {
+        var descriptor = FetchDescriptor<MDMemoryCandidate>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first.map(MemoryCandidate.init)
+    }
+
+    func updateSelection(id: UUID, selectedAssetIDs: [String]) async throws {
+        var descriptor = FetchDescriptor<MDMemoryCandidate>(predicate: #Predicate { $0.candidateID == id })
+        descriptor.fetchLimit = 1
+        guard let existing = try modelContext.fetch(descriptor).first else { return }
+        existing.selectedAssetIdentifiers = selectedAssetIDs
+        existing.totalPhotoCount = selectedAssetIDs.count
+        existing.updatedAt = Date()
+        try modelContext.save()
+    }
+
+    // MARK: LocationIntelligenceRepository
+
+    func replaceLocationIntelligence(clusters: [LocationCluster], home: HomeAnchor?, familiarPlaces: [FamiliarPlace]) async throws {
+        try modelContext.delete(model: MDLocationCluster.self)
+        try modelContext.delete(model: MDFamiliarPlace.self)
+
+        // Never silently overwrite a Home the user actually confirmed with a fresh algorithmic
+        // guess — the Full Home Detector rebuild is allowed to touch everything else, but not this.
+        let existingHomeIsUserConfirmed = try modelContext.fetch(FetchDescriptor<MDHomeAnchor>()).first?.source == HomeAnchorSource.userConfirmed.rawValue
+        if !existingHomeIsUserConfirmed {
+            try modelContext.delete(model: MDHomeAnchor.self)
+            if let home {
+                modelContext.insert(MDHomeAnchor(home: home))
+            }
+        }
+
+        for cluster in clusters {
+            modelContext.insert(MDLocationCluster(cluster: cluster))
+        }
+        for place in familiarPlaces {
+            modelContext.insert(MDFamiliarPlace(place: place))
+        }
+        try modelContext.save()
+    }
+
+    func confirmUserHome(_ home: HomeAnchor) async throws {
+        try modelContext.delete(model: MDHomeAnchor.self)
+        var confirmed = home
+        confirmed.source = .userConfirmed
+        modelContext.insert(MDHomeAnchor(home: confirmed))
+        try modelContext.save()
+    }
+
+    func fetchHome() async throws -> HomeAnchor? {
+        var descriptor = FetchDescriptor<MDHomeAnchor>()
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first.map(HomeAnchor.init)
+    }
+
+    func fetchFamiliarPlaces() async throws -> [FamiliarPlace] {
+        try modelContext.fetch(FetchDescriptor<MDFamiliarPlace>())
+            .map(FamiliarPlace.init)
+            .sorted { $0.confidence > $1.confidence }
+    }
+
+    func fetchLocationClusters() async throws -> [LocationCluster] {
+        try modelContext.fetch(FetchDescriptor<MDLocationCluster>()).map(LocationCluster.init)
+    }
+
+    // MARK: PhotoTripRepository
+
+    func replaceRebuildableTrips(_ trips: [PhotoTrip]) async throws {
+        try modelContext.delete(model: MDPhotoTrip.self)
+        for trip in trips {
+            modelContext.insert(MDPhotoTrip(trip: trip))
+        }
+        try modelContext.save()
+    }
+
+    func fetchTrips() async throws -> [PhotoTrip] {
+        let descriptor = FetchDescriptor<MDPhotoTrip>(sortBy: [SortDescriptor(\.startDate, order: .reverse)])
+        return try modelContext.fetch(descriptor).map(PhotoTrip.init)
     }
 }

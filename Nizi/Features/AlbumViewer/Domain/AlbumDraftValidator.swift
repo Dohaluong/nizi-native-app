@@ -28,7 +28,14 @@ enum AlbumDraftValidator {
 
         for spread in draft.spreads {
             for page in [spread.leftPage, spread.rightPage] {
-                guard (1...4).contains(page.assignments.count) else { throw AlbumPlanningError.invalidDraft }
+                guard (0...4).contains(page.assignments.count) else { throw AlbumPlanningError.invalidDraft }
+                // § user request — "xoá trang" (a Page emptied via `.removePage`/`.removePhoto`
+                // reaching 0) and "thêm trang" (a fresh `.addBlankPage` padding slot) both leave a
+                // Page with 0 assignments and a `layoutId` no real `AlbumPageLayout` resolves for
+                // (`AlbumDraftPage.blankLayoutId`, or whatever stale id `.removePage` left behind)
+                // — there's no layout geometry to validate against, so skip straight to the next
+                // Page rather than treating an unresolvable `layoutId` as a corrupt Draft.
+                guard !page.assignments.isEmpty else { continue }
 
                 let layout = try repository.layout(id: page.layoutId)
                 guard layout.slots.count == page.assignments.count else { throw AlbumPlanningError.invalidDraft }
@@ -40,7 +47,10 @@ enum AlbumDraftValidator {
                     guard !assignment.photo.sourceIdentifier.isEmpty else { throw AlbumPlanningError.invalidDraft }
                 }
             }
-            guard (2...6).contains(spread.photoCount) else { throw AlbumPlanningError.invalidDraft }
+            // § widened from `(2...6)` — a Spread can now legitimately have one or both Pages
+            // blank/empty (§ "xoá trang"/"thêm trang" above), so 0 is valid; `8` is just `4 + 4`,
+            // the per-Page max already enforced above (never a new independent constraint).
+            guard (0...8).contains(spread.photoCount) else { throw AlbumPlanningError.invalidDraft }
         }
     }
 }

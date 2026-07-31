@@ -21,6 +21,17 @@ struct AlbumTextBlockEditTarget: Identifiable {
     let currentFontFamily: AlbumTextFontFamily
     let currentFontSize: Double
     let currentFontStyle: AlbumTextFontStyle
+    let currentTextColor: String
+    /// Template-level only (never per-Page — see `AlbumTextBlockKind`'s own doc comment); used
+    /// here just to show the same kind-specific placeholder the real Page does while `currentText`
+    /// is still empty.
+    let currentKind: AlbumTextBlockKind
+    /// § user request — "trang bìa sẽ có cấu trúc như trang ruột ... chạm vào để sửa chữ tương tự
+    /// như trang khác": the cover's text blocks aren't real `AlbumTextAssignment`s living on a
+    /// Page in `draft.spreads` (see `AlbumPageViewer.coverAsViewerPage`), so Save dispatches to
+    /// `AlbumEditAction.updateCoverTextBlock` instead of `.updateTextBlock` — this flag is what
+    /// `AlbumPageViewer`'s own `.sheet(item: $textBlockEditTarget)` branches on.
+    var isCoverText: Bool = false
     var id: String { "\(pageId)-\(textBlockId)" }
 }
 
@@ -33,7 +44,7 @@ struct AlbumTextBlockEditTarget: Identifiable {
 struct AlbumTextBlockEditSheet: View {
     let onSave: (
         _ text: String, _ horizontalAlignment: AlbumTextHorizontalAlignment, _ verticalAlignment: AlbumTextVerticalAlignment,
-        _ fontFamily: AlbumTextFontFamily, _ fontSize: Double, _ fontStyle: AlbumTextFontStyle
+        _ fontFamily: AlbumTextFontFamily, _ fontSize: Double, _ fontStyle: AlbumTextFontStyle, _ textColor: String
     ) -> Void
     let onCancel: () -> Void
 
@@ -43,6 +54,10 @@ struct AlbumTextBlockEditSheet: View {
     @State private var fontFamily: AlbumTextFontFamily
     @State private var fontSize: Double
     @State private var fontStyle: AlbumTextFontStyle
+    @State private var textColor: String
+    /// Not user-editable here (see `AlbumTextBlockEditTarget.currentKind`'s own doc comment) — a
+    /// plain `let`, not `@State`.
+    private let kind: AlbumTextBlockKind
     // § user report — "không có con trỏ ... không biết viết gì ở đâu": auto-focusing the moment
     // this sheet appears means the keyboard is already up and the cursor already blinking, so
     // there's no ambiguity about where to type.
@@ -52,7 +67,7 @@ struct AlbumTextBlockEditSheet: View {
         target: AlbumTextBlockEditTarget,
         onSave: @escaping (
             _ text: String, _ horizontalAlignment: AlbumTextHorizontalAlignment, _ verticalAlignment: AlbumTextVerticalAlignment,
-            _ fontFamily: AlbumTextFontFamily, _ fontSize: Double, _ fontStyle: AlbumTextFontStyle
+            _ fontFamily: AlbumTextFontFamily, _ fontSize: Double, _ fontStyle: AlbumTextFontStyle, _ textColor: String
         ) -> Void,
         onCancel: @escaping () -> Void
     ) {
@@ -64,6 +79,8 @@ struct AlbumTextBlockEditSheet: View {
         _fontFamily = State(initialValue: target.currentFontFamily)
         _fontSize = State(initialValue: target.currentFontSize)
         _fontStyle = State(initialValue: target.currentFontStyle)
+        _textColor = State(initialValue: target.currentTextColor)
+        kind = target.currentKind
     }
 
     var body: some View {
@@ -74,30 +91,33 @@ struct AlbumTextBlockEditSheet: View {
             // what's obvious from the icons themselves (Preview/Content are the two exceptions
             // that stay recognizable purely from their own content/position, same reasoning).
             Form {
+                // § user report — "Phần chữ Preview không để trong nền trắng mà để nền xám như
+                // phần xung quanh": painting this row's own background the same gray as the
+                // Form's grouped background (instead of the default white row background) makes
+                // it blend into the surrounding page rather than reading as its own card.
                 Section {
                     previewBox
                 }
+                .listRowBackground(Color(.systemGroupedBackground))
 
                 Section {
                     textEditorField
                 }
 
-                // § "6 icon căn lề cho vào 1 hàng" — horizontal (3) + vertical (3) alignment now
-                // share one row instead of two stacked ones.
+                // § user report — "3 khối icon căn lề, font chữ và kiểu chữ cần đặt trong 1 card
+                // màu trắng, khoảng cách các khối cách nhau không quá xa": alignment, font family,
+                // and style+size used to be 3 separate `Section`s (3 separate white cards with a
+                // visible gap between each), which read as much farther apart than intended — one
+                // shared `Section` puts all three in a single card with only ordinary row spacing
+                // between them.
                 Section {
                     alignmentControls
-                }
-
-                // § "1 hàng có các loại font chữ" — the swipeable family strip, alone in its own
-                // row (no caption above it anymore).
-                Section {
                     fontFamilyStrip
-                }
-
-                // § "1 hàng cho kiểu chữ và cỡ chữ" — style (Regular/Italic/Bold/Underline) and
-                // size share one row instead of two stacked ones.
-                Section {
                     styleAndSizeRow
+                    // § user request — "còn cần chọn màu chữ": shares the same merged card as
+                    // alignment/font/style rather than its own `Section`, for the same "khoảng
+                    // cách các khối cách nhau không quá xa" reasoning.
+                    colorControl
                 }
             }
             .navigationTitle("album.textBlock.edit.title")
@@ -108,7 +128,7 @@ struct AlbumTextBlockEditSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("album.textBlock.edit.done") {
-                        onSave(text, horizontalAlignment, verticalAlignment, fontFamily, sanitizedFontSize, fontStyle)
+                        onSave(text, horizontalAlignment, verticalAlignment, fontFamily, sanitizedFontSize, fontStyle, textColor)
                     }
                     .fontWeight(.semibold)
                 }
@@ -126,8 +146,9 @@ struct AlbumTextBlockEditSheet: View {
     /// Reuses `albumTextFont` (the same function `AlbumTextBlockView` renders the real Page with)
     /// so this can never silently drift from what Done will actually produce.
     private var previewBox: some View {
-        Text(text.isEmpty ? localizedString("album.textBlock.placeholder", defaultValue: "Write here") : text)
+        Text(text.isEmpty ? kind.placeholderText : text)
             .font(albumTextFont(family: fontFamily, size: safeFontSize, style: fontStyle))
+            .foregroundStyle(Color(albumHex: textColor) ?? .primary)
             .multilineTextAlignment(textAlignment)
             .opacity(text.isEmpty ? 0.35 : 1)
             .lineLimit(3)
@@ -335,6 +356,25 @@ struct AlbumTextBlockEditSheet: View {
         .controlSize(.large)
         .imageScale(.large)
         .labelsHidden()
+    }
+
+    // MARK: - Color
+
+    /// § user request — "còn cần chọn màu chữ": a plain system `ColorPicker`, bound through
+    /// `colorBinding` so the model keeps storing the same `"#RRGGBB"` string shape every other
+    /// color field (`AlbumLayoutBackground.value`) already uses — this view never stores a `Color`
+    /// itself.
+    private var colorControl: some View {
+        ColorPicker(selection: colorBinding, supportsOpacity: false) {
+            Text("album.textBlock.edit.text_color")
+        }
+    }
+
+    private var colorBinding: Binding<Color> {
+        Binding(
+            get: { Color(albumHex: textColor) ?? .primary },
+            set: { textColor = $0.albumHexString }
+        )
     }
 
     /// § user report — the CoreGraphics "invalid numeric value (NaN...)" console warning: the same

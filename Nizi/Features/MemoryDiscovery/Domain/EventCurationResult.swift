@@ -18,6 +18,11 @@ struct EventCurationResult: Identifiable, Equatable {
     var updatedAt: Date
     var completedAt: Date?
     var sourceAssetCount: Int
+    /// Order-independent digest of the Event's asset membership at curation time — the real cache
+    /// identity (§ 9-11 of SPRINT-SMART-EVENT-HIGHLIGHTS.md). `sourceAssetCount` alone missed
+    /// "same count, different assets" (one photo swapped for another); kept around for
+    /// diagnostics/display, but no longer the sole signal cache validity checks.
+    var sourceAssetFingerprint: String = ""
     var errorMessage: String?
     var groups: [PhotoCurationGroup]
 

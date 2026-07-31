@@ -21,11 +21,6 @@ struct EventDiscoveryConfig: Equatable {
     // for the 3–8h ambiguous gap bucket, and as the spatial-cohesion reference distance.
     var moderateGapLocationSupportKm: Double = 20
 
-    // Session → candidate merging (not separately threshold-specified in SPEC; chosen to mean
-    // "an overnight gap, still roughly the same trip area")
-    var sessionMergeMaxGapHours: Double = 24
-    var sessionMergeMaxDistanceKm: Double = 100
-
     // Minimum event size (§10 "Minimum candidate")
     var minimumEventAssetCount: Int = 12
     var reducedMinimumEventAssetCount: Int = 6
@@ -36,6 +31,33 @@ struct EventDiscoveryConfig: Equatable {
 
     // Noise scoring (§10 "Noise")
     var largeBurstFractionThreshold: Double = 0.5
+
+    // Location clustering (SPRINT-SMART-EVENT-TRAVEL-DISCOVERY § 7) — library-wide, for Home/
+    // Familiar Place detection. Distinct from the per-session/per-event spatial rules above.
+    var locationClusterRadiusMeters: Double = 500
+
+    // Home detection (§ 8-11) — gated on distinct *days*, never asset count (§9's explicit
+    // warning: a photo-heavy vacation must never outscore a lightly-photographed long-term home).
+    var minimumHomeDistinctDays: Int = 5
+    var minimumFamiliarDistinctDays: Int = 3
+    var homeConfidenceThreshold: Double = 0.75
+    var homeConfidenceMediumThreshold: Double = 0.55
+    var homeConfidenceLowThreshold: Double = 0.35
+
+    // LocationContext (§ 13)
+    var localRadiusKm: Double = 20
+    var familiarPlaceRadiusMeters: Double = 500
+
+    // Event Boundary Evaluator (§ 14-22). `eventDurationThresholdPenaltyPerDay` is how the merge
+    // bar rises the longer an event has already run, in place of a separate `EventCohesion` score
+    // (§21/§22 — "merge threshold increases with event duration").
+    var eventBoundaryMergeThreshold: Double = 0.35
+    var eventDurationThresholdPenaltyPerDay: Double = 0.05
+    var hardBoundaryTimeGapHours: Double = 16
+    var hardBoundaryDistanceKm: Double = 100
+
+    // Trip Discovery (§ 25/§ 34)
+    var minimumTripTerminationGapHours: Double = 72
 
     var algorithmVersion: Int = 1
 

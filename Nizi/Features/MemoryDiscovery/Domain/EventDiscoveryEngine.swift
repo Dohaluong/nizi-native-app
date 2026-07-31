@@ -14,28 +14,56 @@ enum EventDiscoveryEngine {
     struct Result {
         let sessions: [PhotoSession]
         let events: [PhotoEvent]
+        /// Location Intelligence + Trip Discovery output (SPRINT-SMART-EVENT-TRAVEL-DISCOVERY).
+        /// `trips` are still unclassified (`.unknown`) here — country resolution needs
+        /// reverse-geocoding, done afterward at the Application layer.
+        let locationClusters: [LocationCluster]
+        let home: HomeAnchor?
+        let familiarPlaces: [FamiliarPlace]
+        let trips: [PhotoTrip]
     }
 
     static func discover(
         from assets: [IndexedAsset],
         config: EventDiscoveryConfig = .default,
+        boundaryEvaluator: EventBoundaryEvaluating? = nil,
+        tripDetector: TripDetecting = DefaultTripDiscoveryEngine(),
         now: Date = Date()
     ) -> Result {
+        let evaluator = boundaryEvaluator ?? DefaultEventBoundaryEvaluator(config: config)
+
         let sorted = assets.sorted { $0.creationDate < $1.creationDate }
-        guard !sorted.isEmpty else { return Result(sessions: [], events: []) }
+        guard !sorted.isEmpty else {
+            return Result(sessions: [], events: [], locationClusters: [], home: nil, familiarPlaces: [], trips: [])
+        }
 
         let assetsByID = Dictionary(uniqueKeysWithValues: sorted.map { ($0.id, $0) })
 
+        let locationIntelligence = LocationIntelligenceEngine.analyze(from: sorted, config: config)
+
         let temporalGroups = segmentByTime(sorted, config: config)
         let sessions = temporalGroups.map(buildSession)
-        let sessionGroups = groupSessionsForMerging(sessions, config: config)
+        let sessionGroups = groupSessionsForMerging(
+            sessions, config: config, evaluator: evaluator,
+            home: locationIntelligence.home, familiarPlaces: locationIntelligence.familiarPlaces
+        )
 
         let events = sessionGroups.compactMap { group -> PhotoEvent? in
             let groupAssets = group.flatMap(\.assetIDs).compactMap { assetsByID[$0] }
             return buildEvent(sessions: group, assets: groupAssets, config: config, now: now)
         }
 
-        return Result(sessions: sessions, events: events)
+        let trips = tripDetector.detectTrips(
+            events: events, sessions: sessions, home: locationIntelligence.home, config: config
+        )
+
+        return Result(
+            sessions: sessions, events: events,
+            locationClusters: locationIntelligence.clusters,
+            home: locationIntelligence.home,
+            familiarPlaces: locationIntelligence.familiarPlaces,
+            trips: trips
+        )
     }
 
     // MARK: - Temporal segmentation
@@ -133,9 +161,17 @@ enum EventDiscoveryEngine {
 
     // MARK: - Session merging into event groups
 
+    /// Boundary decision now comes from `EventBoundaryEvaluating` (SPRINT-SMART-EVENT-TRAVEL-
+    /// DISCOVERY § 14) instead of a flat gap+distance rule — same forward-scan loop shape as
+    /// before, just a different condition source. `currentEventDurationHours`/`SessionCount` in
+    /// the context track the group being built so far, feeding the evaluator's duration-scaled
+    /// merge threshold (§ 22).
     private static func groupSessionsForMerging(
         _ sessions: [PhotoSession],
-        config: EventDiscoveryConfig
+        config: EventDiscoveryConfig,
+        evaluator: EventBoundaryEvaluating,
+        home: HomeAnchor?,
+        familiarPlaces: [FamiliarPlace]
     ) -> [[PhotoSession]] {
         guard let first = sessions.first else { return [] }
         var groups: [[PhotoSession]] = []
@@ -143,17 +179,16 @@ enum EventDiscoveryEngine {
 
         for session in sessions.dropFirst() {
             let previous = current[current.count - 1]
-            let gapHours = session.startDate.timeIntervalSince(previous.endDate) / 3600
+            let groupStart = current[0].startDate
+            let context = EventBoundaryContext(
+                home: home,
+                familiarPlaces: familiarPlaces,
+                currentEventDurationHours: previous.endDate.timeIntervalSince(groupStart) / 3600,
+                currentEventSessionCount: current.count
+            )
+            let decision = evaluator.evaluate(previous: previous, next: session, context: context)
 
-            var shouldMerge = gapHours <= config.sessionMergeMaxGapHours
-            if shouldMerge,
-               let prevLat = previous.centerLatitude, let prevLon = previous.centerLongitude,
-               let lat = session.centerLatitude, let lon = session.centerLongitude {
-                let distanceKm = haversineDistanceKm(lat1: prevLat, lon1: prevLon, lat2: lat, lon2: lon)
-                shouldMerge = distanceKm <= config.sessionMergeMaxDistanceKm
-            }
-
-            if shouldMerge {
+            if decision.action == .merge {
                 current.append(session)
             } else {
                 groups.append(current)
@@ -211,6 +246,7 @@ enum EventDiscoveryEngine {
             eventType: classifyEventType(startDate: startDate, endDate: endDate),
             score: score,
             status: .new,
+            isLoved: false,
             sessionIDs: sessions.map(\.id),
             assetIDs: assets.map(\.id),
             coverAssetID: pickCoverAssetID(assets: assets),

@@ -20,9 +20,21 @@ final class MDEventCandidate {
     var startDate: Date
     var endDate: Date
     var primaryLocationLabel: String?
+    var placeLatitude: Double?
+    var placeLongitude: Double?
+    var placeSubLocality: String?
+    var placeLocality: String?
+    var placeSubAdministrativeArea: String?
+    var placeAdministrativeArea: String?
+    var placeCountry: String?
+    var placeCountryCode: String?
+    var placeDisplayName: String?
+    var placeResolutionState: String = EventPlaceResolutionState.unresolved.rawValue
+    var placeResolvedAt: Date?
     var eventType: String
     var score: Double
     var status: String
+    var isLoved: Bool = false
     var sessionIdentifiers: [UUID]
     var assetIdentifiers: [String]
     var coverAssetID: String?
@@ -38,9 +50,21 @@ final class MDEventCandidate {
         startDate = event.startDate
         endDate = event.endDate
         primaryLocationLabel = event.primaryLocationLabel
+        placeLatitude = event.eventPlace?.coordinate.latitude
+        placeLongitude = event.eventPlace?.coordinate.longitude
+        placeSubLocality = event.eventPlace?.subLocality
+        placeLocality = event.eventPlace?.locality
+        placeSubAdministrativeArea = event.eventPlace?.subAdministrativeArea
+        placeAdministrativeArea = event.eventPlace?.administrativeArea
+        placeCountry = event.eventPlace?.country
+        placeCountryCode = event.eventPlace?.countryCode
+        placeDisplayName = event.eventPlace?.displayName
+        placeResolutionState = event.placeResolutionState.rawValue
+        placeResolvedAt = event.eventPlace == nil ? nil : Date()
         eventType = event.eventType.rawValue
         score = event.score
         status = event.status.rawValue
+        isLoved = event.isLoved
         sessionIdentifiers = event.sessionIDs
         assetIdentifiers = event.assetIDs
         coverAssetID = event.coverAssetID
@@ -57,15 +81,30 @@ extension PhotoEvent {
         let reasons = zip(model.discoveryReasonKinds, model.discoveryReasonTexts).map { kind, text in
             DiscoveryReason(kind: DiscoveryReasonKind(rawValue: kind) ?? .assetCountOverDuration, text: text)
         }
+        let place: EventPlace?
+        if let latitude = model.placeLatitude,
+           let longitude = model.placeLongitude,
+           let coordinate = PhotoCoordinate(latitude: latitude, longitude: longitude) {
+            place = EventPlace(
+                coordinate: coordinate, subLocality: model.placeSubLocality, locality: model.placeLocality,
+                subAdministrativeArea: model.placeSubAdministrativeArea, administrativeArea: model.placeAdministrativeArea, country: model.placeCountry,
+                countryCode: model.placeCountryCode, displayName: model.placeDisplayName ?? ""
+            )
+        } else {
+            place = nil
+        }
         self.init(
             id: model.candidateID,
             titleSuggestion: model.titleSuggestion,
             startDate: model.startDate,
             endDate: model.endDate,
             primaryLocationLabel: model.primaryLocationLabel,
+            eventPlace: place,
+            placeResolutionState: EventPlaceResolutionState(rawValue: model.placeResolutionState) ?? .unresolved,
             eventType: EventType(rawValue: model.eventType) ?? .unknown,
             score: model.score,
             status: PhotoEventStatus(rawValue: model.status) ?? .new,
+            isLoved: model.isLoved,
             sessionIDs: model.sessionIdentifiers,
             assetIDs: model.assetIdentifiers,
             coverAssetID: model.coverAssetID,

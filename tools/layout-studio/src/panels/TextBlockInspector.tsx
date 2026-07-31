@@ -1,5 +1,6 @@
 import type { AlbumTextBlock } from "../domain/albumLayout";
 import {
+  ALBUM_TEXT_BLOCK_KINDS,
   ALBUM_TEXT_FONT_FAMILIES,
   ALBUM_TEXT_FONT_STYLES,
   ALBUM_TEXT_HORIZONTAL_ALIGNMENTS,
@@ -55,6 +56,21 @@ export function TextBlockInspector({ layoutKey, textBlock }: Props) {
           <input type="number" value={roundGeometry(textBlock.frame.height)} onChange={(e) => setFrameField("height", Number(e.target.value))} />
         </label>
       </div>
+
+      {/* § user request — "cho phép chọn kiểu: Title/Sub-title/Paragraph. Dùng để trang trí văn
+       * bản sau này": purely semantic for now (mirrors `SlotInspector`'s own `role` field) — not
+       * wired up to any automatic font/size/weight preset yet. */}
+      <label>
+        Kind
+        <select
+          value={textBlock.kind}
+          onChange={(e) => updateTextBlock(layoutKey, textBlock.id, { kind: e.target.value as AlbumTextBlock["kind"] })}
+        >
+          {ALBUM_TEXT_BLOCK_KINDS.map((kind) => (
+            <option key={kind} value={kind}>{kind}</option>
+          ))}
+        </select>
+      </label>
 
       <label>
         Horizontal alignment
@@ -120,6 +136,16 @@ export function TextBlockInspector({ layoutKey, textBlock }: Props) {
             <option key={style} value={style}>{style}</option>
           ))}
         </select>
+      </label>
+
+      {/* § user request — "còn cần chọn màu chữ" */}
+      <label>
+        Text color
+        <input
+          type="color"
+          value={textBlock.textColor}
+          onChange={(e) => updateTextBlock(layoutKey, textBlock.id, { textColor: e.target.value })}
+        />
       </label>
 
       <div className="inspector-actions">

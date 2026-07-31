@@ -32,7 +32,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.1.inset",
@@ -65,7 +66,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.1.landscape-center",
@@ -98,7 +100,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.2.vertical-split",
@@ -145,7 +148,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.2.horizontal-split",
@@ -192,7 +196,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.2.hero-top",
@@ -238,6 +243,23 @@
           },
           "contentMode": "fill",
           "cornerRadius": 0
+        }
+      ],
+      "textBlocks": [
+        {
+          "id": "text-1",
+          "order": 0,
+          "frame": {
+            "x": 620,
+            "y": 680,
+            "width": 360,
+            "height": 300
+          },
+          "horizontalAlignment": "center",
+          "verticalAlignment": "center",
+          "fontFamily": "System",
+          "fontSize": 24,
+          "fontWeight": "regular"
         }
       ]
     },
@@ -300,7 +322,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.3.hero-left",
@@ -361,7 +384,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.3.equal-columns",
@@ -422,7 +446,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.4.grid",
@@ -497,7 +522,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.4.hero-top",
@@ -572,7 +598,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.4.hero-left",
@@ -647,7 +674,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.1.untitled",
@@ -694,7 +722,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.1.dai",
@@ -727,7 +756,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.1.untitled-1785378779586",
@@ -774,7 +804,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.2.caotren",
@@ -821,7 +852,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.2.ngangcan",
@@ -868,7 +900,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.1.2vuong1dai",
@@ -929,7 +962,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.1.untitled-1785378779586-copy-copy",
@@ -976,7 +1010,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.1.daifull",
@@ -1009,7 +1044,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.4.cao",
@@ -1084,7 +1120,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.4.grid-vienmong",
@@ -1159,7 +1196,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.4.grid-fullvien",
@@ -1234,7 +1272,8 @@
           "contentMode": "fill",
           "cornerRadius": 0
         }
-      ]
+      ],
+      "textBlocks": []
     },
     {
       "id": "square.4.2ngang2doc",
@@ -1308,6 +1347,1140 @@
           },
           "contentMode": "fill",
           "cornerRadius": 0
+        }
+      ],
+      "textBlocks": []
+    },
+    {
+      "id": "square.3.ngangvienmong",
+      "name": "Hero Top Copy",
+      "nameKey": "album.layout.square.3.hero_top",
+      "photoCount": 3,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 20,
+            "y": 19.375,
+            "width": 960,
+            "height": 600
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 20,
+            "y": 640,
+            "width": 470,
+            "height": 340
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-3",
+          "order": 2,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 510,
+            "y": 640,
+            "width": 470,
+            "height": 340
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": []
+    },
+    {
+      "id": "square.3.ngangvienmong-1vuong",
+      "name": "Hero Top Copy Copy",
+      "nameKey": "album.layout.square.3.hero_top",
+      "photoCount": 3,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 20,
+            "y": 19.375,
+            "width": 960,
+            "height": 600
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 20,
+            "y": 640,
+            "width": 600,
+            "height": 340
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-3",
+          "order": 2,
+          "role": "supporting",
+          "preferredOrientation": "square",
+          "frame": {
+            "x": 640,
+            "y": 640,
+            "width": 340,
+            "height": 340
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": []
+    },
+    {
+      "id": "square.41ngang2doc1vuong",
+      "name": "Grid Copy Copy Copy",
+      "nameKey": "album.layout.square.4.grid",
+      "photoCount": 4,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "supporting",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 20,
+            "y": 20,
+            "width": 470,
+            "height": 600
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 510,
+            "y": 20,
+            "width": 470,
+            "height": 600
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-3",
+          "order": 2,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 20,
+            "y": 640,
+            "width": 600,
+            "height": 340
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-4",
+          "order": 3,
+          "role": "supporting",
+          "preferredOrientation": "square",
+          "frame": {
+            "x": 640,
+            "y": 640,
+            "width": 340,
+            "height": 340
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": []
+    },
+    {
+      "id": "square.1.2doc1ngang",
+      "name": "square.1.untitled-1785378779586 Copy Copy",
+      "nameKey": "album.layout.square_1_untitled-1785378779586",
+      "photoCount": 3,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 20,
+            "y": 610,
+            "width": 680,
+            "height": 370
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "any",
+          "frame": {
+            "x": 20,
+            "y": 20,
+            "width": 470,
+            "height": 570
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-3",
+          "order": 2,
+          "role": "supporting",
+          "preferredOrientation": "any",
+          "frame": {
+            "x": 510,
+            "y": 20,
+            "width": 470,
+            "height": 570
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": []
+    },
+    {
+      "id": "square.1.landscape-full",
+      "name": "Landscape Center Copy",
+      "nameKey": "album.layout.square.1.landscape_center",
+      "photoCount": 1,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 0,
+            "y": 150,
+            "width": 1000,
+            "height": 700
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": []
+    },
+    {
+      "id": "square.1.landscape-vienmong",
+      "name": "Landscape Center Copy Copy",
+      "nameKey": "album.layout.square.1.landscape_center",
+      "photoCount": 1,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 20,
+            "y": 150,
+            "width": 960,
+            "height": 700
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": []
+    },
+    {
+      "id": "square.1.landscape-full-top",
+      "name": "Landscape Center Copy Copy",
+      "nameKey": "album.layout.square.1.landscape_center",
+      "photoCount": 1,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 1000,
+            "height": 750
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": [
+        {
+          "id": "text-1",
+          "order": 0,
+          "frame": {
+            "x": 20,
+            "y": 770,
+            "width": 960,
+            "height": 210
+          },
+          "horizontalAlignment": "center",
+          "verticalAlignment": "center",
+          "fontFamily": "Noteworthy",
+          "fontSize": 48,
+          "fontWeight": "regular"
+        }
+      ]
+    },
+    {
+      "id": "square.1.landscape-full-bottom",
+      "name": "Landscape Center Copy Copy Copy",
+      "nameKey": "album.layout.square.1.landscape_center",
+      "photoCount": 1,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 0,
+            "y": 350,
+            "width": 1000,
+            "height": 650
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": []
+    },
+    {
+      "id": "square.1.inset-vienmong",
+      "name": "Inset Copy",
+      "nameKey": "album.layout.square.1.inset",
+      "photoCount": 1,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "square",
+          "frame": {
+            "x": 20,
+            "y": 20,
+            "width": 960,
+            "height": 960
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": []
+    },
+    {
+      "id": "square.1.3ngang",
+      "name": "square.1.untitled-1785378779586 Copy Copy Copy",
+      "nameKey": "album.layout.square_1_untitled-1785378779586",
+      "photoCount": 3,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 20,
+            "y": 380,
+            "width": 960,
+            "height": 600
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 20,
+            "y": 20,
+            "width": 470,
+            "height": 340
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-3",
+          "order": 2,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 510,
+            "y": 20,
+            "width": 470,
+            "height": 340
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": []
+    },
+    {
+      "id": "square.1.2doc1ngang-2",
+      "name": "square.1.untitled-1785378779586 Copy Copy",
+      "nameKey": "album.layout.square_1_untitled-1785378779586",
+      "photoCount": 3,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 150,
+            "y": 510,
+            "width": 700,
+            "height": 470
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "any",
+          "frame": {
+            "x": 150,
+            "y": 20,
+            "width": 340,
+            "height": 470
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-3",
+          "order": 2,
+          "role": "supporting",
+          "preferredOrientation": "any",
+          "frame": {
+            "x": 510,
+            "y": 20,
+            "width": 340,
+            "height": 470
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": []
+    },
+    {
+      "id": "square.4.ngang-vienmong",
+      "name": "Grid Copy Copy",
+      "nameKey": "album.layout.square.4.grid",
+      "photoCount": 4,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 20,
+            "y": 150,
+            "width": 470,
+            "height": 340
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 510,
+            "y": 150,
+            "width": 470,
+            "height": 340
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-3",
+          "order": 2,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 20,
+            "y": 510,
+            "width": 470,
+            "height": 340
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-4",
+          "order": 3,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 510,
+            "y": 510,
+            "width": 470,
+            "height": 340
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": []
+    },
+    {
+      "id": "portrait.1.nh-d-c",
+      "name": "portrait.1.nh-d-c",
+      "nameKey": "album.layout.portrait_1_nh-d-c",
+      "photoCount": 1,
+      "supportedFormats": [
+        "portrait"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1400
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 1000,
+            "height": 1400
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": []
+    },
+    {
+      "id": "square.2.doc.text",
+      "name": "square.1.untitled Copy",
+      "nameKey": "album.layout.square_1_untitled",
+      "photoCount": 2,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 20,
+            "y": 20,
+            "width": 470,
+            "height": 680
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 510,
+            "y": 20,
+            "width": 470,
+            "height": 680
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": [
+        {
+          "id": "text-1",
+          "order": 0,
+          "frame": {
+            "x": 20,
+            "y": 720,
+            "width": 960,
+            "height": 260
+          },
+          "horizontalAlignment": "center",
+          "verticalAlignment": "center",
+          "fontFamily": "System",
+          "fontSize": 36,
+          "fontWeight": "regular"
+        }
+      ]
+    },
+    {
+      "id": "square.2.ngang.text",
+      "name": "square.1.untitled-1785378779586 Copy Copy",
+      "nameKey": "album.layout.square_1_untitled-1785378779586",
+      "photoCount": 2,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 20,
+            "y": 20,
+            "width": 630,
+            "height": 470
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 20,
+            "y": 510,
+            "width": 630,
+            "height": 470
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": [
+        {
+          "id": "text-1",
+          "order": 0,
+          "frame": {
+            "x": 670,
+            "y": 20,
+            "width": 310,
+            "height": 960
+          },
+          "horizontalAlignment": "center",
+          "verticalAlignment": "center",
+          "fontFamily": "System",
+          "fontSize": 36,
+          "fontWeight": "regular"
+        }
+      ]
+    },
+    {
+      "id": "square.1.doc.text",
+      "name": "Inset Copy",
+      "nameKey": "album.layout.square.1.inset",
+      "photoCount": 1,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "portrait",
+          "frame": {
+            "x": 60,
+            "y": 60,
+            "width": 580,
+            "height": 880
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": [
+        {
+          "id": "text-1",
+          "order": 0,
+          "frame": {
+            "x": 660,
+            "y": 60,
+            "width": 280,
+            "height": 880
+          },
+          "horizontalAlignment": "center",
+          "verticalAlignment": "center",
+          "fontFamily": "System",
+          "fontSize": 36,
+          "fontWeight": "regular"
+        }
+      ]
+    },
+    {
+      "id": "square.2doc.1ngang.text",
+      "name": "square.1.untitled-1785378779586 Copy Copy Copy",
+      "nameKey": "album.layout.square_1_untitled-1785378779586",
+      "photoCount": 3,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "landscape",
+          "frame": {
+            "x": 20,
+            "y": 610,
+            "width": 570,
+            "height": 370
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-2",
+          "order": 1,
+          "role": "supporting",
+          "preferredOrientation": "any",
+          "frame": {
+            "x": 20,
+            "y": 20,
+            "width": 470,
+            "height": 570
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        },
+        {
+          "id": "photo-3",
+          "order": 2,
+          "role": "supporting",
+          "preferredOrientation": "any",
+          "frame": {
+            "x": 510,
+            "y": 20,
+            "width": 470,
+            "height": 570
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": [
+        {
+          "id": "text-1",
+          "order": 0,
+          "frame": {
+            "x": 610,
+            "y": 610,
+            "width": 370,
+            "height": 370
+          },
+          "horizontalAlignment": "center",
+          "verticalAlignment": "center",
+          "fontFamily": "System",
+          "fontSize": 36,
+          "fontWeight": "regular"
+        }
+      ]
+    },
+    {
+      "id": "square.1.vuong.text-copy",
+      "name": "Inset Copy Copy",
+      "nameKey": "album.layout.square.1.inset",
+      "photoCount": 1,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "square",
+          "frame": {
+            "x": 60,
+            "y": 210,
+            "width": 580,
+            "height": 580
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": [
+        {
+          "id": "text-1",
+          "order": 0,
+          "frame": {
+            "x": 660,
+            "y": 210,
+            "width": 280,
+            "height": 580
+          },
+          "horizontalAlignment": "center",
+          "verticalAlignment": "center",
+          "fontFamily": "System",
+          "fontSize": 36,
+          "fontWeight": "regular"
+        }
+      ]
+    },
+    {
+      "id": "square.1.cover",
+      "name": "Full Bleed Copy",
+      "nameKey": "album.layout.square.1.full_bleed",
+      "photoCount": 1,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "square",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 1000,
+            "height": 1000
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0,
+          "gradientOverlay": {
+            "edge": "bottom",
+            "extentPercent": 30,
+            "opacity": 0.6
+          }
+        }
+      ],
+      "textBlocks": [
+        {
+          "id": "text-1-copy",
+          "order": 0,
+          "frame": {
+            "x": 40,
+            "y": 850,
+            "width": 940,
+            "height": 60
+          },
+          "horizontalAlignment": "left",
+          "verticalAlignment": "center",
+          "fontFamily": "System",
+          "fontSize": 31.749951493129664,
+          "fontWeight": "bold",
+          "textColor": "#ffffff",
+          "fontStyle": "bold",
+          "kind": "subtitle"
+        },
+        {
+          "id": "text-1-copy-copy",
+          "order": 1,
+          "frame": {
+            "x": 40,
+            "y": 910,
+            "width": 940,
+            "height": 60
+          },
+          "horizontalAlignment": "left",
+          "verticalAlignment": "center",
+          "fontFamily": "System",
+          "fontSize": 31.749951493129664,
+          "fontWeight": "bold",
+          "textColor": "#ffffff",
+          "fontStyle": "regular",
+          "kind": "paragraph"
+        },
+        {
+          "id": "text-4",
+          "order": 2,
+          "frame": {
+            "x": 40,
+            "y": 760,
+            "width": 940,
+            "height": 90
+          },
+          "horizontalAlignment": "left",
+          "verticalAlignment": "center",
+          "fontFamily": "System",
+          "fontSize": 56.44435821000829,
+          "fontStyle": "bold",
+          "textColor": "#ffffff",
+          "kind": "title"
+        }
+      ]
+    },
+    {
+      "id": "square.1.full-bleed-text",
+      "name": "Full Bleed Copy",
+      "nameKey": "album.layout.square.1.full_bleed",
+      "photoCount": 1,
+      "supportedFormats": [
+        "square"
+      ],
+      "referenceCanvas": {
+        "width": 1000,
+        "height": 1000
+      },
+      "background": {
+        "type": "solid",
+        "value": "#FFFFFF"
+      },
+      "slots": [
+        {
+          "id": "photo-1",
+          "order": 0,
+          "role": "hero",
+          "preferredOrientation": "square",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 1000,
+            "height": 1000
+          },
+          "contentMode": "fill",
+          "cornerRadius": 0
+        }
+      ],
+      "textBlocks": [
+        {
+          "id": "text-1",
+          "order": 0,
+          "frame": {
+            "x": 100,
+            "y": 770,
+            "width": 800,
+            "height": 200
+          },
+          "horizontalAlignment": "center",
+          "verticalAlignment": "center",
+          "fontFamily": "System",
+          "fontSize": 48,
+          "fontStyle": "regular",
+          "textColor": "#000000",
+          "kind": "paragraph"
         }
       ]
     }

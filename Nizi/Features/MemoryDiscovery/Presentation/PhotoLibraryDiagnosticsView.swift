@@ -76,6 +76,11 @@ struct PhotoLibraryDiagnosticsView: View {
                 }
                 .disabled(status != .full && status != .limited)
 
+                NavigationLink("Curation Diagnostics") {
+                    CurationDiagnosticsListView()
+                }
+                .disabled(status != .full && status != .limited)
+
                 NavigationLink("Photo Location Diagnostics") {
                     PhotoLocationDiagnosticsView()
                 }
@@ -83,6 +88,21 @@ struct PhotoLibraryDiagnosticsView: View {
 
                 NavigationLink("Real Album Photo Diagnostics") {
                     RealAlbumPhotoDiagnosticsView()
+                }
+                .disabled(status != .full && status != .limited)
+
+                NavigationLink("Home Detection") {
+                    HomeDetectionDiagnosticsView()
+                }
+                .disabled(status != .full && status != .limited)
+
+                NavigationLink("Event Boundary") {
+                    EventBoundaryDiagnosticsView()
+                }
+                .disabled(status != .full && status != .limited)
+
+                NavigationLink("Detected Trips") {
+                    TripDiscoveryDiagnosticsView()
                 }
                 .disabled(status != .full && status != .limited)
             }

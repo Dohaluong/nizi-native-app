@@ -1,10 +1,41 @@
 import { forwardRef, useEffect, useState } from "react";
 import Konva from "konva";
 import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
-import type { AlbumLayoutSlot, AlbumReferenceCanvas } from "../domain/albumLayout";
+import type { AlbumLayoutSlot, AlbumReferenceCanvas, AlbumSlotGradientOverlay } from "../domain/albumLayout";
 import { frameToPixels } from "../services/normalizeGeometry";
 import type { PreviewPhoto } from "../preview/LocalPhotoProvider";
 import { orientationBadgeLetter } from "../components/OrientationBadge";
+
+/** § user request — "phần ảnh cho phép chọn option gradient đen trong suốt, mục đích làm nền cho
+ * chữ. Cho phép tuỳ chọn gradien từ trái phải trên dưới, độ % gradient ... Có thêm opacity của
+ * gradien nữa": mirrors `AlbumPhotoSlotView.swift`'s own `gradientStops`/edge math exactly — Konva
+ * just wants pixel start/end points (establishing the gradient's own axis) plus a flat
+ * `[fraction, color, fraction, color, ...]` stop list, rather than SwiftUI's `UnitPoint`/
+ * `Gradient.Stop` types. */
+function gradientLinePoints(overlay: AlbumSlotGradientOverlay, width: number, height: number) {
+  switch (overlay.edge) {
+    case "top":
+    case "bottom":
+      return { start: { x: 0, y: 0 }, end: { x: 0, y: height } };
+    case "left":
+    case "right":
+      return { start: { x: 0, y: 0 }, end: { x: width, y: 0 } };
+  }
+}
+
+function gradientColorStops(overlay: AlbumSlotGradientOverlay): (number | string)[] {
+  const extent = Math.min(Math.max(overlay.extentPercent / 100, 0), 1);
+  const dark = `rgba(0, 0, 0, ${Math.min(Math.max(overlay.opacity, 0), 1)})`;
+  const clear = "rgba(0, 0, 0, 0)";
+  switch (overlay.edge) {
+    case "top":
+    case "left":
+      return [0, dark, extent, clear, 1, clear];
+    case "bottom":
+    case "right":
+      return [0, clear, 1 - extent, clear, 1, dark];
+  }
+}
 
 /** Loads a plain `HTMLImageElement` from a blob URL for `<Image>` (react-konva doesn't ship its
  * own image-loading hook, and the spec's dependency list (§ 3) doesn't include the common
@@ -46,6 +77,7 @@ export const LayoutSlot = forwardRef<Konva.Group, Props>(function LayoutSlot(
   const pixels = frameToPixels(slot.frame, canvas, stagePixelSize);
   const image = useHtmlImage(previewPhoto?.url);
   const cornerRadiusPx = (slot.cornerRadius / canvas.width) * stagePixelSize.width;
+  const gradientLine = slot.gradientOverlay ? gradientLinePoints(slot.gradientOverlay, pixels.width, pixels.height) : null;
 
   // `contentMode: "fill"` (cover) vs `"fit"` (contain) — the same crop-vs-letterbox distinction
   // AlbumSlotContentMode.swift documents, computed against the slot's own pixel size so a
@@ -97,6 +129,17 @@ export const LayoutSlot = forwardRef<Konva.Group, Props>(function LayoutSlot(
         >
           <KonvaImage image={image} x={imageDraw.x} y={imageDraw.y} width={imageDraw.width} height={imageDraw.height} />
         </Group>
+      )}
+      {slot.gradientOverlay && gradientLine && (
+        <Rect
+          width={pixels.width}
+          height={pixels.height}
+          cornerRadius={cornerRadiusPx}
+          listening={false}
+          fillLinearGradientStartPoint={gradientLine.start}
+          fillLinearGradientEndPoint={gradientLine.end}
+          fillLinearGradientColorStops={gradientColorStops(slot.gradientOverlay)}
+        />
       )}
       <Rect
         width={pixels.width}

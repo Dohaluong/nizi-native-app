@@ -25,6 +25,10 @@ struct AlbumTextAssignment: Identifiable, Codable, Hashable {
     var fontFamily: AlbumTextFontFamily
     var fontSize: Double
     var fontStyle: AlbumTextFontStyle
+    /// § user request — "còn cần chọn màu chữ": mirrors `AlbumTextBlock.textColor` exactly — the
+    /// layout's own default is only the *starting point* a fresh assignment is seeded with; a real
+    /// Album's text-edit screen can then change it per-Page.
+    var textColor: String
 
     init(
         id: String, textBlockId: String, text: String,
@@ -32,7 +36,8 @@ struct AlbumTextAssignment: Identifiable, Codable, Hashable {
         verticalAlignment: AlbumTextVerticalAlignment = .center,
         fontFamily: AlbumTextFontFamily = .system,
         fontSize: Double = 32,
-        fontStyle: AlbumTextFontStyle = .regular
+        fontStyle: AlbumTextFontStyle = .regular,
+        textColor: String = "#000000"
     ) {
         self.id = id
         self.textBlockId = textBlockId
@@ -42,10 +47,11 @@ struct AlbumTextAssignment: Identifiable, Codable, Hashable {
         self.fontFamily = fontFamily
         self.fontSize = fontSize
         self.fontStyle = fontStyle
+        self.textColor = textColor
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, textBlockId, text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontStyle
+        case id, textBlockId, text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontStyle, textColor
     }
 
     /// § backward compatibility — an assignment encoded before the style fields existed (this
@@ -68,6 +74,7 @@ struct AlbumTextAssignment: Identifiable, Codable, Hashable {
         // recognized value (e.g. a stale `"boldItalic"`, valid while that case briefly existed) —
         // see `AlbumTextFontStyle.init(legacyRawValue:)`'s own doc comment.
         fontStyle = (try container.decodeIfPresent(String.self, forKey: .fontStyle)).map(AlbumTextFontStyle.init(legacyRawValue:)) ?? .regular
+        textColor = try container.decodeIfPresent(String.self, forKey: .textColor) ?? "#000000"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -80,5 +87,6 @@ struct AlbumTextAssignment: Identifiable, Codable, Hashable {
         try container.encode(fontFamily, forKey: .fontFamily)
         try container.encode(fontSize, forKey: .fontSize)
         try container.encode(fontStyle, forKey: .fontStyle)
+        try container.encode(textColor, forKey: .textColor)
     }
 }

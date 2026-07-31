@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Photos
+import UIKit
 
 /// Production Album Detail — a direct port of `AlbumDetailDesignPreview.swift`'s design (same
 /// colors, backgrounds, paddings, fonts throughout) wired to real data: a real cover photo, and
@@ -26,6 +27,11 @@ struct AlbumDetailView: View {
     @State private var isEditingInfo = false
     @State private var showDeleteConfirmation = false
     @State private var isDeleting = false
+    @State private var pagesScrollOffset: CGFloat = 0
+
+    private static let backToTopThreshold: CGFloat = 700
+    private static let backSwipeEdgeWidth: CGFloat = 28
+    private static let backSwipeDistance: CGFloat = 80
 
     private let itemBuilder: AlbumViewerItemBuilding = DefaultAlbumViewerItemBuilder()
     private let layoutRepository: AlbumLayoutRepository = BundleAlbumLayoutRepository()
@@ -114,9 +120,10 @@ struct AlbumDetailView: View {
     /// "Hide from Album" (from `AlbumPhotoPreviewView`'s "..." menu) — removes just this one
     /// photo's assignment from its Page via the same `AlbumEditAction.removePhoto` the full Page
     /// editor's own "Remove Photo" tool uses (`AlbumPageViewer.swift`), never touching the Photos
-    /// library. Returns `false` on `cannotRemoveLastPhotoOnPage` (surfaced by the preview as its
-    /// own alert) or any other failure (logged, not surfaced — matches `deleteAlbum()`'s own
-    /// quiet-log convention below for infrequent, hard-to-explain-in-one-line errors).
+    /// library. Removing a Page's last photo now succeeds (it becomes a blank placeholder, § user
+    /// request "xoá hết ảnh"), so `false` here is only a genuine failure — surfaced by the preview
+    /// as its own generic alert, logged here too (matches `deleteAlbum()`'s own quiet-log
+    /// convention below for infrequent, hard-to-explain-in-one-line errors).
     private func hidePhoto(pageId: String, slotId: String) async -> Bool {
         do {
             let updated = try await editActionApplier.apply(.removePhoto(pageId: pageId, slotId: slotId), to: draft)
@@ -154,30 +161,71 @@ struct AlbumDetailView: View {
         // on both — see `TARGETED_DEVICE_FAMILY`/`INFOPLIST_KEY_UISupportedInterfaceOrientations*`
         // in the project settings).
         GeometryReader { proxy in
-            ScrollView {
-                VStack(spacing: 0) {
-                    heroCover
-                    albumIntroduction
-                    albumPagesSection(width: proxy.size.width)
-                }
-                // Hard-clamped to the real available width. `ScrollView` only constrains its
-                // content on the scrolling (vertical) axis — on the cross (horizontal) axis it
-                // lets content be as wide as content *wants* to be. Some Album's "Story" text (a
-                // long place name + counts, via `.fixedSize(horizontal: false, vertical: true)`)
-                // could report an ideal width wider than the screen instead of wrapping, and once
-                // any one descendant does that, the whole column — Hero, the Pages carousel,
-                // everything — inherits that wider width, which is what "images/text flush
-                // against the screen edges" actually was: the whole page was rendering wider than
-                // the device, not that padding stopped working. An absolute `.frame(width:)` here
-                // makes that structurally impossible — nothing below this point can ever push the
-                // page wider than the real available width again.
-                .frame(width: proxy.size.width)
+            // A UIKit control is used for Back to Top: it receives the touch independently of
+            // SwiftUI's `ScrollView` gesture system and directly cancels any current deceleration
+            // before changing the offset. A SwiftUI Button in this layer could still have its
+            // first tap consumed solely to stop the scroll's momentum.
+            ZStack(alignment: .bottomTrailing) {
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            heroCover
+                            albumIntroduction
+                            albumPagesSection(width: proxy.size.width)
+                        }
+                        // Hard-clamped to the real available width. `ScrollView` only constrains its
+                        // content on the scrolling (vertical) axis — on the cross (horizontal) axis it
+                        // lets content be as wide as content *wants* to be. Some Album's "Story" text (a
+                        // long place name + counts, via `.fixedSize(horizontal: false, vertical: true)`)
+                        // could report an ideal width wider than the screen instead of wrapping, and once
+                        // any one descendant does that, the whole column — Hero, the Pages carousel,
+                        // everything — inherits that wider width, which is what "images/text flush
+                        // against the screen edges" actually was: the whole page was rendering wider than
+                        // the device, not that padding stopped working. An absolute `.frame(width:)` here
+                        // makes that structurally impossible — nothing below this point can ever push the
+                        // page wider than the real available width again.
+                        .frame(width: proxy.size.width)
+                    }
+                    .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                        geometry.contentOffset.y
+                    } action: { _, newValue in
+                        pagesScrollOffset = newValue
+                    }
+
+                    // § user request — "Tôi còn cần một nút tròn mũi tên đi lên. Khi qua trang thứ
+                    // 2 sẽ hiện nút để Back to Top nhanh hơn": there's no cheap way to know "exactly
+                    // past Page 2's own frame" from here (Pages are `LazyVStack`, so most of them
+                    // are never even measured until they scroll into view) — `backToTopThreshold`
+                    // is a fixed scroll-distance stand-in instead (roughly hero + intro + one full
+                    // Page card), the same "good enough" approximation most apps' own back-to-top
+                    // affordances use rather than tracking every row's exact on-screen position.
+                    if pagesScrollOffset > Self.backToTopThreshold {
+                        backToTopButton()
+                            .zIndex(1)
+                    }
             }
         }
         .background(Color(.systemGroupedBackground))
         .ignoresSafeArea(edges: .top)
         .toolbar(.hidden, for: .navigationBar)
         .environment(\.albumPhotoProvider, ApplePhotosAlbumPhotoProvider())
+        // The Album can be either a pushed NavigationStack destination or the root of a
+        // full-screen cover. `dismiss()` is the correct back operation in both cases, whereas
+        // UIKit's built-in interactive-pop gesture only exists in the first case. Keeping this
+        // gesture simultaneous means the vertical Album scroll continues to behave normally.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 12)
+                .onEnded { value in
+                    let horizontalDistance = value.translation.width
+                    let verticalDistance = value.translation.height
+                    guard
+                        value.startLocation.x <= Self.backSwipeEdgeWidth,
+                        horizontalDistance >= Self.backSwipeDistance,
+                        abs(horizontalDistance) > abs(verticalDistance)
+                    else { return }
+                    dismiss()
+                },
+            including: .all
+        )
         .fullScreenCover(item: $editTarget) { target in
             AlbumPageViewer(draft: draft, startInEditMode: true, initialItemId: target.itemId) { updated in
                 draft = updated
@@ -282,7 +330,7 @@ struct AlbumDetailView: View {
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 42, height: 42)
-                .background(.ultraThinMaterial, in: Circle())
+                .background(Color.black.opacity(0.55), in: Circle())
         }
         .disabled(isDeleting)
     }
@@ -335,9 +383,17 @@ struct AlbumDetailView: View {
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 42, height: 42)
-                .background(.ultraThinMaterial, in: Circle())
+                .background(Color.black.opacity(0.55), in: Circle())
         }
         .buttonStyle(.plain)
+    }
+
+    private func backToTopButton() -> some View {
+        AlbumBackToTopControl()
+            .frame(width: 46, height: 46)
+        .padding(.trailing, 20)
+        .padding(.bottom, 30)
+        .transition(.opacity.combined(with: .scale(scale: 0.7)))
     }
 
     // MARK: - Introduction
@@ -388,6 +444,8 @@ struct AlbumDetailView: View {
         VStack(alignment: .leading, spacing: 18) {
             pageSectionHeader
             pagesColumn(width: width)
+            addPageButton
+                .padding(.horizontal, 20)
         }
         .padding(.top, 26)
         .padding(.bottom, 48)
@@ -432,6 +490,33 @@ struct AlbumDetailView: View {
         .frame(width: width, alignment: .leading)
     }
 
+    /// § user request — "Ngoài Album ở trang cuối cùng có 1 nút: Thêm trang. Khi thêm sẽ tạo ra 1
+    /// trang trắng": appends one blank Page and persists right away — same direct-commit posture
+    /// `hidePhoto`/photo replace above already take, no separate edit session involved (there's
+    /// nothing to review/undo before saving; the new Page starts out empty either way).
+    private var addPageButton: some View {
+        Button {
+            Task { await addBlankPage() }
+        } label: {
+            Label("album.addPage", systemImage: "plus.square.dashed")
+                .font(.system(size: 15, weight: .semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+        }
+        .buttonStyle(.bordered)
+        .tint(.gray)
+    }
+
+    private func addBlankPage() async {
+        do {
+            let updated = try await editActionApplier.apply(.addBlankPage, to: draft)
+            draft = updated
+            await onUpdate(updated)
+        } catch {
+            NiziLogger.discovery.error("album_add_blank_page_failed error=\(String(describing: error), privacy: .public)")
+        }
+    }
+
     // The page number and its own edit pencil sit *above* that Page's content, not overlaid on
     // top of it — same item, same VStack, so they scroll together as one unit.
     @ViewBuilder
@@ -445,9 +530,9 @@ struct AlbumDetailView: View {
                 Button {
                     editTarget = EditTarget(itemId: item.id)
                 } label: {
-                    Image(systemName: "pencil.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(Color.accentColor)
+                    Image(systemName: "square.grid.2x2")
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundStyle(Color.gray)
                 }
                 .buttonStyle(.plain)
             }
@@ -455,15 +540,33 @@ struct AlbumDetailView: View {
         }
     }
 
+    // § user request — "trang bìa sẽ có cấu trúc như trang ruột ... Layout (square.1.cover) là
+    // ảnh tràn viền nhưng chi tiết bìa lại có viền? điều này không đúng": the old `AlbumCoverView`
+    // drew its own bespoke chrome (an 18pt-radius rounded rect + a visible stroke overlay +
+    // shadow) regardless of the layout's own `cornerRadius` (0 — full-bleed) — that mismatch is
+    // exactly the "viền" (border) the Cover shouldn't have here. Rendering it through the same
+    // `AlbumPageCardView` every content Page already uses (via `AlbumCoverPageBuilder`, shared
+    // with `AlbumPageViewer`) makes it pick up the real layout's own corner radius/gradient
+    // instead, and look identical to every other Page's card styling. `AlbumCoverConfiguration`
+    // itself is unchanged and still used just above for `heroEyebrow`/`overviewText`.
     @ViewBuilder
     private func pagerContent(_ item: AlbumViewerItem) -> some View {
         switch item {
-        case let .cover(configuration):
-            AlbumCoverView(configuration: configuration)
-        case let .page(viewerPage):
-            AlbumPageCardView(viewerPage: viewerPage, layoutRepository: layoutRepository) { assignment in
-                openPhotoPreview(for: assignment, on: viewerPage)
+        case .cover:
+            let coverViewerPage = AlbumCoverPageBuilder.makeViewerPage(from: draft, layoutRepository: layoutRepository)
+            AlbumPageCardView(viewerPage: coverViewerPage, layoutRepository: layoutRepository) { assignment in
+                openPhotoPreview(for: assignment, on: coverViewerPage)
             }
+        case let .page(viewerPage):
+            AlbumPageCardView(
+                viewerPage: viewerPage, layoutRepository: layoutRepository,
+                onTapPhoto: { assignment in openPhotoPreview(for: assignment, on: viewerPage) },
+                // § user request — "Thêm trang ... Click vào có thể thêm ảnh sau": this read-only
+                // screen has no picker sheet of its own, so tapping a blank Page here just opens
+                // the full editor at that Page (same as its own pencil/grid button below) — adding
+                // the actual photo happens inside `AlbumPageViewer`, which does have one.
+                onTapBlankPage: { editTarget = EditTarget(itemId: viewerPage.id) }
+            )
         }
     }
 
@@ -473,6 +576,54 @@ struct AlbumDetailView: View {
             return String(localized: "album.viewer.cover_page_label")
         case let .page(page):
             return localizedString("album.viewer.page_number_label", defaultValue: "Page \(page.pageNumber)")
+        }
+    }
+}
+
+/// A direct UIKit control avoids the `UIScrollView` behavior where the first SwiftUI tap while
+/// decelerating only stops momentum. Setting `contentOffset` also explicitly interrupts that
+/// momentum, so the same press immediately starts the trip back to the top.
+private struct AlbumBackToTopControl: UIViewRepresentable {
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> UIButton {
+        var configuration = UIButton.Configuration.filled()
+        configuration.image = UIImage(systemName: "arrow.up")
+        configuration.baseForegroundColor = .white
+        configuration.baseBackgroundColor = UIColor.black.withAlphaComponent(0.55)
+        configuration.cornerStyle = .capsule
+
+        let button = UIButton(configuration: configuration, primaryAction: nil)
+        button.accessibilityLabel = String(localized: "album.detail.back_to_top")
+        button.addTarget(context.coordinator, action: #selector(Coordinator.scrollToTop), for: .touchUpInside)
+        return button
+    }
+
+    func updateUIView(_ uiView: UIButton, context: Context) {}
+
+    final class Coordinator: NSObject {
+        @objc func scrollToTop(_ sender: UIButton) {
+            guard let scrollView = enclosingVerticalScrollView(for: sender) else { return }
+            let top = CGPoint(x: -scrollView.adjustedContentInset.left, y: -scrollView.adjustedContentInset.top)
+            // An immediate set cancels the active deceleration before the animated trip begins.
+            scrollView.setContentOffset(scrollView.contentOffset, animated: false)
+            scrollView.setContentOffset(top, animated: true)
+        }
+
+        private func enclosingVerticalScrollView(for view: UIView) -> UIScrollView? {
+            var root = view
+            while let superview = root.superview {
+                root = superview
+            }
+
+            return descendants(of: root)
+                .compactMap { $0 as? UIScrollView }
+                .filter { $0.contentSize.height > $0.bounds.height }
+                .max { $0.bounds.height < $1.bounds.height }
+        }
+
+        private func descendants(of view: UIView) -> [UIView] {
+            view.subviews.flatMap { [$0] + descendants(of: $0) }
         }
     }
 }

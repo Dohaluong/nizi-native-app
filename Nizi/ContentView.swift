@@ -8,15 +8,18 @@
 import SwiftUI
 import SwiftData
 
-/// Root flow coordinator: Hello Nizi → Scope Selection → Permission → Scan → Home.
-/// Skips straight to Home on subsequent launches once a scan has completed.
-/// See docs/sprint/SPRINT-005-UI.md § 2 and docs/sprint/SPRINT-005-ADDENUM.md.
+/// Root flow coordinator: Welcome → Permission → Discovering (scan/discover/score/curate) →
+/// First Memory → Home. No Scope Selection in this flow — always the full accessible library
+/// (see `ScopeSelectionView`'s own doc comment: kept for a future Diagnostics/Advanced entry
+/// point, not part of onboarding). Skips straight to Home on subsequent launches once a Memory
+/// already exists. See docs/sprint/SPRINT-FIRST-MEMORY-EXPERIENCE.md § 4/§ 22.
 private enum OnboardingStage: Equatable {
     case checking
     case helloNizi
-    case scopeSelection
     case permission(scope: LibraryScanScope)
-    case scanning(scope: LibraryScanScope)
+    case discovering(scope: LibraryScanScope)
+    case firstMemory(MemoryCandidate?)
+    case memoryViewer(MemoryCandidate)
     case home
 }
 
@@ -32,25 +35,36 @@ struct ContentView: View {
 
             case .helloNizi:
                 NavigationStack {
-                    HelloNiziView { stage = .scopeSelection }
-                }
-
-            case .scopeSelection:
-                NavigationStack {
-                    ScopeSelectionView { scope in stage = .permission(scope: scope) }
+                    HelloNiziView { stage = .permission(scope: .fullLibrary) }
                 }
 
             case .permission(let scope):
                 NavigationStack {
                     OnboardingPermissionView(
-                        onGranted: { stage = .scanning(scope: scope) },
+                        onGranted: { stage = .discovering(scope: scope) },
                         onDeferred: { stage = .home }
                     )
                 }
 
-            case .scanning(let scope):
+            case .discovering(let scope):
                 NavigationStack {
-                    UserScanProgressView(scope: scope) { stage = .home }
+                    UserScanProgressView(scope: scope) { candidate in stage = .firstMemory(candidate) }
+                }
+
+            case .firstMemory(let candidate):
+                NavigationStack {
+                    FirstMemoryView(
+                        candidate: candidate,
+                        onOpen: { opened in stage = .memoryViewer(opened) },
+                        onContinue: { stage = .home }
+                    )
+                }
+
+            // Its own stage (not a `NavigationLink` push from `.firstMemory`) so this screen is
+            // always a stack root with no back destination — see `FirstMemoryView.onOpen`'s doc.
+            case .memoryViewer(let candidate):
+                NavigationStack {
+                    MemoryViewerView(candidate: candidate) { stage = .home }
                 }
 
             case .home:
@@ -60,12 +74,20 @@ struct ContentView: View {
         .task { await determineInitialStage() }
     }
 
+    /// A returning user whose index is already complete but who has no Memory yet (e.g. they
+    /// deferred permission earlier, or the app was killed right after discovery) goes straight
+    /// into `.discovering` — cheap, since `ScanPhotoLibraryUseCase` no-ops instantly on an
+    /// already-`.completed` checkpoint, so this effectively just runs discover→score→curate.
     private func determineInitialStage() async {
         do {
             let store = SwiftDataMemoryDiscoveryStore(modelContainer: modelContext.container)
             if let checkpoint = try await store.checkpoint(for: .initial),
                checkpoint.status == .completed || checkpoint.status == .partiallyCompleted {
-                stage = .home
+                if try await store.fetchLatest() != nil {
+                    stage = .home
+                } else {
+                    stage = .discovering(scope: .fullLibrary)
+                }
                 return
             }
         } catch {
@@ -78,7 +100,12 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .modelContainer(
-            for: [MDLocalAsset.self, MDScanCheckpoint.self, MDPhotoSession.self, MDEventCandidate.self],
+            for: [
+                MDLocalAsset.self, MDScanCheckpoint.self, MDPhotoSession.self, MDEventCandidate.self,
+                MDEventCurationResult.self, MDPhotoCurationGroup.self, MDPhotoCurationItem.self,
+                MDMemoryCandidate.self,
+                MDLocationCluster.self, MDHomeAnchor.self, MDFamiliarPlace.self, MDPhotoTrip.self
+            ],
             inMemory: true
         )
 }

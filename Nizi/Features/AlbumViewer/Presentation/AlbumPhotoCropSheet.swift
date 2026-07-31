@@ -17,6 +17,12 @@ struct AlbumPhotoCropTarget: Identifiable, Hashable {
     let assignment: AlbumPhotoAssignment
     let frameAspectRatio: CGFloat
     let pageId: String
+    /// § user request — "trang bìa sẽ có cấu trúc như trang ruột ... crop ảnh tương tự như trang
+    /// khác": the cover photo isn't a real `AlbumPhotoAssignment` living in `draft.spreads` (see
+    /// `AlbumPageViewer.coverAsViewerPage`), so its own crop screen dispatches to
+    /// `AlbumEditAction.updateCoverPhotoCrop`/`.changeCover` instead of `.updatePhotoCrop`/
+    /// `.assignPhoto` — this flag is what `AlbumPageViewer.cropDestination` branches on.
+    var isCoverPhoto: Bool = false
     var id: String { assignment.id }
 }
 
@@ -45,7 +51,11 @@ struct AlbumPhotoCropSheet: View {
     let draft: AlbumDraft
     let onSave: (AlbumPhotoCrop) -> Void
     let onCancel: () -> Void
-    let onRemove: () -> Void
+    /// § user request — the cover photo always needs exactly one photo (there's no "empty slot"
+    /// state for it the way a content Page's slot has), so its own crop screen has no "Xóa ảnh"
+    /// button at all — `nil` hides `bottomActionButton`'s remove action entirely instead of
+    /// wiring it to something that doesn't make sense.
+    let onRemove: (() -> Void)?
     let onChangePhoto: (AlbumPhotoReference) -> Void
 
     @State private var scale: CGFloat
@@ -68,7 +78,7 @@ struct AlbumPhotoCropSheet: View {
     init(
         assignment: AlbumPhotoAssignment, frameAspectRatio: CGFloat, draft: AlbumDraft,
         onSave: @escaping (AlbumPhotoCrop) -> Void, onCancel: @escaping () -> Void,
-        onRemove: @escaping () -> Void, onChangePhoto: @escaping (AlbumPhotoReference) -> Void
+        onRemove: (() -> Void)? = nil, onChangePhoto: @escaping (AlbumPhotoReference) -> Void
     ) {
         self.assignment = assignment
         self.frameAspectRatio = frameAspectRatio
@@ -133,7 +143,9 @@ struct AlbumPhotoCropSheet: View {
 
     private var bottomActionBar: some View {
         HStack(spacing: 0) {
-            bottomActionButton("album.removePhoto", systemImage: "minus.circle", role: .destructive, action: onRemove)
+            if let onRemove {
+                bottomActionButton("album.removePhoto", systemImage: "minus.circle", role: .destructive, action: onRemove)
+            }
             bottomActionButton("album.crop.changePhoto", systemImage: "photo.on.rectangle") { isPickingPhoto = true }
         }
         .padding(.vertical, 8)

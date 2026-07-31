@@ -21,11 +21,20 @@ struct AlbumPhotoSlotView<Provider: AlbumSlotPhotoProviding>: View {
     var showsDebugSlotId: Bool = false
 
     var body: some View {
-        Group {
-            if let assignment {
-                photoProvider.photoView(reference: assignment.photo, crop: assignment.crop, contentMode: slot.contentMode)
-            } else {
-                placeholder
+        ZStack {
+            Group {
+                if let assignment {
+                    photoProvider.photoView(reference: assignment.photo, crop: assignment.crop, contentMode: slot.contentMode)
+                } else {
+                    placeholder
+                }
+            }
+            // § user request — "phần ảnh cho phép chọn option gradient đen trong suốt, mục đích
+            // làm nền cho chữ": painted on top of the photo/placeholder, inside the same clip, so
+            // it never bleeds outside the slot's own rounded rect.
+            if let overlay = slot.gradientOverlay {
+                LinearGradient(stops: overlay.gradientStops, startPoint: overlay.edge.gradientStartPoint, endPoint: overlay.edge.gradientEndPoint)
+                    .allowsHitTesting(false)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
@@ -52,5 +61,47 @@ struct AlbumPhotoSlotView<Provider: AlbumSlotPhotoProviding>: View {
 
     private var accessibilityLabel: String {
         localizedString("album.layout.photo_number", defaultValue: "Photo \(slot.order + 1)")
+    }
+}
+
+private extension AlbumGradientEdge {
+    /// `.top`/`.bottom` fade along the vertical axis, `.left`/`.right` along the horizontal one —
+    /// mirrors `AlbumSlotGradientOverlay`'s own doc comment ("height for top/bottom, width for
+    /// left/right").
+    var gradientStartPoint: UnitPoint {
+        switch self {
+        case .top, .bottom: return .top
+        case .left, .right: return .leading
+        }
+    }
+
+    var gradientEndPoint: UnitPoint {
+        switch self {
+        case .top, .bottom: return .bottom
+        case .left, .right: return .trailing
+        }
+    }
+}
+
+private extension AlbumSlotGradientOverlay {
+    /// § "Ví dụ 30%-Dưới thì khoảng gradien chuyển từ đen 100% về 0% trong 30% chiều cao từ dưới
+    /// lên": `edge` is darkest at its own 0/1 end of the gradient's own axis, fading to fully
+    /// transparent by `extentPercent` of the way across — the remaining stretch back to the
+    /// opposite edge stays flat transparent (a third stop, not just two, is what pins that "no
+    /// gradient beyond here" boundary in place instead of letting `LinearGradient` interpolate the
+    /// whole span).
+    var gradientStops: [Gradient.Stop] {
+        let extent = min(max(extentPercent / 100, 0), 1)
+        let dark = Color.black.opacity(min(max(opacity, 0), 1))
+        switch edge {
+        case .top:
+            return [.init(color: dark, location: 0), .init(color: .clear, location: extent), .init(color: .clear, location: 1)]
+        case .bottom:
+            return [.init(color: .clear, location: 0), .init(color: .clear, location: 1 - extent), .init(color: dark, location: 1)]
+        case .left:
+            return [.init(color: dark, location: 0), .init(color: .clear, location: extent), .init(color: .clear, location: 1)]
+        case .right:
+            return [.init(color: .clear, location: 0), .init(color: .clear, location: 1 - extent), .init(color: dark, location: 1)]
+        }
     }
 }

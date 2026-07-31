@@ -45,6 +45,13 @@ struct AlbumTextBlockView: View {
     /// scaling since it's the one with `scaleX`/`scaleY` in scope.
     let scaledFontSize: CGFloat
     let fontStyle: AlbumTextFontStyle
+    /// § user request — "còn cần chọn màu chữ": hex string, same shape `AlbumLayoutBackground.
+    /// value` already uses — falls back to `.primary` if it's ever malformed rather than
+    /// disappearing the text entirely.
+    let textColor: String
+    /// § user request — "sẽ có placeholder tương ứng": which kind-specific sample copy
+    /// (`AlbumTextBlockKind.placeholderText`) shows while `content` is still empty.
+    let kind: AlbumTextBlockKind
     /// The real, user-typed content for this Page's copy of this text block — `nil`/empty means
     /// "nothing typed yet," which shows the placeholder instead.
     let content: String?
@@ -53,12 +60,13 @@ struct AlbumTextBlockView: View {
 
     private var displayText: String {
         if let content, !content.isEmpty { return content }
-        return localizedString("album.textBlock.placeholder", defaultValue: "Write here")
+        return kind.placeholderText
     }
 
     var body: some View {
         Text(displayText)
             .font(font)
+            .foregroundStyle(Color(albumHex: textColor) ?? .primary)
             // § "Regular, Italic, Bold, Underline" — underline is a text *decoration*, not a font
             // face choice at all, so it's a separate modifier rather than something `font` itself
             // could ever express (`Font` has no underline concept).

@@ -17,4 +17,12 @@ protocol EventPhotoAnalyzer {
         sessions: [PhotoSession],
         onProgress: @escaping (_ processedSessions: Int, _ totalSessions: Int) -> Void
     ) async -> [AnalyzedPhoto]
+
+    /// Global Duplicate Suppression (docs/sprint/SPRINT-SMART-EVENT-HIGHLIGHTS.md § 27-32) — given
+    /// only the small pool of already locally-selected representatives (never the full source
+    /// photo set), groups the ones that are visual duplicates of each other using the feature
+    /// prints captured during the most recent `analyze(...)` call on this same instance. Returns
+    /// an assetID → group-key map; an assetID with no match maps to a group containing only
+    /// itself. Never re-runs Vision — purely reuses what `analyze` already computed.
+    func globalDuplicateGroups(candidateAssetIDs: [String], similarityThreshold: Float) -> [String: String]
 }

@@ -53,7 +53,11 @@ export function Toolbar({ showGrid, onToggleGrid, alignEnabled, onToggleAlign }:
   function handleExport() {
     const result = exportLayoutLibrary(layouts);
     if (result.blocked || !result.library) {
-      setExportMessage(`Export blocked — fix ${result.issues.filter((i) => i.level === "error").length} error(s) first.`);
+      const errors = result.issues.filter((i) => i.level === "error");
+      const detail = errors
+        .map((i) => `${i.layoutId ? `[${i.layoutId}] ` : ""}${i.message}`)
+        .join(" | ");
+      setExportMessage(`Export blocked — fix ${errors.length} error(s) first: ${detail}`);
       return;
     }
     downloadJson(PRODUCTION_EXPORT_FILENAME, result.library);

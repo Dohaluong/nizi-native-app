@@ -72,6 +72,30 @@ export interface AlbumLayoutFrame {
   height: number;
 }
 
+/** Which edge of the slot `AlbumSlotGradientOverlay`'s dark gradient starts from and fades inward
+ * toward — mirrors `Nizi/Features/AlbumLayout/Domain/AlbumLayoutSlot.swift`'s own
+ * `AlbumGradientEdge` exactly. */
+export type AlbumGradientEdge = "top" | "bottom" | "left" | "right";
+
+export const ALBUM_GRADIENT_EDGES: AlbumGradientEdge[] = ["top", "bottom", "left", "right"];
+
+/** § user request — "phần ảnh cho phép chọn option gradient đen trong suốt, mục đích làm nền cho
+ * chữ ... Cho phép tuỳ chọn gradien từ trái phải trên dưới, độ % gradient ... Có thêm opacity của
+ * gradien nữa": an optional dark gradient painted on top of a slot's photo, so a text block
+ * sitting over part of it stays legible. `edge` is where the gradient is darkest; it fades to
+ * fully transparent over `extentPercent` of that edge's own axis (height for top/bottom, width for
+ * left/right) — e.g. `edge: "bottom", extentPercent: 30` means the gradient spans only the bottom
+ * 30% of the slot's height, from black (at `opacity`) at the very bottom edge to fully transparent
+ * at the 30%-from-bottom mark. `opacity` is a second, independent knob — the gradient's own
+ * maximum alpha at `edge`, before it fades to 0. Mirrors `AlbumSlotGradientOverlay.swift` exactly. */
+export interface AlbumSlotGradientOverlay {
+  edge: AlbumGradientEdge;
+  /** 0...100 */
+  extentPercent: number;
+  /** 0...1 */
+  opacity: number;
+}
+
 export interface AlbumLayoutSlot {
   id: string;
   /** Must be unique within its own layout (not globally) — `AlbumLayoutValidator.
@@ -83,6 +107,9 @@ export interface AlbumLayoutSlot {
   frame: AlbumLayoutFrame;
   contentMode: AlbumSlotContentMode;
   cornerRadius: number;
+  /** `undefined`/absent means no overlay is painted — every layout authored before this feature
+   * existed has no `gradientOverlay` key at all. */
+  gradientOverlay?: AlbumSlotGradientOverlay;
 }
 
 /** § user request "Thêm chữ" — mirrors `Nizi/Features/AlbumLayout/Domain/AlbumTextBlock.swift`
@@ -148,6 +175,14 @@ export type AlbumTextFontStyle = "regular" | "italic" | "bold" | "underline";
 
 export const ALBUM_TEXT_FONT_STYLES: AlbumTextFontStyle[] = ["regular", "italic", "bold", "underline"];
 
+/** § user request — "Phần text trong Layout studio cho phép chọn kiểu: Title/Sub-title/Paragraph.
+ * Dùng để trang trí văn bản sau này": purely semantic, mirrors `AlbumLayoutSlotRole` exactly — the
+ * renderer (both here and in `AlbumTextBlockView.swift`) doesn't read this to alter anything yet;
+ * it's Studio-authored metadata for a future decorative-styling feature to key off of. */
+export type AlbumTextBlockKind = "title" | "subtitle" | "paragraph";
+
+export const ALBUM_TEXT_BLOCK_KINDS: AlbumTextBlockKind[] = ["title", "subtitle", "paragraph"];
+
 export interface AlbumTextBlock {
   id: string;
   /** Must be unique within its own layout (not globally) — mirrors `AlbumLayoutSlot.order`. */
@@ -158,6 +193,11 @@ export interface AlbumTextBlock {
   fontFamily: AlbumTextFontFamily;
   fontSize: number;
   fontStyle: AlbumTextFontStyle;
+  /** § user request — "còn cần chọn màu chữ": hex string (e.g. `"#FFFFFF"`), same shape
+   * `AlbumLayoutBackground.value` already uses. Mirrors `AlbumTextBlock.swift`'s own `textColor`
+   * exactly, including its `"#000000"` fallback for anything authored before this field existed. */
+  textColor: string;
+  kind: AlbumTextBlockKind;
 }
 
 export interface AlbumPageLayout {

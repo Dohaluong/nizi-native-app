@@ -1,0 +1,2341 @@
+{
+  "studioSchemaVersion": 1,
+  "layouts": [
+    {
+      "layout": {
+        "id": "square.1.full-bleed",
+        "name": "Full Bleed",
+        "nameKey": "album.layout.square.1.full_bleed",
+        "photoCount": 1,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "square",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 1000,
+              "height": 1000
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:54:31.695Z",
+        "updatedAt": "2026-07-30T02:54:31.695Z"
+      },
+      "key": "3b6ab12e-ba29-452a-9d0b-dd7b49ee3468"
+    },
+    {
+      "layout": {
+        "id": "square.1.inset",
+        "name": "Inset",
+        "nameKey": "album.layout.square.1.inset",
+        "photoCount": 1,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "square",
+            "frame": {
+              "x": 60,
+              "y": 60,
+              "width": 880,
+              "height": 880
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:54:31.695Z",
+        "updatedAt": "2026-07-30T02:54:31.695Z"
+      },
+      "key": "144afe25-68c7-419f-bf36-4c4413dcce25"
+    },
+    {
+      "layout": {
+        "id": "square.1.landscape-center",
+        "name": "Landscape Center",
+        "nameKey": "album.layout.square.1.landscape_center",
+        "photoCount": 1,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 60,
+              "y": 220,
+              "width": 880,
+              "height": 560
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:54:31.695Z",
+        "updatedAt": "2026-07-30T02:54:31.695Z"
+      },
+      "key": "607b0990-9dbe-41ec-a527-6f8453917bd2"
+    },
+    {
+      "layout": {
+        "id": "square.2.vertical-split",
+        "name": "Vertical Split",
+        "nameKey": "album.layout.square.2.vertical_split",
+        "photoCount": 2,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 492,
+              "height": 1000
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 508,
+              "y": 0,
+              "width": 492,
+              "height": 1000
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:54:31.695Z",
+        "updatedAt": "2026-07-30T02:54:31.695Z"
+      },
+      "key": "869adb18-2fbe-49e5-b058-57407e4d8197"
+    },
+    {
+      "layout": {
+        "id": "square.2.horizontal-split",
+        "name": "Horizontal Split",
+        "nameKey": "album.layout.square.2.horizontal_split",
+        "photoCount": 2,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 1000,
+              "height": 492
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 0,
+              "y": 508,
+              "width": 1000,
+              "height": 492
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:54:31.695Z",
+        "updatedAt": "2026-07-30T02:54:31.695Z"
+      },
+      "key": "e4a6c17f-7492-405a-b3eb-8c18c79e17d8"
+    },
+    {
+      "layout": {
+        "id": "square.2.hero-top",
+        "name": "Hero Top",
+        "nameKey": "album.layout.square.2.hero_top",
+        "photoCount": 2,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 100,
+              "y": 0,
+              "width": 900,
+              "height": 660
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 0,
+              "y": 680,
+              "width": 600,
+              "height": 320
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:54:31.695Z",
+        "updatedAt": "2026-07-30T02:54:31.695Z"
+      },
+      "key": "310bbab5-0698-4cdf-a6a4-6be1e00797a7"
+    },
+    {
+      "layout": {
+        "id": "square.3.hero-top",
+        "name": "Hero Top",
+        "nameKey": "album.layout.square.3.hero_top",
+        "photoCount": 3,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 60,
+              "y": 60,
+              "width": 880,
+              "height": 560
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 60,
+              "y": 636,
+              "width": 432,
+              "height": 304
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 508,
+              "y": 636,
+              "width": 432,
+              "height": 304
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:54:31.695Z",
+        "updatedAt": "2026-07-30T02:54:31.695Z"
+      },
+      "key": "14f9ffc1-d828-4794-80b6-d5639ce15b0b"
+    },
+    {
+      "layout": {
+        "id": "square.3.hero-left",
+        "name": "Hero Left",
+        "nameKey": "album.layout.square.3.hero_left",
+        "photoCount": 3,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 60,
+              "y": 60,
+              "width": 552,
+              "height": 880
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 628,
+              "y": 60,
+              "width": 312,
+              "height": 432
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 628,
+              "y": 508,
+              "width": 312,
+              "height": 432
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:54:31.695Z",
+        "updatedAt": "2026-07-30T02:54:31.695Z"
+      },
+      "key": "0ee113d8-11f0-4231-9bf1-a334f946798a"
+    },
+    {
+      "layout": {
+        "id": "square.3.equal-columns",
+        "name": "Equal Columns",
+        "nameKey": "album.layout.square.3.equal_columns",
+        "photoCount": 3,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 20,
+              "y": 220,
+              "width": 310,
+              "height": 560
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 340,
+              "y": 220,
+              "width": 320,
+              "height": 560
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 670,
+              "y": 220,
+              "width": 310,
+              "height": 560
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:54:31.695Z",
+        "updatedAt": "2026-07-30T02:54:31.695Z"
+      },
+      "key": "626208ce-5fa7-489c-98a9-3bf16d21a7bf"
+    },
+    {
+      "layout": {
+        "id": "square.4.grid",
+        "name": "Grid",
+        "nameKey": "album.layout.square.4.grid",
+        "photoCount": 4,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "supporting",
+            "preferredOrientation": "square",
+            "frame": {
+              "x": 60,
+              "y": 60,
+              "width": 432,
+              "height": 432
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "square",
+            "frame": {
+              "x": 508,
+              "y": 60,
+              "width": 432,
+              "height": 432
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "square",
+            "frame": {
+              "x": 60,
+              "y": 508,
+              "width": 432,
+              "height": 432
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-4",
+            "order": 3,
+            "role": "supporting",
+            "preferredOrientation": "square",
+            "frame": {
+              "x": 508,
+              "y": 508,
+              "width": 432,
+              "height": 432
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:54:31.695Z",
+        "updatedAt": "2026-07-30T02:54:31.695Z"
+      },
+      "key": "5810713d-24d2-4a05-a2d1-ec83be3ed804"
+    },
+    {
+      "layout": {
+        "id": "square.4.hero-top",
+        "name": "Hero Top",
+        "nameKey": "album.layout.square.4.hero_top",
+        "photoCount": 4,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 60,
+              "y": 60,
+              "width": 880,
+              "height": 544
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 60,
+              "y": 620,
+              "width": 280,
+              "height": 320
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 360,
+              "y": 620,
+              "width": 280,
+              "height": 320
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-4",
+            "order": 3,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 660,
+              "y": 620,
+              "width": 280,
+              "height": 320
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:54:31.695Z",
+        "updatedAt": "2026-07-30T02:54:31.695Z"
+      },
+      "key": "0a2f57f4-0361-4ece-9847-03f062c8eb9c"
+    },
+    {
+      "layout": {
+        "id": "square.4.hero-left",
+        "name": "Hero Left",
+        "nameKey": "album.layout.square.4.hero_left",
+        "photoCount": 4,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 60,
+              "y": 60,
+              "width": 552,
+              "height": 880
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 628,
+              "y": 60,
+              "width": 312,
+              "height": 280
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 628,
+              "y": 360,
+              "width": 312,
+              "height": 280
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-4",
+            "order": 3,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 628,
+              "y": 660,
+              "width": 312,
+              "height": 280
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:54:31.695Z",
+        "updatedAt": "2026-07-30T02:54:31.695Z"
+      },
+      "key": "483dd1ed-f235-49d1-968f-e2c47d46482d"
+    },
+    {
+      "layout": {
+        "id": "square.1.untitled",
+        "name": "square.1.untitled",
+        "nameKey": "album.layout.square_1_untitled",
+        "photoCount": 2,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 20,
+              "y": 20,
+              "width": 470,
+              "height": 680
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 510,
+              "y": 300,
+              "width": 470,
+              "height": 680
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:25:04.960Z",
+        "updatedAt": "2026-07-30T02:25:04.960Z"
+      },
+      "key": "107f20c3-734c-4fab-bfcb-121289d0bdf5"
+    },
+    {
+      "layout": {
+        "id": "square.1.dai",
+        "name": "square.1.untitled-1785378769701",
+        "nameKey": "album.layout.square_1_untitled-1785378769701",
+        "photoCount": 1,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "any",
+            "frame": {
+              "x": 169.99999999999994,
+              "y": 19.99999999999993,
+              "width": 660,
+              "height": 960
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:32:49.701Z",
+        "updatedAt": "2026-07-30T02:32:49.701Z"
+      },
+      "key": "06361c13-1ef1-4e37-8f89-851c6b4ac164"
+    },
+    {
+      "layout": {
+        "id": "square.1.untitled-1785378779586",
+        "name": "square.1.untitled-1785378779586",
+        "nameKey": "album.layout.square_1_untitled-1785378779586",
+        "photoCount": 2,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 20,
+              "y": 20,
+              "width": 960,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 20,
+              "y": 510,
+              "width": 960,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:32:59.586Z",
+        "updatedAt": "2026-07-30T02:32:59.586Z"
+      },
+      "key": "b32e24f1-8987-4d17-a56f-47ea1a096440"
+    },
+    {
+      "layout": {
+        "id": "square.2.caotren",
+        "name": "square.1.untitled Copy",
+        "nameKey": "album.layout.square_1_untitled",
+        "photoCount": 2,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 20,
+              "y": 160,
+              "width": 470,
+              "height": 680
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 510,
+              "y": 160,
+              "width": 470,
+              "height": 680
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:41:37.715Z",
+        "updatedAt": "2026-07-30T02:41:37.715Z"
+      },
+      "key": "0c06f70f-1c8b-488f-a81c-a95c8356ff4a"
+    },
+    {
+      "layout": {
+        "id": "square.2.ngangcan",
+        "name": "square.1.untitled-1785378779586 Copy",
+        "nameKey": "album.layout.square_1_untitled-1785378779586",
+        "photoCount": 2,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 160,
+              "y": 20,
+              "width": 680,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 160,
+              "y": 510,
+              "width": 680,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:42:18.011Z",
+        "updatedAt": "2026-07-30T02:42:18.011Z"
+      },
+      "key": "5b5855d8-4a31-4a8c-b1c1-c0ee5d3bfee6"
+    },
+    {
+      "layout": {
+        "id": "square.1.2vuong1dai",
+        "name": "square.1.untitled-1785378779586 Copy",
+        "nameKey": "album.layout.square_1_untitled-1785378779586",
+        "photoCount": 3,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 20,
+              "y": 510,
+              "width": 960,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "any",
+            "frame": {
+              "x": 20,
+              "y": 20,
+              "width": 470,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "any",
+            "frame": {
+              "x": 510,
+              "y": 20,
+              "width": 470,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T02:45:25.477Z",
+        "updatedAt": "2026-07-30T02:45:25.477Z"
+      },
+      "key": "56693fa6-3913-478d-8018-9c14e8dabb73"
+    },
+    {
+      "layout": {
+        "id": "square.1.untitled-1785378779586-copy-copy",
+        "name": "square.1.untitled-1785378779586 Copy Copy",
+        "nameKey": "album.layout.square_1_untitled-1785378779586",
+        "photoCount": 2,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 300,
+              "y": 20,
+              "width": 680,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 20,
+              "y": 510,
+              "width": 680,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T03:11:55.107Z",
+        "updatedAt": "2026-07-30T03:11:55.107Z"
+      },
+      "key": "d4751a8e-b313-4f28-9542-ecc8712ea23f"
+    },
+    {
+      "layout": {
+        "id": "square.1.daifull",
+        "name": "square.1.untitled-1785378769701 Copy",
+        "nameKey": "album.layout.square_1_untitled-1785378769701",
+        "photoCount": 1,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "any",
+            "frame": {
+              "x": 260,
+              "y": 0,
+              "width": 740,
+              "height": 1000
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T03:20:49.785Z",
+        "updatedAt": "2026-07-30T03:20:49.785Z"
+      },
+      "key": "0b083ccb-0823-4839-a905-44aafc4ad7af"
+    },
+    {
+      "key": "8ae028a0-7352-49cd-b1c5-7e5f24e670c0",
+      "layout": {
+        "id": "square.4.cao",
+        "name": "Grid Copy",
+        "nameKey": "album.layout.square.4.grid",
+        "photoCount": 4,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 150,
+              "y": 60,
+              "width": 340,
+              "height": 430
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 510,
+              "y": 60,
+              "width": 340,
+              "height": 430
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 150,
+              "y": 510,
+              "width": 340,
+              "height": 430
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-4",
+            "order": 3,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 510,
+              "y": 510,
+              "width": 340,
+              "height": 430
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T03:25:03.816Z",
+        "updatedAt": "2026-07-30T03:25:03.816Z"
+      }
+    },
+    {
+      "key": "7a09a04a-26f0-40e8-a57d-068ba569b112",
+      "layout": {
+        "id": "square.4.grid-vienmong",
+        "name": "Grid Copy",
+        "nameKey": "album.layout.square.4.grid",
+        "photoCount": 4,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "supporting",
+            "preferredOrientation": "square",
+            "frame": {
+              "x": 20,
+              "y": 20,
+              "width": 470,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "square",
+            "frame": {
+              "x": 510,
+              "y": 20,
+              "width": 470,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "square",
+            "frame": {
+              "x": 20,
+              "y": 510,
+              "width": 470,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-4",
+            "order": 3,
+            "role": "supporting",
+            "preferredOrientation": "square",
+            "frame": {
+              "x": 510,
+              "y": 510,
+              "width": 470,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T03:26:09.814Z",
+        "updatedAt": "2026-07-30T03:26:09.814Z"
+      }
+    },
+    {
+      "key": "940919f6-f4ff-47e7-bc56-61987e91f2ae",
+      "layout": {
+        "id": "square.4.grid-fullvien",
+        "name": "Grid Copy Copy",
+        "nameKey": "album.layout.square.4.grid",
+        "photoCount": 4,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "supporting",
+            "preferredOrientation": "square",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 490,
+              "height": 490
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "square",
+            "frame": {
+              "x": 510,
+              "y": 0,
+              "width": 490,
+              "height": 490
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "square",
+            "frame": {
+              "x": 0,
+              "y": 509.99999999999994,
+              "width": 490.00000000000006,
+              "height": 490.00000000000006
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-4",
+            "order": 3,
+            "role": "supporting",
+            "preferredOrientation": "square",
+            "frame": {
+              "x": 510,
+              "y": 510,
+              "width": 490,
+              "height": 490
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T03:26:55.774Z",
+        "updatedAt": "2026-07-30T03:26:55.774Z"
+      }
+    },
+    {
+      "key": "fef68339-eb39-4e02-babe-e80d513bdfb6",
+      "layout": {
+        "id": "square.4.2ngang2doc",
+        "name": "Grid Copy Copy",
+        "nameKey": "album.layout.square.4.grid",
+        "photoCount": 4,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 20,
+              "y": 20,
+              "width": 610,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 650,
+              "y": 20,
+              "width": 330,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 20,
+              "y": 510,
+              "width": 330,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-4",
+            "order": 3,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 370,
+              "y": 510,
+              "width": 610,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T03:28:20.258Z",
+        "updatedAt": "2026-07-30T03:28:20.258Z"
+      }
+    },
+    {
+      "key": "315d95ba-b67b-4ba2-8c0e-66cee9e11f6e",
+      "layout": {
+        "id": "square.3.ngangvienmong",
+        "name": "Hero Top Copy",
+        "nameKey": "album.layout.square.3.hero_top",
+        "photoCount": 3,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 19.99999999999993,
+              "y": 19.375000000000007,
+              "width": 960,
+              "height": 600
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 20,
+              "y": 640,
+              "width": 470,
+              "height": 340
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 510,
+              "y": 640,
+              "width": 470,
+              "height": 340
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T04:04:32.343Z",
+        "updatedAt": "2026-07-30T04:04:32.343Z"
+      }
+    },
+    {
+      "key": "662ed6c7-d717-4b74-9d8f-594a8d944dd1",
+      "layout": {
+        "id": "square.3.ngangvienmong-1vuong",
+        "name": "Hero Top Copy Copy",
+        "nameKey": "album.layout.square.3.hero_top",
+        "photoCount": 3,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 19.99999999999993,
+              "y": 19.375000000000007,
+              "width": 960,
+              "height": 600
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 20,
+              "y": 640,
+              "width": 600,
+              "height": 340
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "square",
+            "frame": {
+              "x": 640,
+              "y": 640,
+              "width": 340,
+              "height": 340
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T04:05:47.809Z",
+        "updatedAt": "2026-07-30T04:05:47.809Z"
+      }
+    },
+    {
+      "key": "e7ea9a3b-3684-4718-a487-f051aabb2434",
+      "layout": {
+        "id": "square.41ngang2doc1vuong",
+        "name": "Grid Copy Copy Copy",
+        "nameKey": "album.layout.square.4.grid",
+        "photoCount": 4,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 20,
+              "y": 20,
+              "width": 470,
+              "height": 600
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 510,
+              "y": 20,
+              "width": 470,
+              "height": 600
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 20,
+              "y": 640,
+              "width": 600,
+              "height": 340
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-4",
+            "order": 3,
+            "role": "supporting",
+            "preferredOrientation": "square",
+            "frame": {
+              "x": 640,
+              "y": 640,
+              "width": 340,
+              "height": 340
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T04:06:55.133Z",
+        "updatedAt": "2026-07-30T04:06:55.133Z"
+      }
+    },
+    {
+      "key": "e64fcf79-3f35-4ef3-8ee4-9bd5716eadf4",
+      "layout": {
+        "id": "square.1.2doc1ngang",
+        "name": "square.1.untitled-1785378779586 Copy Copy",
+        "nameKey": "album.layout.square_1_untitled-1785378779586",
+        "photoCount": 3,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 20,
+              "y": 610,
+              "width": 680,
+              "height": 370
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "any",
+            "frame": {
+              "x": 20,
+              "y": 20,
+              "width": 470,
+              "height": 570
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "any",
+            "frame": {
+              "x": 510,
+              "y": 20,
+              "width": 470,
+              "height": 570
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T04:08:12.357Z",
+        "updatedAt": "2026-07-30T04:08:12.357Z"
+      }
+    },
+    {
+      "key": "641cb07b-16a4-48b2-b1c9-4c92239d8f4d",
+      "layout": {
+        "id": "square.1.landscape-full",
+        "name": "Landscape Center Copy",
+        "nameKey": "album.layout.square.1.landscape_center",
+        "photoCount": 1,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 0,
+              "y": 150,
+              "width": 1000,
+              "height": 700
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T04:20:39.750Z",
+        "updatedAt": "2026-07-30T04:20:39.750Z"
+      }
+    },
+    {
+      "key": "3e40dac4-6999-435c-b715-84dcbc56e47a",
+      "layout": {
+        "id": "square.1.landscape-vienmong",
+        "name": "Landscape Center Copy Copy",
+        "nameKey": "album.layout.square.1.landscape_center",
+        "photoCount": 1,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 20,
+              "y": 150,
+              "width": 960,
+              "height": 700
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T04:21:00.531Z",
+        "updatedAt": "2026-07-30T04:21:00.531Z"
+      }
+    },
+    {
+      "key": "31ad67c5-c82d-4b51-a53e-98d142a72b2f",
+      "layout": {
+        "id": "square.1.landscape-full-top",
+        "name": "Landscape Center Copy Copy",
+        "nameKey": "album.layout.square.1.landscape_center",
+        "photoCount": 1,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 1000,
+              "height": 750
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T04:21:30.107Z",
+        "updatedAt": "2026-07-30T04:21:30.107Z"
+      }
+    },
+    {
+      "key": "787bc19a-1b01-4bff-8211-b5ed7757fbd7",
+      "layout": {
+        "id": "square.1.landscape-full-bottom",
+        "name": "Landscape Center Copy Copy Copy",
+        "nameKey": "album.layout.square.1.landscape_center",
+        "photoCount": 1,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 0,
+              "y": 350,
+              "width": 1000,
+              "height": 650
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T04:21:58.951Z",
+        "updatedAt": "2026-07-30T04:21:58.951Z"
+      }
+    },
+    {
+      "key": "7fa16c22-8410-489d-92be-357f06deca02",
+      "layout": {
+        "id": "square.1.inset-vienmong",
+        "name": "Inset Copy",
+        "nameKey": "album.layout.square.1.inset",
+        "photoCount": 1,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "square",
+            "frame": {
+              "x": 20,
+              "y": 20,
+              "width": 960,
+              "height": 960
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T04:23:15.998Z",
+        "updatedAt": "2026-07-30T04:23:15.998Z"
+      }
+    },
+    {
+      "key": "46ad3a9a-7878-4a25-a90a-fb4852141114",
+      "layout": {
+        "id": "square.1.3ngang",
+        "name": "square.1.untitled-1785378779586 Copy Copy Copy",
+        "nameKey": "album.layout.square_1_untitled-1785378779586",
+        "photoCount": 3,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 20,
+              "y": 380,
+              "width": 960,
+              "height": 600
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 20,
+              "y": 20,
+              "width": 470,
+              "height": 340
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 510,
+              "y": 20,
+              "width": 470,
+              "height": 340
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T05:22:32.225Z",
+        "updatedAt": "2026-07-30T05:22:32.225Z"
+      }
+    },
+    {
+      "key": "33ee6509-8a48-4e1a-a673-2e1adce6f41b",
+      "layout": {
+        "id": "square.1.2doc1ngang-2",
+        "name": "square.1.untitled-1785378779586 Copy Copy",
+        "nameKey": "album.layout.square_1_untitled-1785378779586",
+        "photoCount": 3,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 150,
+              "y": 510,
+              "width": 700,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "any",
+            "frame": {
+              "x": 150,
+              "y": 20,
+              "width": 340,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "any",
+            "frame": {
+              "x": 510,
+              "y": 20,
+              "width": 340,
+              "height": 470
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T05:25:04.285Z",
+        "updatedAt": "2026-07-30T05:25:04.285Z"
+      }
+    },
+    {
+      "key": "97e662dd-9590-4c3a-8c04-f02cd4069892",
+      "layout": {
+        "id": "square.4.ngang-vienmong",
+        "name": "Grid Copy Copy",
+        "nameKey": "album.layout.square.4.grid",
+        "photoCount": 4,
+        "supportedFormats": [
+          "square"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1000
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 20,
+              "y": 150,
+              "width": 470,
+              "height": 340
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-2",
+            "order": 1,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 510,
+              "y": 150,
+              "width": 470,
+              "height": 340
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-3",
+            "order": 2,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 20,
+              "y": 510,
+              "width": 470,
+              "height": 340
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          },
+          {
+            "id": "photo-4",
+            "order": 3,
+            "role": "supporting",
+            "preferredOrientation": "landscape",
+            "frame": {
+              "x": 510,
+              "y": 510,
+              "width": 470,
+              "height": 340
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T05:27:09.627Z",
+        "updatedAt": "2026-07-30T05:27:09.627Z"
+      }
+    },
+    {
+      "key": "bd5aee61-f16d-4712-a406-9fdca7ff630f",
+      "layout": {
+        "id": "portrait.1.nh-d-c",
+        "name": "portrait.1.nh-d-c",
+        "nameKey": "album.layout.portrait_1_nh-d-c",
+        "photoCount": 1,
+        "supportedFormats": [
+          "portrait"
+        ],
+        "referenceCanvas": {
+          "width": 1000,
+          "height": 1400
+        },
+        "background": {
+          "type": "solid",
+          "value": "#FFFFFF"
+        },
+        "slots": [
+          {
+            "id": "photo-1",
+            "order": 0,
+            "role": "hero",
+            "preferredOrientation": "portrait",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 1000,
+              "height": 1400
+            },
+            "contentMode": "fill",
+            "cornerRadius": 0
+          }
+        ]
+      },
+      "meta": {
+        "notes": "",
+        "favorite": false,
+        "locked": false,
+        "createdAt": "2026-07-30T05:41:44.625Z",
+        "updatedAt": "2026-07-30T05:41:44.625Z"
+      }
+    }
+  ],
+  "selectedLayoutKey": "bd5aee61-f16d-4712-a406-9fdca7ff630f",
+  "selectedSlotId": "photo-1",
+  "snapEnabled": true
+}

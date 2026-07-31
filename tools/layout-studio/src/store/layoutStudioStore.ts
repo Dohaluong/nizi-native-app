@@ -84,6 +84,8 @@ function makeTextBlock(order: number, frame: AlbumLayoutFrame): AlbumTextBlock {
     fontFamily: "System",
     fontSize: 48,
     fontStyle: "regular",
+    textColor: "#000000",
+    kind: "paragraph",
   };
 }
 
@@ -135,7 +137,7 @@ interface LayoutStudioState {
   updateSlot: (
     key: string,
     slotId: string,
-    patch: Partial<Pick<AlbumLayoutSlot, "role" | "preferredOrientation" | "contentMode" | "cornerRadius">>,
+    patch: Partial<Pick<AlbumLayoutSlot, "role" | "preferredOrientation" | "contentMode" | "cornerRadius" | "gradientOverlay">>,
   ) => void;
   deleteSlot: (key: string, slotId: string) => void;
   duplicateSlot: (key: string, slotId: string) => void;
@@ -146,7 +148,7 @@ interface LayoutStudioState {
   updateTextBlock: (
     key: string,
     textBlockId: string,
-    patch: Partial<Pick<AlbumTextBlock, "horizontalAlignment" | "verticalAlignment" | "fontFamily" | "fontSize" | "fontStyle">>,
+    patch: Partial<Pick<AlbumTextBlock, "horizontalAlignment" | "verticalAlignment" | "fontFamily" | "fontSize" | "fontStyle" | "textColor" | "kind">>,
   ) => void;
   deleteTextBlock: (key: string, textBlockId: string) => void;
   duplicateTextBlock: (key: string, textBlockId: string) => void;

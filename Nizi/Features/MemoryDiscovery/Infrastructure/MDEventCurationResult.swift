@@ -23,6 +23,10 @@ final class MDEventCurationResult {
     var updatedAt: Date
     var completedAt: Date?
     var sourceAssetCount: Int
+    /// Additive field — defaulted for lightweight migration, same convention as
+    /// `MDHomeAnchor.source`. Existing rows read back as `""`, which never equals a freshly
+    /// computed fingerprint, so they simply invalidate on next open rather than crash or migrate.
+    var sourceAssetFingerprint: String = ""
     var errorMessage: String?
 
     init(eventCandidateID: UUID, status: CurationStatus, algorithmVersion: Int, now: Date) {
@@ -33,6 +37,7 @@ final class MDEventCurationResult {
         updatedAt = now
         completedAt = nil
         sourceAssetCount = 0
+        sourceAssetFingerprint = ""
         errorMessage = nil
     }
 }
@@ -68,6 +73,9 @@ final class MDPhotoCurationItem {
     var isSuggested: Bool
     var isSelected: Bool
     var selectionSource: String
+    /// Additive field — defaulted for lightweight migration. `nil` on any row written before this
+    /// sprint (or by the algorithm whenever an item is actually selected/still eligible).
+    var rejectionReason: String?
 
     init(item: PhotoCurationItem, groupID: UUID, eventCandidateID: UUID) {
         id = item.id
@@ -80,5 +88,6 @@ final class MDPhotoCurationItem {
         isSuggested = item.isSuggested
         isSelected = item.isSelected
         selectionSource = item.selectionSource.rawValue
+        rejectionReason = item.rejectionReason?.rawValue
     }
 }

@@ -20,4 +20,14 @@ protocol PhotoEventRepository {
     /// cluster boundaries across incremental scans. See docs/sprint/SPRINT-004-INTEGRATION-CHECKLIST.md.
     func replaceRebuildableEvents(_ events: [PhotoEvent]) async throws
     func fetchEvents(sortedBy order: PhotoEventSortOrder) async throws -> [PhotoEvent]
+    func fetchLovedEvents() async throws -> [PhotoEvent]
+    func setEventLoved(eventID: UUID, isLoved: Bool) async throws
+    func setEventPlace(eventID: UUID, place: EventPlace?, state: EventPlaceResolutionState) async throws
+    /// Removes only the local Event candidate and its derived curation data. It never calls the
+    /// Photos framework or deletes any underlying library asset.
+    func deleteEvent(id: UUID) async throws
+    /// Merges `sourceID` into the selected destination Event. The destination keeps its identity
+    /// and presentation metadata while its dates, sessions and assets are expanded to include the
+    /// source; stale derived curation results for both Events are discarded.
+    func mergeEvent(sourceID: UUID, into destinationID: UUID) async throws
 }

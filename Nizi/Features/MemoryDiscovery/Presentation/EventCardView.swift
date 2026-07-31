@@ -17,6 +17,11 @@ struct EventCardView: View {
     let event: PhotoEvent
     let assetProvider: PhotoAssetProvider
     let onCoverLoaded: (PlatformImage) -> Void
+    /// Kept separate from the card's navigation action so a heart tap never opens Event Detail.
+    let onLoveTapped: (() -> Void)?
+    /// Called only for unresolved cards as they approach the viewport; the owner persists and
+    /// re-renders the updated Event rather than letting this presentation view touch SwiftData.
+    let onPlaceRequested: ((PhotoEvent) -> Void)?
 
     @State private var coverImage: PlatformImage?
 
@@ -27,10 +32,18 @@ struct EventCardView: View {
     private static let dateColumnRatio: CGFloat = 0.3
     private static let coverTargetSize = CGSize(width: 320, height: 320)
 
-    init(event: PhotoEvent, assetProvider: PhotoAssetProvider, onCoverLoaded: @escaping (PlatformImage) -> Void) {
+    init(
+        event: PhotoEvent,
+        assetProvider: PhotoAssetProvider,
+        onCoverLoaded: @escaping (PlatformImage) -> Void,
+        onLoveTapped: (() -> Void)? = nil,
+        onPlaceRequested: ((PhotoEvent) -> Void)? = nil
+    ) {
         self.event = event
         self.assetProvider = assetProvider
         self.onCoverLoaded = onCoverLoaded
+        self.onLoveTapped = onLoveTapped
+        self.onPlaceRequested = onPlaceRequested
         // Use an already-cached cover immediately — never start from nil if the image is already
         // in memory (e.g. this event's cover was already loaded elsewhere this session).
         if let coverAssetID = event.coverAssetID {
@@ -57,22 +70,21 @@ struct EventCardView: View {
             .onChange(of: proxy.size) { _, _ in logRuntimeGeometry(proxy: proxy) }
         }
         .frame(height: Self.cardHeight)
-        .background(
-            GeometryReader { globalProxy in
-                Color.clear
-                    .onAppear { logGlobalFrame(globalProxy.frame(in: .global)) }
-                    .onChange(of: globalProxy.frame(in: .global)) { _, newFrame in logGlobalFrame(newFrame) }
-            }
-        )
         .clipShape(RoundedRectangle(cornerRadius: 16))
         // Must come *after* `.clipShape`, not before — a shadow applied before clipping gets
         // clipped away along with everything outside the rounded-rect bounds.
         .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 3)
         .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabelText)
+        .accessibilityElement(children: onLoveTapped == nil ? .combine : .contain)
+        .accessibilityLabel(onLoveTapped == nil ? accessibilityLabelText : "")
         .task(id: event.coverAssetID) {
             await loadCover()
+        }
+        // A merged Event keeps its destination ID but resets place state to `.unresolved`.
+        // Keying on that state makes its GPS/place scan run again after the merge.
+        .task(id: event.placeResolutionState) {
+            guard eventNeedsPlaceResolution(event) else { return }
+            onPlaceRequested?(event)
         }
     }
 
@@ -84,22 +96,18 @@ struct EventCardView: View {
         NiziLogger.discovery.notice("event_card_runtime_geometry eventID=\(event.id, privacy: .public) proxyWidth=\(proxy.size.width, format: .fixed(precision: 1), privacy: .public) proxyHeight=\(proxy.size.height, format: .fixed(precision: 1), privacy: .public) textColumnWidth=\(textColumnWidth, format: .fixed(precision: 1), privacy: .public) coverColumnWidth=\(coverColumnWidth, format: .fixed(precision: 1), privacy: .public)")
     }
 
-    private func logGlobalFrame(_ frame: CGRect) {
-        NiziLogger.discovery.notice("event_card_runtime_geometry eventID=\(event.id, privacy: .public) globalMinX=\(frame.minX, format: .fixed(precision: 1), privacy: .public) globalMaxX=\(frame.maxX, format: .fixed(precision: 1), privacy: .public) globalMinY=\(frame.minY, format: .fixed(precision: 1), privacy: .public) globalMaxY=\(frame.maxY, format: .fixed(precision: 1), privacy: .public)")
-    }
-
     // MARK: - Date column (30%)
 
     private var dateColumn: some View {
         VStack(spacing: 8) {
-            Text(yearString)
+            Text(monthLabel)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Text(dayString)
                 .font(.system(size: 36, weight: .bold))
                 .foregroundStyle(.primary)
-            Text(monthString)
-                .font(.caption)
+            Text(weekdayString)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -146,6 +154,21 @@ struct EventCardView: View {
                 )
                 .frame(width: proxy.size.width, height: proxy.size.height)
 
+                if let onLoveTapped {
+                    Button(action: onLoveTapped) {
+                        Image(systemName: event.isLoved ? "heart.fill" : "heart")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(event.isLoved ? Color.red : Color.white)
+                            .frame(width: 38, height: 38)
+                            .background(.black.opacity(0.28), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(event.isLoved ? "Bỏ yêu thích sự kiện" : "Yêu thích sự kiện")
+                    .accessibilityHint("Chỉ thay đổi trạng thái yêu thích")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .padding(10)
+                }
+
                 metadataOverlay
                     .frame(width: proxy.size.width, alignment: .leading)
                     .background(
@@ -179,7 +202,7 @@ struct EventCardView: View {
                     Text(subtitleText)
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.9))
-                        .lineLimit(1)
+                        .lineLimit(event.primaryLocationLabel == nil ? 1 : 2)
                 }
             }
             Spacer(minLength: 8)
@@ -215,8 +238,13 @@ struct EventCardView: View {
         event.startDate.formatted(.dateTime.day())
     }
 
-    private var monthString: String {
-        event.startDate.formatted(.dateTime.month(.abbreviated))
+    private var monthLabel: String {
+        let month = Calendar.current.component(.month, from: event.startDate)
+        return localizedString("event.card.month", defaultValue: "Tháng \(month)")
+    }
+
+    private var weekdayString: String {
+        event.startDate.formatted(.dateTime.weekday(.wide).locale(Locale(identifier: "vi_VN")))
     }
 
     private var durationDays: Int {
@@ -231,8 +259,8 @@ struct EventCardView: View {
     }
 
     private var subtitleText: String {
-        if let location = event.primaryLocationLabel {
-            return "\(location) · \(durationText)"
+        if let location = event.eventPlace?.displayName ?? event.primaryLocationLabel {
+            return location
         }
         return durationText
     }
@@ -240,7 +268,7 @@ struct EventCardView: View {
     private var accessibilityLabelText: String {
         String(
             localized: "event.card.accessibility.label",
-            defaultValue: "\(dayString) \(monthString) \(yearString), \(event.assetCount) photos, \(event.eventType.displayLabel)"
+            defaultValue: "\(dayString) \(monthLabel) \(yearString), \(event.assetCount) photos, \(event.eventType.displayLabel)"
         )
     }
 

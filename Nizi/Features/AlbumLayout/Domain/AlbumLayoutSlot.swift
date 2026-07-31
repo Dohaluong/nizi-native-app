@@ -45,6 +45,34 @@ enum AlbumSlotOrientation: String, Codable, Hashable {
     case any
 }
 
+/// Which edge of the slot `AlbumSlotGradientOverlay`'s dark gradient starts from and fades inward
+/// toward — see that struct's own doc comment for the full shape.
+enum AlbumGradientEdge: String, Codable, Hashable, CaseIterable {
+    case top
+    case bottom
+    case left
+    case right
+}
+
+/// § user request — "phần ảnh cho phép chọn option gradient đen trong suốt, mục đích làm nền cho
+/// chữ": an optional dark gradient painted on top of a slot's photo (inside the same corner-radius
+/// clip), so a text block sitting over part of a photo stays legible. `edge` is where the gradient
+/// is darkest; it fades to fully transparent over `extentPercent` of that edge's own axis (height
+/// for `.top`/`.bottom`, width for `.left`/`.right`) — the remaining `100 - extentPercent` of the
+/// slot is left untouched. E.g. `edge: .bottom, extentPercent: 30` means the gradient spans only
+/// the bottom 30% of the slot's height, going from black (at `opacity`) at the very bottom edge to
+/// fully transparent at the 30%-from-bottom mark. `opacity` is a second, independent knob — the
+/// gradient's own maximum alpha at `edge`, before it fades to 0 (§ user request — "Có thêm opacity
+/// của gradien nữa").
+struct AlbumSlotGradientOverlay: Codable, Hashable {
+    let edge: AlbumGradientEdge
+    /// 0...100 — how much of the slot's edge-to-edge dimension the gradient's fade spans, starting
+    /// at `edge`.
+    let extentPercent: Double
+    /// 0...1 — the gradient's alpha at `edge` itself, before it fades to 0 over `extentPercent`.
+    let opacity: Double
+}
+
 struct AlbumLayoutSlot: Identifiable, Codable, Hashable {
     let id: String
     let order: Int
@@ -53,4 +81,25 @@ struct AlbumLayoutSlot: Identifiable, Codable, Hashable {
     let frame: AlbumLayoutFrame
     let contentMode: AlbumSlotContentMode
     let cornerRadius: Double
+    /// `nil` (the default — every existing `album-layouts.json` entry authored before this feature
+    /// existed has no `gradientOverlay` key at all) means no overlay is painted. A plain Optional
+    /// stored property on an otherwise fully-synthesized `Codable` type already decodes/encodes a
+    /// missing key as `nil` without needing a custom `init(from:)` — unlike `AlbumTextBlock.
+    /// fontStyle`, there's no *legacy, differently-named* key here to fall back to.
+    let gradientOverlay: AlbumSlotGradientOverlay?
+
+    init(
+        id: String, order: Int, role: AlbumLayoutSlotRole, preferredOrientation: AlbumSlotOrientation,
+        frame: AlbumLayoutFrame, contentMode: AlbumSlotContentMode, cornerRadius: Double,
+        gradientOverlay: AlbumSlotGradientOverlay? = nil
+    ) {
+        self.id = id
+        self.order = order
+        self.role = role
+        self.preferredOrientation = preferredOrientation
+        self.frame = frame
+        self.contentMode = contentMode
+        self.cornerRadius = cornerRadius
+        self.gradientOverlay = gradientOverlay
+    }
 }

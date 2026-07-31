@@ -141,6 +141,68 @@ struct SwiftDataMemoryDiscoveryStoreTests {
         #expect(remaining.count == 2)
     }
 
+    @Test func lovedEventPersistsAndFetchesNewestFirst() async throws {
+        let store = try makeStore()
+        let older = PhotoEvent.fixture(status: .new, startDate: Date(timeIntervalSince1970: 1_700_000_000))
+        let newer = PhotoEvent.fixture(status: .new, startDate: Date(timeIntervalSince1970: 1_710_000_000))
+        try await store.replaceRebuildableEvents([older, newer])
+
+        try await store.setEventLoved(eventID: older.id, isLoved: true)
+        try await store.setEventLoved(eventID: newer.id, isLoved: true)
+
+        let loved = try await store.fetchLovedEvents()
+        #expect(loved.map(\.id) == [newer.id, older.id])
+        #expect(loved.allSatisfy { $0.isLoved })
+    }
+
+    @Test func rebuildPreservesLoveForAnEventWithTheSameAssets() async throws {
+        let store = try makeStore()
+        let original = PhotoEvent.fixture(status: .new, assetIDs: ["asset-a", "asset-b"])
+        try await store.replaceRebuildableEvents([original])
+        try await store.setEventLoved(eventID: original.id, isLoved: true)
+
+        let rebuilt = PhotoEvent.fixture(status: .new, assetIDs: ["asset-b", "asset-a"])
+        try await store.replaceRebuildableEvents([rebuilt])
+
+        let loved = try await store.fetchLovedEvents()
+        #expect(loved.map(\.id) == [rebuilt.id])
+        #expect(loved.first?.isLoved == true)
+    }
+
+    @Test func deletingEventDoesNotDeleteItsLibraryAssetRecords() async throws {
+        let store = try makeStore()
+        let event = PhotoEvent.fixture(status: .new, assetIDs: ["asset-kept"])
+        _ = try await store.upsert([.fixture(id: "asset-kept")])
+        try await store.replaceRebuildableEvents([event])
+
+        try await store.deleteEvent(id: event.id)
+
+        #expect(try await store.fetchEvents(sortedBy: .newestFirst).isEmpty)
+        #expect(try await store.fetchAssets(ids: ["asset-kept"]).map(\.id) == ["asset-kept"])
+    }
+
+    @Test func mergingEventsCombinesAssetsAndSessionsIntoDestination() async throws {
+        let store = try makeStore()
+        let older = Date(timeIntervalSince1970: 1_700_000_000)
+        let newer = Date(timeIntervalSince1970: 1_710_000_000)
+        let sourceSession = UUID()
+        let destinationSession = UUID()
+        let source = PhotoEvent.fixture(status: .new, startDate: older, sessionIDs: [sourceSession], assetIDs: ["a", "shared"])
+        let destination = PhotoEvent.fixture(status: .new, startDate: newer, sessionIDs: [destinationSession], assetIDs: ["shared", "b"])
+        try await store.replaceRebuildableEvents([source, destination])
+
+        try await store.mergeEvent(sourceID: source.id, into: destination.id)
+
+        let events = try await store.fetchEvents(sortedBy: .newestFirst)
+        let merged = try #require(events.first)
+        #expect(events.count == 1)
+        #expect(merged.id == destination.id)
+        #expect(merged.startDate == older)
+        #expect(merged.endDate == newer)
+        #expect(merged.sessionIDs == [destinationSession, sourceSession])
+        #expect(merged.assetIDs == ["shared", "b", "a"])
+    }
+
     @Test func curationResultRoundTripsGroupsAndItems() async throws {
         let store = try makeStore()
         let eventID = UUID()
@@ -283,20 +345,25 @@ private extension EventCurationResult {
 }
 
 private extension PhotoEvent {
-    static func fixture(status: PhotoEventStatus) -> PhotoEvent {
-        let now = Date()
+    static func fixture(
+        status: PhotoEventStatus,
+        startDate: Date = Date(),
+        sessionIDs: [UUID] = [UUID()],
+        assetIDs: [String] = ["asset-1", "asset-2"]
+    ) -> PhotoEvent {
+        let now = startDate
         return PhotoEvent(
             id: UUID(),
             titleSuggestion: "10/06/2024",
-            startDate: now,
+            startDate: startDate,
             endDate: now,
             primaryLocationLabel: nil,
             eventType: .dayEvent,
             score: 0.5,
             status: status,
-            sessionIDs: [UUID()],
-            assetIDs: ["asset-1", "asset-2"],
-            coverAssetID: "asset-1",
+            sessionIDs: sessionIDs,
+            assetIDs: assetIDs,
+            coverAssetID: assetIDs.first,
             discoveryReasons: [DiscoveryReason(kind: .assetCountOverDuration, text: "2 ảnh trong ngày")],
             algorithmVersion: 1,
             createdAt: now,

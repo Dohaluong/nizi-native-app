@@ -13,6 +13,14 @@ struct EventPhotoCurationEngineTests {
     private static let reference = ISO8601DateFormatter().date(from: "2024-06-08T08:00:00Z")!
     private let sessionID = UUID()
 
+    /// There is no required final photo count by default (`enforceEventWideCeiling == false`) —
+    /// only tests that specifically exercise `balanceAcrossEvent`'s trimming need to opt back in.
+    private var enforcingCeiling: EventPhotoCurationEngine.Configuration {
+        var config = EventPhotoCurationEngine.Configuration.default
+        config.enforceEventWideCeiling = true
+        return config
+    }
+
     private func photo(
         id: String,
         minutesFromReference: Double,
@@ -131,7 +139,8 @@ struct EventPhotoCurationEngineTests {
             analyzedPhotos: photos,
             photoEventID: UUID(),
             sourceAssetCount: photos.count,
-            algorithmVersion: 1
+            algorithmVersion: 1,
+            config: enforcingCeiling
         )
 
         #expect(result.selectedAssetCount == 40)
@@ -168,7 +177,8 @@ struct EventPhotoCurationEngineTests {
             analyzedPhotos: photos,
             photoEventID: UUID(),
             sourceAssetCount: 10,
-            algorithmVersion: 1
+            algorithmVersion: 1,
+            config: enforcingCeiling
         )
 
         #expect(result.selectedAssetCount <= 30)
@@ -208,5 +218,261 @@ struct EventPhotoCurationEngineTests {
         #expect(result.sourceAssetCount == 1)
         #expect(result.algorithmVersion == 3)
         #expect(result.status == .completed)
+    }
+
+    // MARK: - Quality Gate (SPRINT-SMART-EVENT-HIGHLIGHTS.md § 18-22)
+
+    @Test func severelyBlurredPhotoNotAutoSelectedButStillPresent() {
+        let photos = [photo(id: "a", minutesFromReference: 0, clusterID: "a", sharpness: 0.02, exposure: 0.8)]
+
+        let result = EventPhotoCurationEngine.curate(
+            analyzedPhotos: photos, photoEventID: UUID(), sourceAssetCount: photos.count, algorithmVersion: 1
+        )
+
+        #expect(result.selectedAssetCount == 0)
+        let allItems = result.groups.flatMap(\.items)
+        #expect(allItems.count == 1)
+        #expect(allItems.first?.rejectionReason == .lowQuality)
+    }
+
+    @Test func favoriteScreenshotNeverAutoSelected() {
+        let screenshot = AnalyzedPhoto(
+            assetID: "shot", sessionID: sessionID, creationDate: Self.reference,
+            metrics: PhotoQualityMetrics(sharpness: 0.9, exposure: 0.9, faceScore: 0.9, isFavorite: true),
+            similarityClusterID: "shot", isScreenshot: true
+        )
+
+        let result = EventPhotoCurationEngine.curate(
+            analyzedPhotos: [screenshot], photoEventID: UUID(), sourceAssetCount: 1, algorithmVersion: 1
+        )
+
+        #expect(result.selectedAssetCount == 0)
+        #expect(result.groups.flatMap(\.items).first?.rejectionReason == .screenshot)
+    }
+
+    @Test func favoriteExtremelyUnusableNeverForcedSelected() {
+        let photos = [photo(id: "a", minutesFromReference: 0, clusterID: "a", sharpness: 0.01, exposure: 0.01, isFavorite: true)]
+
+        let result = EventPhotoCurationEngine.curate(
+            analyzedPhotos: photos, photoEventID: UUID(), sourceAssetCount: photos.count, algorithmVersion: 1
+        )
+
+        #expect(result.selectedAssetCount == 0)
+        #expect(result.groups.flatMap(\.items).first?.rejectionReason == .lowQuality)
+    }
+
+    // MARK: - Favorite priority (§ 33-36)
+
+    @Test func favoriteWinsWithinAcceptableQualityMargin() {
+        // nonFavorite composite = 0.35 + 0.25 + 0.25 = 0.85; favorite composite ≈ 0.755 (gap ≈
+        // 0.095, inside the default 0.15 margin) — the Favorite should win the cluster.
+        let nonFavorite = photo(id: "non-fav", minutesFromReference: 0, clusterID: "c", sharpness: 1.0, exposure: 1.0, faceScore: 1.0)
+        let favorite = photo(id: "fav", minutesFromReference: 0.2, clusterID: "c", sharpness: 0.8, exposure: 0.8, faceScore: 0.5, isFavorite: true)
+
+        let result = EventPhotoCurationEngine.curate(
+            analyzedPhotos: [nonFavorite, favorite], photoEventID: UUID(), sourceAssetCount: 2, algorithmVersion: 1
+        )
+
+        #expect(result.orderedSelectedAssetIdentifiers == ["fav"])
+        #expect(result.groups.flatMap(\.items).first { $0.assetID == "non-fav" }?.rejectionReason == .nearDuplicate)
+    }
+
+    @Test func favoriteLosesWhenSignificantlyWorse() {
+        // nonFavorite composite = 0.85; favorite composite ≈ 0.32 (gap ≈ 0.53, well past the
+        // default 0.15 margin) — the non-favorite should win despite the other candidate being Favorite.
+        let nonFavorite = photo(id: "non-fav", minutesFromReference: 0, clusterID: "c", sharpness: 1.0, exposure: 1.0, faceScore: 1.0)
+        let favorite = photo(id: "fav", minutesFromReference: 0.2, clusterID: "c", sharpness: 0.2, exposure: 0.2, faceScore: 0.2, isFavorite: true)
+
+        let result = EventPhotoCurationEngine.curate(
+            analyzedPhotos: [nonFavorite, favorite], photoEventID: UUID(), sourceAssetCount: 2, algorithmVersion: 1
+        )
+
+        #expect(result.orderedSelectedAssetIdentifiers == ["non-fav"])
+        #expect(result.groups.flatMap(\.items).first { $0.assetID == "fav" }?.rejectionReason == .nearDuplicate)
+    }
+
+    // MARK: - Global duplicate suppression (§ 27-32)
+
+    @Test func crossClusterDuplicatesResolvedByGlobalPassOnly() {
+        // Two distinct, non-adjacent singleton clusters — locally each is its own auto-selected
+        // representative. A hand-built `globalDuplicateGroups` map simulates the global visual
+        // pass judging them duplicates of each other despite never having been locally clustered.
+        let a = photo(id: "a", minutesFromReference: 0, clusterID: "a")
+        let b = photo(id: "b", minutesFromReference: 30, clusterID: "b")
+
+        let result = EventPhotoCurationEngine.curate(
+            analyzedPhotos: [a, b], photoEventID: UUID(), sourceAssetCount: 2,
+            algorithmVersion: 1, globalDuplicateGroups: ["a": "g1", "b": "g1"]
+        )
+
+        #expect(result.selectedAssetCount == 1)
+        #expect(result.groups.flatMap(\.items).count == 2)
+        let loser = result.groups.flatMap(\.items).first { !$0.isSelected }
+        #expect(loser?.rejectionReason == .globalDuplicate)
+    }
+
+    // MARK: - Lightweight temporal diversity (§ 37-40, § 56)
+
+    @Test func temporalDiversityProtectsMinorityDaysFromTrim() {
+        let dayBase = Calendar.current.startOfDay(for: Self.reference)
+
+        func burst(dayOffset: Double, sessionOffsetSeconds: Double, clusterID: String, strongSharpness: Double, weakSharpness: Double) -> [AnalyzedPhoto] {
+            let sessionStart = dayBase.addingTimeInterval(dayOffset * 86400 + sessionOffsetSeconds)
+            let burstSessionID = UUID()
+            return (0..<8).map { index in
+                AnalyzedPhoto(
+                    assetID: "\(clusterID)-\(index)",
+                    sessionID: burstSessionID,
+                    creationDate: sessionStart.addingTimeInterval(Double(index) * 30),
+                    metrics: PhotoQualityMetrics(
+                        sharpness: (index == 0 || index == 6) ? strongSharpness : weakSharpness,
+                        exposure: 0.8, faceScore: 0.5, isFavorite: false
+                    ),
+                    similarityClusterID: clusterID
+                )
+            }
+        }
+
+        var photos: [AnalyzedPhoto] = []
+        // Day 1: 20 sessions sharing one calendar day, high quality — lots of trimmable slack.
+        for session in 0..<20 {
+            photos += burst(dayOffset: 0, sessionOffsetSeconds: Double(session) * 60, clusterID: "day1-\(session)", strongSharpness: 0.9, weakSharpness: 0.3)
+        }
+        // Day 2 and Day 3: one session each, lower quality but usable — minority days.
+        photos += burst(dayOffset: 1, sessionOffsetSeconds: 0, clusterID: "day2", strongSharpness: 0.5, weakSharpness: 0.2)
+        photos += burst(dayOffset: 2, sessionOffsetSeconds: 0, clusterID: "day3", strongSharpness: 0.5, weakSharpness: 0.2)
+
+        let result = EventPhotoCurationEngine.curate(
+            analyzedPhotos: photos, photoEventID: UUID(), sourceAssetCount: 10, algorithmVersion: 1,
+            config: enforcingCeiling
+        )
+
+        func suggestedCount(forClusterPrefix prefix: String) -> Int {
+            result.groups.first { $0.items.contains { $0.assetID.hasPrefix(prefix) } }?.suggestedCount ?? -1
+        }
+
+        #expect(result.selectedAssetCount <= 30)
+        #expect(suggestedCount(forClusterPrefix: "day2") == 2)
+        #expect(suggestedCount(forClusterPrefix: "day3") == 2)
+    }
+
+    // MARK: - Event-wide ceiling is opt-in (no required final photo count by default)
+
+    private func manySingletonMoments(count: Int) -> [AnalyzedPhoto] {
+        (0..<count).map { index in
+            AnalyzedPhoto(
+                assetID: "solo-\(index)",
+                sessionID: UUID(),
+                creationDate: Self.reference.addingTimeInterval(Double(index) * 60),
+                metrics: PhotoQualityMetrics(sharpness: 0.8, exposure: 0.8, faceScore: 0.5, isFavorite: false),
+                similarityClusterID: "solo-\(index)"
+            )
+        }
+    }
+
+    @Test func eventWideCeilingOffByDefaultDoesNotLimitFinalCount() {
+        let photos = manySingletonMoments(count: 100)
+
+        let result = EventPhotoCurationEngine.curate(
+            analyzedPhotos: photos, photoEventID: UUID(), sourceAssetCount: 300, algorithmVersion: 1
+            // default config — `enforceEventWideCeiling` is false, so all 100 stand.
+        )
+
+        #expect(result.selectedAssetCount == 100)
+    }
+
+    @Test func hardCeilingEscalatesPastMomentFloorForLargeEventsWhenOptedIn() {
+        // 100 genuinely distinct singleton moments — the floor-respecting pass alone can't trim
+        // any of them (each is already at its floor of 1), which is exactly the failure mode
+        // behind a real ~500-photo Event landing at ~400 selected. For an Event this large
+        // (≥300), opting into `enforceEventWideCeiling` must still reach the real target even if
+        // that means emptying some moments entirely.
+        let photos = manySingletonMoments(count: 100)
+
+        let result = EventPhotoCurationEngine.curate(
+            analyzedPhotos: photos, photoEventID: UUID(), sourceAssetCount: 300, algorithmVersion: 1,
+            config: enforcingCeiling
+        )
+
+        #expect(result.selectedAssetCount == EventPhotoCurationEngine.targetRange(forSourceAssetCount: 300).upperBound)
+    }
+
+    // MARK: - Preserving manual selection (§ 5-8)
+
+    @Test func captureAndApplyUserOverridesForcesUserChoiceOverTheAlgorithm() {
+        let eventID = UUID()
+        let staleResult = EventCurationResult.fixtureForOverrideTests(
+            photoEventID: eventID,
+            items: [
+                ("kept-by-user", true, .userAdded),
+                ("removed-by-user", false, .userRemoved),
+                ("untouched", true, .systemSuggested)
+            ]
+        )
+        let overrides = EventPhotoCurationEngine.captureUserOverrides(from: staleResult)
+
+        // A brand-new algorithm run that disagrees with the user on every overridden asset —
+        // the freshest run still has "removed-by-user" marked selected and "kept-by-user"
+        // marked unselected, simulating the algorithm changing its mind after a recurate.
+        let freshResult = EventCurationResult.fixtureForOverrideTests(
+            photoEventID: eventID,
+            items: [
+                ("kept-by-user", false, .systemSuggested),
+                ("removed-by-user", true, .systemSuggested),
+                ("untouched", true, .systemSuggested)
+            ]
+        )
+
+        let merged = EventPhotoCurationEngine.applyPreservedUserOverrides(to: freshResult, overrides: overrides)
+        let itemsByAssetID = Dictionary(uniqueKeysWithValues: merged.groups.flatMap(\.items).map { ($0.assetID, $0) })
+
+        #expect(itemsByAssetID["kept-by-user"]?.isSelected == true)
+        #expect(itemsByAssetID["kept-by-user"]?.selectionSource == .userAdded)
+        #expect(itemsByAssetID["removed-by-user"]?.isSelected == false)
+        #expect(itemsByAssetID["removed-by-user"]?.selectionSource == .userRemoved)
+        // Untouched by the user — the fresh algorithm's own call stands.
+        #expect(itemsByAssetID["untouched"]?.isSelected == true)
+        #expect(itemsByAssetID["untouched"]?.selectionSource == .systemSuggested)
+    }
+
+    @Test func applyPreservedUserOverridesSkipsAssetsNoLongerInTheEvent() {
+        let eventID = UUID()
+        let staleResult = EventCurationResult.fixtureForOverrideTests(
+            photoEventID: eventID,
+            items: [("gone-from-event", true, .userAdded)]
+        )
+        let overrides = EventPhotoCurationEngine.captureUserOverrides(from: staleResult)
+
+        let freshResult = EventCurationResult.fixtureForOverrideTests(
+            photoEventID: eventID,
+            items: [("still-here", true, .systemSuggested)]
+        )
+
+        let merged = EventPhotoCurationEngine.applyPreservedUserOverrides(to: freshResult, overrides: overrides)
+
+        // No orphan item created for the asset that left the Event — the merged result only
+        // ever contains items the fresh algorithm run actually produced.
+        #expect(merged.groups.flatMap(\.items).map(\.assetID) == ["still-here"])
+    }
+}
+
+private extension EventCurationResult {
+    /// Minimal fixture for `UserOverrideSnapshot` tests — one flat group, `isSelected`/
+    /// `selectionSource` set directly per item, everything else defaulted.
+    static func fixtureForOverrideTests(photoEventID: UUID, items: [(assetID: String, isSelected: Bool, source: SelectionSource)]) -> EventCurationResult {
+        let now = Date()
+        let curationItems = items.enumerated().map { index, entry in
+            PhotoCurationItem(
+                id: UUID(), assetID: entry.assetID, sortOrder: index, qualityScore: 50,
+                similarityClusterID: entry.assetID, isSuggested: entry.isSelected,
+                isSelected: entry.isSelected, selectionSource: entry.source
+            )
+        }
+        let group = PhotoCurationGroup(id: UUID(), sessionID: nil, startDate: now, endDate: now, sortOrder: 0, items: curationItems)
+        return EventCurationResult(
+            photoEventID: photoEventID, status: .completed, algorithmVersion: 1,
+            createdAt: now, updatedAt: now, completedAt: now,
+            sourceAssetCount: items.count, errorMessage: nil, groups: [group]
+        )
     }
 }

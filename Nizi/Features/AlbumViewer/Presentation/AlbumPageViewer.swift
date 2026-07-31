@@ -23,13 +23,11 @@ struct AlbumPageViewer: View {
     @State private var isSaving = false
     @State private var editError: String?
 
-    @State private var changeCoverTarget: Bool = false
-    @State private var swapSourcePage: AlbumViewerPage?
     @State private var cropTarget: AlbumPhotoCropTarget?
     @State private var textBlockEditTarget: AlbumTextBlockEditTarget?
-    @State private var removePhotoTarget: AlbumViewerPage?
-    @State private var removeSpreadConfirmation: AlbumViewerPage?
-    @State private var removePhotoBlockedAlert = false
+    @State private var addPhotoTarget: AlbumViewerPage?
+    @State private var addPhotoBlockedAlert = false
+    @State private var removePageConfirmation: AlbumViewerPage?
     /// § user request — locks `TabView(.page)`'s own page-swiping out for as long as a
     /// drag-to-swap is actively picked up on the current Page (see `AlbumPagingLockView`).
     @State private var isPhotoDragActive = false
@@ -59,9 +57,17 @@ struct AlbumPageViewer: View {
         // its own `some View` property gives the checker two smaller expressions to solve instead
         // of one large one — behaviorally identical, just faster to compile.
         navigationContent
-            .onChange(of: activeDraft.spreads) { _, _ in
+            .onChange(of: activeDraft.spreads) { oldValue, _ in
                 if let selectedItemId {
-                    let resolved = AlbumViewerSelection(itemId: selectedItemId).resolved(against: items)
+                    // § user report — "xoá trang xong ... chuyển đến trang cuối cùng" thay vì
+                    // trang tiếp theo: `previousItems` (built from `oldValue`, the Spreads just
+                    // before this change) is what lets `resolved(against:previousItems:)` land on
+                    // whatever slid into the removed Page's old slot, instead of always falling
+                    // back to the very last Page.
+                    var draftBeforeChange = activeDraft
+                    draftBeforeChange.spreads = oldValue
+                    let previousItems = itemBuilder.makeItems(from: draftBeforeChange)
+                    let resolved = AlbumViewerSelection(itemId: selectedItemId).resolved(against: items, previousItems: previousItems)
                     self.selectedItemId = resolved?.itemId
                 }
             }
@@ -75,50 +81,49 @@ struct AlbumPageViewer: View {
         } message: {
             Text(editError ?? "")
         }
-        .alert("album.edit.remove_last_photo_title", isPresented: $removePhotoBlockedAlert) {
+        .alert("album.edit.add_photo_blocked_title", isPresented: $addPhotoBlockedAlert) {
             Button("common.action.cancel", role: .cancel) {}
         } message: {
-            Text("album.eachPageNeedsPhoto")
+            Text("album.edit.add_photo_blocked_message")
         }
         .confirmationDialog(
-            "album.edit.remove_spread_title", isPresented: Binding(get: { removeSpreadConfirmation != nil }, set: { if !$0 { removeSpreadConfirmation = nil } }),
+            "album.edit.remove_page_title", isPresented: Binding(get: { removePageConfirmation != nil }, set: { if !$0 { removePageConfirmation = nil } }),
             titleVisibility: .visible
         ) {
-            Button("album.removeSpread", role: .destructive) {
-                if let page = removeSpreadConfirmation { removeSpread(containing: page) }
-                removeSpreadConfirmation = nil
+            Button("album.removePage", role: .destructive) {
+                if let page = removePageConfirmation { removeCurrentPage(page) }
+                removePageConfirmation = nil
             }
-            Button("common.action.cancel", role: .cancel) { removeSpreadConfirmation = nil }
+            Button("common.action.cancel", role: .cancel) { removePageConfirmation = nil }
         } message: {
+            // § user request — "Không xoá ảnh khỏi thiết bị, chỉ xoá khỏi album": this only ever
+            // clears this one Page's own assignments in the Draft, never touches the Photos
+            // Library asset itself.
             Text("album.photosRemainInLibrary")
         }
-        .sheet(isPresented: $changeCoverTarget) {
-            AlbumPhotoPickerSheet(draft: activeDraft, title: "album.changeCover") { reference in
-                apply(.changeCover(photo: reference))
-                changeCoverTarget = false
-            }
-        }
-        .sheet(item: $swapSourcePage) { sourcePage in
-            AlbumSwapPhotoSheet(currentPage: sourcePage, draft: activeDraft) { firstAssignmentId, secondAssignmentId in
-                apply(.swapPhotos(firstAssignmentId: firstAssignmentId, secondAssignmentId: secondAssignmentId))
-                swapSourcePage = nil
-            }
-        }
-        .sheet(item: $removePhotoTarget) { targetPage in
-            AlbumRemovePhotoSheet(page: targetPage.page) { slotId in
-                apply(.removePhoto(pageId: targetPage.page.id, slotId: slotId))
-                removePhotoTarget = nil
+        .sheet(item: $addPhotoTarget) { targetPage in
+            AlbumPhotoPickerSheet(draft: activeDraft, title: "album.addPhoto") { reference in
+                apply(.addPhoto(pageId: targetPage.page.id, photo: reference))
+                addPhotoTarget = nil
             }
         }
         .sheet(item: $textBlockEditTarget) { target in
             AlbumTextBlockEditSheet(
                 target: target,
-                onSave: { text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontStyle in
-                    apply(.updateTextBlock(
-                        pageId: target.pageId, textBlockId: target.textBlockId, text: text,
-                        horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
-                        fontFamily: fontFamily, fontSize: fontSize, fontStyle: fontStyle
-                    ))
+                onSave: { text, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontStyle, textColor in
+                    if target.isCoverText {
+                        apply(.updateCoverTextBlock(
+                            textBlockId: target.textBlockId, text: text,
+                            horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
+                            fontFamily: fontFamily, fontSize: fontSize, fontStyle: fontStyle, textColor: textColor
+                        ))
+                    } else {
+                        apply(.updateTextBlock(
+                            pageId: target.pageId, textBlockId: target.textBlockId, text: text,
+                            horizontalAlignment: horizontalAlignment, verticalAlignment: verticalAlignment,
+                            fontFamily: fontFamily, fontSize: fontSize, fontStyle: fontStyle, textColor: textColor
+                        ))
+                    }
                     textBlockEditTarget = nil
                 },
                 onCancel: { textBlockEditTarget = nil }
@@ -181,14 +186,40 @@ struct AlbumPageViewer: View {
     // § layout request — the page number now sits right below each Page's own content (as part
     // of the same `TabView` item, so it slides along with the Page it belongs to) instead of in a
     // persistent top header; the Cover has no page number, so it renders with nothing below it.
+    //
+    // § user request — "trang bìa sẽ có cấu trúc như trang ruột ... Có thể lấy layout id:
+    // square.1.cover làm layout ban đầu": the Cover used to render via the now-deleted bespoke
+    // `AlbumCoverView` (its own hardcoded gradient/shadow/title chrome, no crop, no per-block text
+    // editing, and a corner radius that never matched the real layout's own — see `AlbumDetailView
+    // .pagerContent`'s own doc comment). It's now just another `pageView` — the same
+    // `AlbumPageRenderer` pipeline every content Page already goes through — fed a synthesized
+    // `AlbumViewerPage` (`coverAsViewerPage`, via the shared `AlbumCoverPageBuilder`) instead of a
+    // real one from `draft.spreads`, so corner radius, tap-to-crop, tap-to-change-photo, and
+    // tap-to-edit-text all come for free, identical to a content Page. `AlbumDetailView`'s own
+    // read-only hero now uses the same `AlbumCoverPageBuilder`/`AlbumPageCardView` pair for the
+    // same reason; `AlbumCoverConfiguration` (unchanged) still feeds its `heroEyebrow`/
+    // `overviewText`, which have nothing to do with the Cover's own on-screen rendering.
     @ViewBuilder
     private func itemView(_ item: AlbumViewerItem) -> some View {
         switch item {
-        case let .cover(configuration):
-            AlbumCoverView(configuration: configuration)
+        case .cover:
+            pageView(coverAsViewerPage, showsPageIndicator: false)
         case let .page(viewerPage):
             pageView(viewerPage)
         }
+    }
+
+    /// Local aliases for `AlbumCoverPageBuilder`'s own constants — kept so every existing
+    /// `Self.coverLayoutId`/`Self.coverPageId` comparison below reads the same as before.
+    private static let coverLayoutId = AlbumCoverPageBuilder.layoutId
+    private static let coverPageId = AlbumCoverPageBuilder.pageId
+
+    /// § user request — "trang bìa sẽ có cấu trúc như trang ruột": shared with `AlbumDetailView`'s
+    /// own read-only hero via `AlbumCoverPageBuilder`, so the synthesis logic (seeding title/
+    /// subtitle/paragraph from the Album's own title/date/location, resolving `coverLayoutId`)
+    /// never has to be duplicated between the two screens.
+    private var coverAsViewerPage: AlbumViewerPage {
+        AlbumCoverPageBuilder.makeViewerPage(from: activeDraft, layoutRepository: layoutRepository)
     }
 
     /// Broken out from `body`'s `.navigationDestination` closure — inlined there, the whole
@@ -197,50 +228,76 @@ struct AlbumPageViewer: View {
         AlbumPhotoCropSheet(
             assignment: target.assignment, frameAspectRatio: target.frameAspectRatio, draft: activeDraft,
             onSave: { crop in
-                apply(.updatePhotoCrop(assignmentId: target.assignment.id, crop: crop))
+                if target.isCoverPhoto {
+                    apply(.updateCoverPhotoCrop(crop: crop))
+                } else {
+                    apply(.updatePhotoCrop(assignmentId: target.assignment.id, crop: crop))
+                }
                 cropTarget = nil
             },
             onCancel: { cropTarget = nil },
-            onRemove: {
+            // § user request — "trang bìa ... crop ảnh tương tự như trang khác": the cover always
+            // needs exactly one photo, so there's no "remove" action for it at all (see
+            // `AlbumPhotoCropSheet.onRemove`'s own doc comment).
+            onRemove: target.isCoverPhoto ? nil : {
                 apply(.removePhoto(pageId: target.pageId, slotId: target.assignment.slotId))
                 cropTarget = nil
             },
             onChangePhoto: { photo in
-                apply(.assignPhoto(assignmentId: target.assignment.id, photo: photo))
+                if target.isCoverPhoto {
+                    apply(.changeCover(photo: photo))
+                } else {
+                    apply(.assignPhoto(assignmentId: target.assignment.id, photo: photo))
+                }
                 cropTarget = nil
             }
         )
     }
 
-    private func pageView(_ viewerPage: AlbumViewerPage) -> some View {
-        VStack(spacing: 6) {
+    /// `showsPageIndicator: false` for the Cover (§ layout request, unchanged) — everything else
+    /// is identical for the Cover and a content Page; the only branching left is *which*
+    /// `AlbumEditAction` a crop/text-edit dispatches to, decided by `isCoverPage` below and
+    /// threaded through via `AlbumPhotoCropTarget.isCoverPhoto`/`AlbumTextBlockEditTarget.
+    /// isCoverText` (see `cropDestination` and the `textBlockEditTarget` sheet in `body`).
+    private func pageView(_ viewerPage: AlbumViewerPage, showsPageIndicator: Bool = true) -> some View {
+        let isCoverPage = viewerPage.page.id == Self.coverPageId
+        return VStack(spacing: 6) {
             AlbumPageCardView(
                 viewerPage: viewerPage, layoutRepository: layoutRepository,
                 // § user request — drag-to-swap only while actively editing; outside edit mode
                 // `apply(_:)` would silently no-op anyway (no `editingSession`), which would
                 // leave the ripple's "new photo" reveal showing the same old photo underneath.
-                onSwapPhotos: isEditing
+                // The Cover has only ever one photo (its single slot), so there's never a second
+                // assignment on the same "Page" to swap with.
+                onSwapPhotos: (isEditing && !isCoverPage)
                     ? { from, to in apply(.swapPhotos(firstAssignmentId: from.id, secondAssignmentId: to.id)) }
                     : nil,
                 onCropPhoto: isEditing
                     ? { assignment, aspectRatio in
-                        cropTarget = AlbumPhotoCropTarget(assignment: assignment, frameAspectRatio: aspectRatio, pageId: viewerPage.page.id)
+                        cropTarget = AlbumPhotoCropTarget(
+                            assignment: assignment, frameAspectRatio: aspectRatio, pageId: viewerPage.page.id,
+                            isCoverPhoto: isCoverPage
+                        )
                     }
                     : nil,
                 onDragActiveChanged: { isPhotoDragActive = $0 },
                 onTapTextBlock: isEditing
-                    ? { effective in
+                    ? { effective, kind in
                         textBlockEditTarget = AlbumTextBlockEditTarget(
                             pageId: viewerPage.page.id, textBlockId: effective.textBlockId, currentText: effective.text,
                             currentHorizontalAlignment: effective.horizontalAlignment, currentVerticalAlignment: effective.verticalAlignment,
-                            currentFontFamily: effective.fontFamily, currentFontSize: effective.fontSize, currentFontStyle: effective.fontStyle
+                            currentFontFamily: effective.fontFamily, currentFontSize: effective.fontSize, currentFontStyle: effective.fontStyle,
+                            currentTextColor: effective.textColor, currentKind: kind, isCoverText: isCoverPage
                         )
                     }
-                    : nil
+                    : nil,
+                onTapBlankPage: isEditing ? { beginAddPhoto(to: viewerPage) } : nil
             )
-            Text(localizedString("album.viewer.page_indicator", defaultValue: "Page \(viewerPage.pageNumber) / \(viewerPage.totalPageCount)"))
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            if showsPageIndicator {
+                Text(localizedString("album.viewer.page_indicator", defaultValue: "Page \(viewerPage.pageNumber) / \(viewerPage.totalPageCount)"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
         }
         // Must be a genuine descendant of this Page's own `TabView` item (see
         // `AlbumPagingLockView`'s own doc comment) so walking `superview` from it resolves to
@@ -250,18 +307,32 @@ struct AlbumPageViewer: View {
 
     // MARK: - Edit mode
 
+    /// Only ever a real Page from `draft.spreads` — deliberately `nil` while the Cover is showing.
+    /// The layout picker needs the Cover included too, so it has its own separate resolution
+    /// (`layoutPickerViewerPage`) rather than widening this one.
     private var currentViewerPage: AlbumViewerPage? {
         guard case let .page(page) = items.first(where: { $0.id == selectedItemId }) else { return nil }
         return page
+    }
+
+    /// § user request — "square.1.cover là layout mặc định cho ảnh bìa, sau này có thể thay layout
+    /// khác": unlike `currentViewerPage`, this *does* resolve to `coverAsViewerPage` while the
+    /// Cover is showing, so `layoutPickerHeader` below can offer the same swatch row for it.
+    private var layoutPickerViewerPage: AlbumViewerPage? {
+        // `AlbumViewerItem.cover`'s own `id` is the literal `"cover"` string — same sentinel
+        // `Self.coverPageId` already uses, so this is just comparing against that directly.
+        selectedItemId == Self.coverPageId ? coverAsViewerPage : currentViewerPage
     }
 
     /// § layout request — replaces the old "Change Layout" sheet with an always-visible picker at
     /// the top of the screen: one horizontal row (free to run wider than the screen — pan to see
     /// the rest) of every layout that matches the *current* Page's own photo count (never a
     /// mismatched count — same filter `AlbumLayoutPickerSheet` used to apply), re-filtering
-    /// automatically as `currentViewerPage` changes while swiping between Pages. Tapping a swatch
-    /// applies it immediately, no confirmation step, and re-centers the row on it. Empty (no
-    /// picker at all) while the Cover is showing, since a Cover has no interchangeable Page layout.
+    /// automatically as `layoutPickerViewerPage` changes while swiping between Pages. Tapping a
+    /// swatch applies it immediately, no confirmation step, and re-centers the row on it. § user
+    /// request — "square.1.cover là layout mặc định cho ảnh bìa, sau này có thể thay layout khác":
+    /// now also shown for the Cover (`layoutSwatchButton` branches which `AlbumEditAction` a tap
+    /// dispatches to).
     private static let layoutSwatchSize: CGFloat = 64
     private static let layoutPickerVerticalPadding: CGFloat = 12
     /// Explicit, computed height — a `ScrollView` with no bounded height left `.safeAreaInset` to
@@ -274,7 +345,7 @@ struct AlbumPageViewer: View {
 
     @ViewBuilder
     private var layoutPickerHeader: some View {
-        if let viewerPage = currentViewerPage {
+        if let viewerPage = layoutPickerViewerPage {
             ScrollViewReader { scrollProxy in
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 10) {
@@ -319,7 +390,11 @@ struct AlbumPageViewer: View {
     private func layoutSwatchButton(_ candidate: AlbumPageLayout, currentPage: AlbumViewerPage) -> some View {
         let isSelected = candidate.id == currentPage.page.layoutId
         return Button {
-            apply(.changePageLayout(pageId: currentPage.page.id, layoutId: candidate.id), animated: true)
+            if currentPage.page.id == Self.coverPageId {
+                apply(.changeCoverLayout(layoutId: candidate.id), animated: true)
+            } else {
+                apply(.changePageLayout(pageId: currentPage.page.id, layoutId: candidate.id), animated: true)
+            }
         } label: {
             AlbumPageRenderer(layout: candidate, assignments: Self.swatchAssignments(for: candidate), photoProvider: LayoutSwatchPhotoProvider())
                 .frame(width: Self.layoutSwatchSize, height: Self.layoutSwatchSize)
@@ -334,9 +409,9 @@ struct AlbumPageViewer: View {
     }
 
     /// One placeholder assignment per slot — never a real photo, just enough for
-    /// `AlbumPageRenderer` to hand each slot to `LayoutSwatchPhotoProvider`, which colors it by
-    /// the reference id's own stable hash. Keyed off `candidate.id`/`slot.id` (not a real photo
-    /// id) so the same layout always swatches the same way.
+    /// `AlbumPageRenderer` to hand each slot to `LayoutSwatchPhotoProvider`, which renders it as a
+    /// blue gradient placeholder. Keyed off `candidate.id`/`slot.id` (not a real photo id) so the
+    /// same layout always swatches the same way.
     private static func swatchAssignments(for candidate: AlbumPageLayout) -> [AlbumPhotoAssignment] {
         candidate.slots.map { slot in
             AlbumPhotoAssignment(
@@ -347,34 +422,64 @@ struct AlbumPageViewer: View {
         }
     }
 
+    // MARK: - Bottom toolbar (Add Photo / Delete Page)
+
+    /// § user request — "1 nút thêm ảnh bên dưới cùng, ở chính giữa, dạng icon không có chữ" +
+    /// "1 nút xoá trang": a single centered Add-Photo button (the primary action here), plus a
+    /// Delete-Page button pinned to the trailing edge — both icon-only, both Page-only (disabled
+    /// while the Cover is showing, same as every other `currentViewerPage`-gated action).
     private var editToolbar: some View {
-        HStack(spacing: 0) {
-            editToolbarButton("album.changeCover", systemImage: "photo") { changeCoverTarget = true }
-            editToolbarButton("album.swapPhoto", systemImage: "arrow.left.arrow.right") {
-                if let page = currentViewerPage { swapSourcePage = page }
+        ZStack {
+            addPhotoButton
+            HStack {
+                Spacer()
+                deletePageButton
             }
-            .disabled(currentViewerPage == nil)
-            editToolbarButton("album.removePhoto", systemImage: "minus.circle") {
-                if let page = currentViewerPage { removePhotoTarget = page }
-            }
-            .disabled(currentViewerPage == nil)
-            editToolbarButton("album.removeSpread", systemImage: "trash") {
-                if let page = currentViewerPage { removeSpreadConfirmation = page }
-            }
-            .disabled(currentViewerPage == nil)
         }
-        .padding(.vertical, 8)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 10)
         .background(.bar)
     }
 
-    private func editToolbarButton(_ titleKey: LocalizedStringKey, systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 2) {
-                Image(systemName: systemImage)
-                Text(titleKey).font(.caption2)
-            }
-            .frame(maxWidth: .infinity)
+    private var addPhotoButton: some View {
+        Button {
+            if let page = currentViewerPage { beginAddPhoto(to: page) }
+        } label: {
+            Image(systemName: "plus.circle.fill")
+                .font(.system(size: 32))
         }
+        .disabled(currentViewerPage == nil)
+        .accessibilityLabel(Text("album.addPhoto"))
+    }
+
+    private var deletePageButton: some View {
+        Button(role: .destructive) {
+            if let page = currentViewerPage { removePageConfirmation = page }
+        } label: {
+            Image(systemName: "trash")
+                .font(.system(size: 20))
+        }
+        .disabled(currentViewerPage == nil)
+        .accessibilityLabel(Text("album.removePage"))
+    }
+
+    /// Shared by the centered "+" toolbar button and tapping a blank Page's own placeholder card
+    /// directly (`AlbumPageCardView.onTapBlankPage`) — both just want "open the picker for this
+    /// Page," gated the same way.
+    private func beginAddPhoto(to viewerPage: AlbumViewerPage) {
+        if canAddPhoto(to: viewerPage) {
+            addPhotoTarget = viewerPage
+        } else {
+            addPhotoBlockedAlert = true
+        }
+    }
+
+    /// § user request — "Không cho thêm nếu quá giới hạn frame ảnh": true only if some layout in
+    /// this Page's format supports one more slot than it currently has (§ layouts top out at
+    /// `photoCount` 4 today, so a 4-photo Page always reports `false` here).
+    private func canAddPhoto(to viewerPage: AlbumViewerPage) -> Bool {
+        let nextCount = viewerPage.page.assignments.count + 1
+        return !((try? layoutRepository.layouts(photoCount: nextCount, format: viewerPage.page.format)) ?? []).isEmpty
     }
 
     private func beginEditing() {
@@ -427,15 +532,31 @@ struct AlbumPageViewer: View {
                 } else {
                     editingSession?.workingDraft = updated
                 }
-            } catch AlbumEditError.cannotRemoveLastPhotoOnPage {
-                removePhotoBlockedAlert = true
             } catch {
                 editError = String(describing: error)
             }
         }
     }
 
-    private func removeSpread(containing page: AlbumViewerPage) {
-        apply(.removeSpread(spreadId: page.spreadId))
+    /// § user report — "dù đã xoá spread nhưng ra ngoài album vẫn thấy đủ chưa xoá và vẫn vào lại
+    /// được": every other edit action only ever touches `editingSession.workingDraft`, discarded
+    /// whole by `cancelEditing()` unless the user separately taps "Save" — for most edits that's
+    /// fine (Cancel is supposed to discard them), but a destructive action the user already
+    /// confirmed through its own "are you sure?" dialog reads as final the moment they tap it, not
+    /// contingent on a second, unrelated Save tap. So this persists immediately (`draft`/`onSave`,
+    /// the same two writes `saveEditing()` itself does, minus validation/dismiss) — same posture
+    /// `AlbumDetailView`'s own direct-commit actions (`hidePhoto`, photo replace) already take.
+    private func removeCurrentPage(_ page: AlbumViewerPage) {
+        guard let session = editingSession else { return }
+        Task {
+            do {
+                let updated = try await actionApplier.apply(.removePage(pageId: page.page.id), to: session.workingDraft)
+                editingSession?.workingDraft = updated
+                draft = updated
+                await onSave(updated)
+            } catch {
+                editError = String(describing: error)
+            }
+        }
     }
 }

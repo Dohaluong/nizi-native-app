@@ -95,17 +95,49 @@ struct AlbumPhotoView: View {
 
     private func imageView(_ image: PlatformImage, pixelSize: CGSize) -> some View {
         GeometryReader { proxy in
+            // § user report — "chạm vào phần zoom vô hình của ảnh crop sẽ vào trong ảnh crop chứ
+            // không vào ảnh của khung mới cần sửa" / "khoảng tác động bị ảnh hưởng sang frame
+            // khác tương ứng với diện tích ảnh phóng to": this used to be `.scaleEffect(crop
+            // .scale)` — a *render transform*, which visually enlarges a view without shrinking
+            // its interactive/hit-test bounds back down to match. `.clipped()` only clips what's
+            // *drawn*; adding `.contentShape(Rectangle())` on top wasn't enough to override it
+            // either — the zoomed-in photo's invisible overflow kept staying tappable well past
+            // its own slot, into whichever neighbor it visually overlapped, by exactly the
+            // zoomed-in amount. Computing the scaled-up size as a real `.frame()` instead (via
+            // `Self.aspectFillSize`) sidesteps the whole transform-vs-hit-test-bounds mismatch:
+            // an explicitly-sized, then `.clipped()`, view has no separate "hit-test size" to
+            // ever disagree with its rendered size in the first place.
+            let baseFillSize = Self.aspectSize(imageSize: image.size, frameSize: proxy.size, fill: contentMode == .fill)
             let content = Image(uiImage: image)
                 .resizable()
-                .aspectRatio(contentMode: contentMode == .fill ? .fill : .fit)
-                .scaleEffect(crop.scale)
+                .frame(width: baseFillSize.width * crop.scale, height: baseFillSize.height * crop.scale)
                 .offset(x: crop.normalizedOffsetX * proxy.size.width, y: crop.normalizedOffsetY * proxy.size.height)
                 .frame(width: proxy.size.width, height: proxy.size.height)
             if clipsToFrame {
-                content.clipped()
+                content.clipped().contentShape(Rectangle())
             } else {
                 content
             }
+        }
+    }
+
+    /// The size an `.aspectRatio(contentMode:)` image would render at within `frameSize` — `fill`
+    /// covers `frameSize` entirely (one axis matches exactly, the other overflows); `!fill` (fit)
+    /// stays fully inside it (one axis matches exactly, the other has empty space). Computed
+    /// explicitly so `imageView` above can express `crop.scale` as a real `.frame()` size instead
+    /// of a `.scaleEffect()` transform (see that call site's own doc comment for why).
+    private static func aspectSize(imageSize: CGSize, frameSize: CGSize, fill: Bool) -> CGSize {
+        guard imageSize.width > 0, imageSize.height > 0, frameSize.width > 0, frameSize.height > 0 else {
+            return frameSize
+        }
+        let imageAspect = imageSize.width / imageSize.height
+        let frameAspect = frameSize.width / frameSize.height
+        let imageIsRelativelyWider = imageAspect > frameAspect
+        let widthMatchesFrame = fill ? !imageIsRelativelyWider : imageIsRelativelyWider
+        if widthMatchesFrame {
+            return CGSize(width: frameSize.width, height: frameSize.width / imageAspect)
+        } else {
+            return CGSize(width: frameSize.height * imageAspect, height: frameSize.height)
         }
     }
 

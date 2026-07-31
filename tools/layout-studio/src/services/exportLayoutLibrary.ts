@@ -30,11 +30,25 @@ export function exportLayoutLibrary(studioLayouts: StudioLayout[]): ExportResult
 
   const structurallyValid = albumLayoutLibrarySchema.safeParse(library);
   if (!structurallyValid.success) {
+    // § the toolbar used to show a generic "Studio bug" message here with no way to tell what
+    // actually failed, which left the user stuck (semantic validation passes, but this second,
+    // separate Zod structural check still blocks export with no visible reason). Each Zod issue
+    // carries its own field path (e.g. `layouts.3.textBlocks.0.fontStyle`) — surface that verbatim
+    // instead of swallowing it, and resolve it back to the offending layout's real `id` when the
+    // path starts with `layouts.<index>` so it lines up with every other issue's `layoutId`.
+    const zodIssues: ValidationIssue[] = structurallyValid.error.issues.map((zodIssue) => {
+      const [root, layoutIndex] = zodIssue.path;
+      const layoutId =
+        root === "layouts" && typeof layoutIndex === "number" ? layouts[layoutIndex]?.id : undefined;
+      return {
+        level: "error",
+        code: "structuralValidationFailed",
+        message: `${zodIssue.path.join(".")}: ${zodIssue.message}`,
+        layoutId,
+      };
+    });
     return {
-      issues: [
-        ...issues,
-        { level: "error", code: "structuralValidationFailed", message: "Export failed Zod re-validation — this is a Studio bug, not a data problem." },
-      ],
+      issues: [...issues, ...zodIssues],
       blocked: true,
     };
   }

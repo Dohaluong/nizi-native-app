@@ -19,9 +19,14 @@ struct PhotoEvent: Identifiable, Equatable {
     let endDate: Date
     /// Reverse geocoding is out of scope for Sprint 4 — see docs/sprint/SPRINT-004-INTEGRATION-CHECKLIST.md.
     var primaryLocationLabel: String?
+    var eventPlace: EventPlace? = nil
+    var placeResolutionState: EventPlaceResolutionState = .unresolved
     let eventType: EventType
     var score: Double
     var status: PhotoEventStatus
+    /// A user-owned marker, persisted independently from discovery score/curation. A loved Event
+    /// is surfaced in Home's "Kỷ niệm" section without creating a `MemoryCandidate`.
+    var isLoved: Bool = false
     let sessionIDs: [UUID]
     let assetIDs: [String]
     var coverAssetID: String?

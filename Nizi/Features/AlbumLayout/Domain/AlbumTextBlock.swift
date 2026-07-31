@@ -14,8 +14,8 @@ import Foundation
 /// comment). Only the layout *template* is described here (geometry + style); there is no
 /// per-Album, user-authored text content yet (§ prepared now, not fully editable — same posture
 /// `AlbumPhotoCrop`'s own doc comment already takes for a different field) — every text block
-/// currently always renders its own localized placeholder ("album.textBlock.placeholder" —
-/// "Viết ở đây"/"Write here"), never real user-typed text.
+/// renders `kind.placeholderText` until a real Album's user types actual content into it (see
+/// `AlbumTextAssignment`/`AlbumTextBlockEditSheet`).
 struct AlbumTextBlock: Identifiable, Codable, Hashable {
     let id: String
     /// Must be unique within its own layout (not globally) — mirrors `AlbumLayoutSlot.order`.
@@ -26,11 +26,24 @@ struct AlbumTextBlock: Identifiable, Codable, Hashable {
     let fontFamily: AlbumTextFontFamily
     let fontSize: Double
     let fontStyle: AlbumTextFontStyle
+    /// § user request — "còn cần chọn màu chữ": hex string (e.g. `"#FFFFFF"`), same shape
+    /// `AlbumLayoutBackground.value` already uses. Defaults to `"#000000"` for any text block
+    /// encoded before this field existed (see `init(from:)`) — every layout shipped so far has no
+    /// `textColor` key at all, and black matches what an unstyled `Text` already rendered as.
+    let textColor: String
+    /// § user request — "cho phép chọn kiểu: Title/Sub-title/Paragraph. Dùng để trang trí văn bản
+    /// sau này": semantic only, exactly like `AlbumLayoutSlot.role` — the renderer doesn't read
+    /// this to alter anything yet (no automatic font/size/weight preset applied per kind). It's
+    /// Layout-Studio-authored metadata, prepared now for a future decorative-styling feature to
+    /// key off of, the same "planning-time metadata, future features can read it without the
+    /// renderer needing to know" posture `AlbumLayoutSlotRole` already documents.
+    let kind: AlbumTextBlockKind
 
     init(
         id: String, order: Int, frame: AlbumLayoutFrame,
         horizontalAlignment: AlbumTextHorizontalAlignment, verticalAlignment: AlbumTextVerticalAlignment,
-        fontFamily: AlbumTextFontFamily, fontSize: Double, fontStyle: AlbumTextFontStyle
+        fontFamily: AlbumTextFontFamily, fontSize: Double, fontStyle: AlbumTextFontStyle,
+        textColor: String = "#000000", kind: AlbumTextBlockKind = .paragraph
     ) {
         self.id = id
         self.order = order
@@ -40,10 +53,12 @@ struct AlbumTextBlock: Identifiable, Codable, Hashable {
         self.fontFamily = fontFamily
         self.fontSize = fontSize
         self.fontStyle = fontStyle
+        self.textColor = textColor
+        self.kind = kind
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, order, frame, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontStyle
+        case id, order, frame, horizontalAlignment, verticalAlignment, fontFamily, fontSize, fontStyle, textColor, kind
         /// § bug report — "mất hết ảnh": the entire `AlbumLayoutLibrary` decode is one array —
         /// one `AlbumTextBlock` still carrying the *old* field name (from before `fontWeight` was
         /// renamed to `fontStyle`, exported by an out-of-date copy of the Layout Studio) failed
@@ -87,6 +102,8 @@ struct AlbumTextBlock: Identifiable, Codable, Hashable {
         } else {
             fontStyle = .regular
         }
+        textColor = try container.decodeIfPresent(String.self, forKey: .textColor) ?? "#000000"
+        kind = try container.decodeIfPresent(AlbumTextBlockKind.self, forKey: .kind) ?? .paragraph
     }
 
     func encode(to encoder: Encoder) throws {
@@ -99,6 +116,31 @@ struct AlbumTextBlock: Identifiable, Codable, Hashable {
         try container.encode(fontFamily, forKey: .fontFamily)
         try container.encode(fontSize, forKey: .fontSize)
         try container.encode(fontStyle, forKey: .fontStyle)
+        try container.encode(textColor, forKey: .textColor)
+        try container.encode(kind, forKey: .kind)
+    }
+}
+
+/// § user request — "Phần text trong Layout studio cho phép chọn kiểu: Title/Sub-title/Paragraph.
+/// Dùng để trang trí văn bản sau này": mirrors `AlbumLayoutSlotRole`'s exact shape and posture —
+/// Studio-authored. Its one effect on the renderer so far is `placeholderText` below (§ user
+/// request — "sẽ có placeholder tương ứng"); it doesn't drive any automatic font/size/weight
+/// preset yet.
+enum AlbumTextBlockKind: String, Codable, Hashable, CaseIterable {
+    case title
+    case subtitle
+    case paragraph
+
+    /// § user request — "Toại title sẽ là: Title, loại subtitle sẽ là Sub title, loại paragraph
+    /// sẽ là Lorem ipsum...": shown in place of real content while a text block is still empty
+    /// (`AlbumTextBlockView.displayText`) — deliberately fixed, unlocalized sample copy (the same
+    /// convention "Lorem ipsum" itself already follows), not routed through `localizedString`.
+    var placeholderText: String {
+        switch self {
+        case .title: return "Title"
+        case .subtitle: return "Sub title"
+        case .paragraph: return "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+        }
     }
 }
 

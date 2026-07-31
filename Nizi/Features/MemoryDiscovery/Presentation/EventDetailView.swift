@@ -61,16 +61,26 @@ private enum AlbumCreationState: Equatable {
 /// Runs Photo Curation automatically the first time this event is opened, scoped to just
 /// its own assets — never a library rescan. See docs/sprint/SPRINT-005B.md § 6, § 21–27.
 struct EventDetailView: View {
+    @Environment(\.dismiss) private var dismiss
     let event: PhotoEvent
+    /// Lets the originating list update its own in-memory rows and restore its anchor before this
+    /// detail screen dismisses. Deleting an Event never changes the Photos library.
+    let onEventDeleted: (UUID) async -> Void
     /// The exact cover `UIImage` `EventCardView` was already displaying at the moment it was
     /// tapped, passed straight through by `EventListView` — see the Hero-image follow-up.
     /// `nil` for entry points that don't have one yet (deep link, previews, or a tap that beat the
     /// card's own cover load).
     let initialHeroImage: PlatformImage?
 
-    init(event: PhotoEvent, initialHeroImage: PlatformImage? = nil) {
+    init(
+        event: PhotoEvent,
+        initialHeroImage: PlatformImage? = nil,
+        onEventDeleted: @escaping (UUID) async -> Void = { _ in }
+    ) {
         self.event = event
         self.initialHeroImage = initialHeroImage
+        self.onEventDeleted = onEventDeleted
+        _resolvedPlaceName = State(initialValue: event.primaryLocationLabel)
     }
 
     @Environment(\.modelContext) private var modelContext
@@ -82,6 +92,9 @@ struct EventDetailView: View {
     @State private var albumCreationState: AlbumCreationState = .idle
     @State private var createdAlbumDraft: AlbumDraft?
     @State private var showAlbumCreationFailedAlert = false
+    @State private var isDeletingEvent = false
+    @State private var showEventDeletionFailedAlert = false
+    @State private var resolvedPlaceName: String?
     // A single atomic, item-driven payload — not separate `isPresented`/`items`/`index`/
     // `thumbnail` @State vars set one after another. Those could in principle be observed
     // mid-update (e.g. `.fullScreenCover(isPresented:)` reading `previewItems` before a
@@ -107,10 +120,21 @@ struct EventDetailView: View {
         }
         .navigationTitle(event.titleSuggestion)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                reselectButton
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             actionBar
         }
         .task {
+            // Detail is a direct user request, so it asks for the Event's place immediately;
+            // failure is intentionally non-fatal and never delays curation/UI.
+            Task {
+                let enriched = await enrichPlaceIfNeeded(for: event, store: makeStore())
+                resolvedPlaceName = enriched.primaryLocationLabel
+            }
             // Warm the cache for the cover plus roughly the first couple of grid screens — not
             // the whole event (which can be 200-300+ assets; "Không prefetch toàn bộ
             // Event"). Doesn't wait on curation, since the event's asset list is already
@@ -127,6 +151,11 @@ struct EventDetailView: View {
             Button("common.action.cancel", role: .cancel) {}
         } message: {
             Text("event.album_creation.failed_message")
+        }
+        .alert("Không thể xoá Event", isPresented: $showEventDeletionFailedAlert) {
+            Button("common.action.cancel", role: .cancel) {}
+        } message: {
+            Text("Event chưa được xoá. Vui lòng thử lại.")
         }
         .fullScreenCover(item: $createdAlbumDraft) { draft in
             NavigationStack {
@@ -157,6 +186,11 @@ struct EventDetailView: View {
 
     private var eventInfoSection: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if let resolvedPlaceName, !resolvedPlaceName.isEmpty {
+                Label(resolvedPlaceName, systemImage: "mappin.and.ellipse")
+                    .font(.headline)
+            }
+
             Text(localizedString("event.photo_count.value", defaultValue: "\(event.assetCount) photos"))
                 .font(.title3.bold())
 
@@ -194,6 +228,25 @@ struct EventDetailView: View {
             Text(localizedString("event.detail.selection_summary", defaultValue: "Nizi picked \(curationResult.selectedAssetCount) photos for you"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    /// Lets the user force a fresh curation pass on demand — e.g. after Diagnostics tuning, or
+    /// just to see a different pick — without waiting for an error state. Reuses `runCuration
+    /// (forceRecurate: true)` verbatim, so it goes through the exact same manual-selection
+    /// preservation as every other recurate path.
+    @ViewBuilder
+    private var reselectButton: some View {
+        if curationStatus == .processing {
+            ProgressView()
+        } else {
+            Button {
+                Task { await runCuration(forceRecurate: true) }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .disabled(curationResult == nil)
+            .accessibilityLabel("Chọn lại")
         }
     }
 
@@ -257,13 +310,17 @@ struct EventDetailView: View {
 
     private var actionBar: some View {
         HStack {
-            if let curationResult, curationStatus == .completed {
-                Text(localizedString("event.detail.action_bar.selected_count", defaultValue: "\(curationResult.selectedAssetCount) / \(curationResult.sourceAssetCount) photos selected"))
-                    .font(.subheadline)
-            } else {
-                Text(localizedString("event.photo_count.value", defaultValue: "\(event.assetCount) photos"))
-                    .font(.subheadline)
+            Button(action: deleteEvent) {
+                if isDeletingEvent {
+                    ProgressView()
+                } else {
+                    Text("Xoá event")
+                }
             }
+            .buttonStyle(.borderedProminent)
+            .tint(.black)
+            .foregroundStyle(.white)
+            .disabled(isDeletingEvent)
             Spacer()
             Button(action: createAlbum) {
                 if albumCreationState == .planning {
@@ -277,6 +334,25 @@ struct EventDetailView: View {
         }
         .padding()
         .background(.bar)
+    }
+
+    private func deleteEvent() {
+        guard !isDeletingEvent else { return }
+        isDeletingEvent = true
+        let eventID = event.id
+        let container = modelContext.container
+
+        Task {
+            do {
+                let store = SwiftDataMemoryDiscoveryStore(modelContainer: container)
+                try await store.deleteEvent(id: eventID)
+                await onEventDeleted(eventID)
+                dismiss()
+            } catch {
+                isDeletingEvent = false
+                showEventDeletionFailedAlert = true
+            }
+        }
     }
 
     /// § 26 integration: Create Album → build `AlbumPlanningInput` from this Event's selected
@@ -365,9 +441,7 @@ struct EventDetailView: View {
         if let existing = try? await store.result(for: event.id) {
             curationResult = existing
             curationStatus = existing.status
-            if existing.status == .completed,
-               existing.algorithmVersion == EventPhotoCurationService.algorithmVersion,
-               existing.sourceAssetCount == event.assetIDs.count {
+            if EventPhotoCurationService.isCacheValid(existing, for: event) {
                 return
             }
         }
@@ -564,17 +638,6 @@ private struct CurationGroupSectionView: View {
         return "\(time) - \(day)"
     }
 
-    private func toggleAll() {
-        let targetSelected = !isAllSelected
-        for item in group.items where item.isSelected != targetSelected {
-            onToggle(item.id)
-        }
-    }
-
-    private var isAllSelected: Bool {
-        !group.items.isEmpty && group.items.allSatisfy(\.isSelected)
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
@@ -586,16 +649,6 @@ private struct CurationGroupSectionView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button(action: toggleAll) {
-                    Label(
-                        isAllSelected ? "event.group.action.deselect_all" : "event.group.action.select_all",
-                        systemImage: isAllSelected ? "checkmark.circle.fill" : "circle"
-                    )
-                    .labelStyle(.iconOnly)
-                    .font(.title3)
-                    .foregroundStyle(isAllSelected ? Color.accentColor : Color.secondary)
-                }
-                .accessibilityLabel(isAllSelected ? localizedString("event.group.accessibility.deselect_all", defaultValue: "Deselect all photos in group") : localizedString("event.group.accessibility.select_all", defaultValue: "Select all photos in group"))
             }
 
             LazyVGrid(columns: columns, spacing: 3) {
@@ -656,11 +709,17 @@ private struct CurationThumbnailCell: View {
                             Color.clear
                                 .contentShape(Rectangle())
                                 .overlay(alignment: .bottomTrailing) {
-                                    Image(systemName: item.isSelected ? "checkmark.circle.fill" : "circle")
-                                        .font(.title2)
-                                        .foregroundStyle(item.isSelected ? Color.accentColor : Color.white)
-                                        .background(Circle().fill(item.isSelected ? Color.white : Color.black.opacity(0.35)))
-                                        .padding(4)
+                                    ZStack {
+                                        Image(systemName: item.isSelected ? "heart.fill" : "heart")
+                                            .font(.title2)
+                                            .foregroundStyle(item.isSelected ? Color.red : Color.gray)
+                                        if item.isSelected {
+                                            Image(systemName: "heart")
+                                                .font(.title2)
+                                                .foregroundStyle(.white)
+                                        }
+                                    }
+                                    .padding(4)
                                 }
                         }
                         .buttonStyle(.plain)
@@ -1273,10 +1332,16 @@ private struct CurationPreviewPage: View {
         }
         .overlay(alignment: .bottomTrailing) {
             Button(action: onToggleSelection) {
-                Image(systemName: item.isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.largeTitle)
-                    .foregroundStyle(item.isSelected ? Color.accentColor : Color.white)
-                    .background(Circle().fill(item.isSelected ? Color.white : Color.black.opacity(0.35)))
+                ZStack {
+                    Image(systemName: item.isSelected ? "heart.fill" : "heart")
+                        .font(.largeTitle)
+                        .foregroundStyle(item.isSelected ? Color.red : Color.gray)
+                    if item.isSelected {
+                        Image(systemName: "heart")
+                            .font(.largeTitle)
+                            .foregroundStyle(.white)
+                    }
+                }
             }
             .padding(24)
             .accessibilityLabel(item.isSelected ? localizedString("event.photo.accessibility.deselect", defaultValue: "Deselect photo") : localizedString("event.photo.accessibility.select", defaultValue: "Select photo"))

@@ -24,4 +24,8 @@ struct PhotoCurationItem: Identifiable, Equatable {
     let isSuggested: Bool
     var isSelected: Bool
     var selectionSource: SelectionSource
+    /// Why this item isn't selected — `nil` while still ranking-eligible or once actually
+    /// selected. Stamped by `EventPhotoCurationEngine` at curation time so Curation Diagnostics
+    /// can display it later without re-deriving it. See `CurationRejectionReason`.
+    var rejectionReason: CurationRejectionReason? = nil
 }

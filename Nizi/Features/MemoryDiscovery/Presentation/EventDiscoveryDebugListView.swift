@@ -86,7 +86,9 @@ struct EventDiscoveryDebugListView: View {
             let useCase = DiscoverEventsUseCase(
                 assetRepository: store,
                 sessionRepository: store,
-                eventRepository: store
+                eventRepository: store,
+                locationIntelligenceRepository: store,
+                tripRepository: store
             )
             events = try await useCase.execute()
         } catch {
@@ -101,7 +103,10 @@ struct EventDiscoveryDebugListView: View {
         EventDiscoveryDebugListView()
     }
     .modelContainer(
-        for: [MDLocalAsset.self, MDScanCheckpoint.self, MDPhotoSession.self, MDEventCandidate.self],
+        for: [
+            MDLocalAsset.self, MDScanCheckpoint.self, MDPhotoSession.self, MDEventCandidate.self,
+            MDLocationCluster.self, MDHomeAnchor.self, MDFamiliarPlace.self, MDPhotoTrip.self
+        ],
         inMemory: true
     )
 }

@@ -36,7 +36,8 @@ final class ScanPhotoLibraryUseCase {
     func execute(
         pauseFlag: ScanPauseFlag,
         dateRanges: [DateRangeFilter] = [],
-        onProgress: @escaping (ScanCheckpoint) -> Void
+        onProgress: @escaping (ScanCheckpoint) -> Void,
+        onBatch: (([PhotoAssetRecord]) -> Void)? = nil
     ) async throws {
         var checkpoint = try await checkpointRepository.checkpoint(for: .initial) ?? .newInitial()
 
@@ -64,6 +65,7 @@ final class ScanPhotoLibraryUseCase {
 
             let batch = try await assetProvider.fetchAssetRecords(offset: checkpoint.cursorOffset, limit: batchSize, dateRanges: dateRanges)
             if batch.isEmpty { break }
+            onBatch?(batch)
 
             let result = try await assetRepository.upsert(batch)
             checkpoint.processedCount += result.succeededCount

@@ -23,8 +23,10 @@ final class VisionEventPhotoAnalyzer: EventPhotoAnalyzer {
         /// Photos taken further apart than this are never clustered as near-duplicates, no
         /// matter how visually similar — a burst of 5–8 shots is normally seconds apart, not
         /// minutes, and treating a 5-minute window as "possibly the same moment" over-merged
-        /// distinct shots into one group.
-        var nearDuplicateMaxTimeGapSeconds: TimeInterval = 60
+        /// distinct shots into one group. Widened from the original 60s (within the
+        /// SPRINT-SMART-EVENT-HIGHLIGHTS.md § 25 allowed 60–120s range) — still local/burst-scoped,
+        /// not a substitute for cross-session dedup, which is Global Duplicate Suppression's job.
+        var nearDuplicateMaxTimeGapSeconds: TimeInterval = 90
         /// A detected document-shaped rectangle below this confidence isn't trusted enough to
         /// call the photo a "document photo" (whiteboard/receipt/paper) — see § 7 of
         /// docs/sprint/SPRINT-005B-TODO.md.
@@ -38,6 +40,11 @@ final class VisionEventPhotoAnalyzer: EventPhotoAnalyzer {
 
     private let assetProvider: PhotoAssetProvider
     private let config: Configuration
+    /// Feature prints captured during the most recent `analyze(...)` call — retained purely so
+    /// `globalDuplicateGroups` can reuse them without re-running Vision (§ 27-32). Cleared at the
+    /// start of every `analyze(...)` call; safe as instance state because every curation run
+    /// constructs its own fresh `VisionEventPhotoAnalyzer` instance (see `EventPhotoCurationService`).
+    private var lastFeaturePrintsByAssetID: [String: VNFeaturePrintObservation] = [:]
 
     init(assetProvider: PhotoAssetProvider, config: Configuration = .default) {
         self.assetProvider = assetProvider
@@ -49,6 +56,7 @@ final class VisionEventPhotoAnalyzer: EventPhotoAnalyzer {
         sessions: [PhotoSession],
         onProgress: @escaping (Int, Int) -> Void
     ) async -> [AnalyzedPhoto] {
+        lastFeaturePrintsByAssetID = [:]
         let assetsByID = Dictionary(uniqueKeysWithValues: assets.map { ($0.id, $0) })
         let orderedSessions = sessions.sorted { $0.startDate < $1.startDate }
         var result: [AnalyzedPhoto] = []
@@ -63,6 +71,44 @@ final class VisionEventPhotoAnalyzer: EventPhotoAnalyzer {
         }
 
         return result
+    }
+
+    /// Compares only `candidateAssetIDs` (already capped to a safe size by
+    /// `EventPhotoCurationEngine.globalDedupCandidateAssetIDs`) pairwise, reusing the feature
+    /// prints captured during the most recent `analyze(...)` call on this instance. Streaming, not
+    /// all-pairs against every prior candidate: each candidate is compared only against the
+    /// representative of each existing group so far, same shape as the local clustering pass —
+    /// bounded by `candidateAssetIDs.count`, never the full source photo set (§ 28, § 31).
+    func globalDuplicateGroups(candidateAssetIDs: [String], similarityThreshold: Float) -> [String: String] {
+        var groupRepresentatives: [(groupKey: String, featurePrint: VNFeaturePrintObservation)] = []
+        var assignment: [String: String] = [:]
+
+        for assetID in candidateAssetIDs {
+            guard let featurePrint = lastFeaturePrintsByAssetID[assetID] else {
+                // No feature print available (e.g. thumbnail load failed during analysis) — it
+                // can't be meaningfully compared, so it forms its own singleton group.
+                assignment[assetID] = assetID
+                continue
+            }
+
+            var joinedGroupKey: String?
+            for representative in groupRepresentatives {
+                guard let distance = try? computeDistance(representative.featurePrint, featurePrint),
+                      distance <= similarityThreshold
+                else { continue }
+                joinedGroupKey = representative.groupKey
+                break
+            }
+
+            if let joinedGroupKey {
+                assignment[assetID] = joinedGroupKey
+            } else {
+                assignment[assetID] = assetID
+                groupRepresentatives.append((groupKey: assetID, featurePrint: featurePrint))
+            }
+        }
+
+        return assignment
     }
 
     private func analyzeSession(_ sessionAssets: [IndexedAsset], sessionID: UUID) async -> [AnalyzedPhoto] {
@@ -82,6 +128,9 @@ final class VisionEventPhotoAnalyzer: EventPhotoAnalyzer {
 
             while let (assetID, metrics, featurePrint, isDocument) = await group.next() {
                 perAssetResults[assetID] = (metrics, featurePrint, isDocument)
+                if let featurePrint {
+                    lastFeaturePrintsByAssetID[assetID] = featurePrint
+                }
                 if nextIndex < sessionAssets.count {
                     let asset = sessionAssets[nextIndex]
                     group.addTask { await self.analyzeAssetTuple(asset) }
@@ -112,6 +161,12 @@ final class VisionEventPhotoAnalyzer: EventPhotoAnalyzer {
             if joinsCurrentCluster, let clusterID {
                 clusterAssignment[asset.id] = clusterID
                 clusterLastSeen = asset.creationDate
+                // Compare against the most-recently-seen cluster member, not the photo that
+                // started the cluster — fixes the representative-drift problem where a burst
+                // that gradually changes framing/angle got split into multiple clusters even
+                // though each consecutive pair was still a clear near-duplicate of the last
+                // (§ 24 Option A of SPRINT-SMART-EVENT-HIGHLIGHTS.md).
+                clusterRepresentative = entry.featurePrint
             } else {
                 let newClusterID = asset.id
                 clusterID = newClusterID
