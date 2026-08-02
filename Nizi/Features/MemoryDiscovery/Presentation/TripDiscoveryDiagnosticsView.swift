@@ -22,6 +22,10 @@ struct TripDiscoveryDiagnosticsView: View {
 
     var body: some View {
         List {
+            DiagnosticsBanner(
+                title: "Production pipeline result", subtitle: "May persist Trip/location intelligence", tone: .production
+            )
+
             if let errorMessage {
                 Text(errorMessage)
                     .font(.footnote)

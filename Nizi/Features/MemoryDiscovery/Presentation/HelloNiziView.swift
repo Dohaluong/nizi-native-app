@@ -7,31 +7,37 @@
 
 import SwiftUI
 
-/// First-launch screen, shown only if the app has never completed a scan.
-/// See docs/sprint/SPRINT-005-UI.md § 3.
+/// First-launch screen, shown only if the app has never completed a scan. Matches design concept
+/// "2a"'s Welcome frame in docs/design-system/Nizi Home Concepts.dc.html § t2 — the photo-count
+/// stat and background photo grid are both dropped since neither exists pre-permission.
 struct HelloNiziView: View {
     let onContinue: () -> Void
 
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
+        ZStack {
+            OnboardingSolidBackground()
 
-            Text("onboarding.hello.title")
-                .font(.largeTitle.bold())
+            VStack(spacing: 24) {
+                Spacer()
 
-            Text("onboarding.hello.description")
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+                Text("Nizi")
+                    .font(.onboardingSerif(size: 44, weight: .medium))
+                    .foregroundStyle(OnboardingTheme.cream)
 
-            Spacer()
+                Text("onboarding.hello.tagline")
+                    .font(.onboardingSerifItalic(size: 21))
+                    .foregroundStyle(OnboardingTheme.cream.opacity(0.8))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 32)
 
-            Button("onboarding.hello.action.start", action: onContinue)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                Spacer()
+
+                OnboardingPillButton(titleKey: "onboarding.hello.action.start", action: onContinue)
+            }
+            .padding(32)
         }
-        .padding(32)
+        .toolbar(.hidden, for: .navigationBar)
     }
 }
 

@@ -23,82 +23,94 @@ struct UserScanProgressView: View {
     let onComplete: (MemoryCandidate?) -> Void
 
     @Environment(\.modelContext) private var modelContext
-    @State private var state: FirstExperienceState = .idle
-    @State private var scanPreview: ScanPreviewState = .empty
-    @State private var homeCandidates: [HomeCandidate] = []
+    @Environment(BackgroundScanCoordinator.self) private var coordinator
     @State private var isHomeCardDismissed = false
     @State private var isMapPickerPresented = false
-    @State private var pauseFlag = ScanPauseFlag()
+    @State private var previousYear: Int?
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                Spacer(minLength: 24)
+        ZStack {
+            OnboardingSolidBackground()
 
-                Text("discovering.hero.title")
-                    .font(.title3.bold())
-                    .multilineTextAlignment(.center)
+            ScrollView {
+                VStack(spacing: 24) {
+                    Spacer(minLength: 24)
 
-                yearBlock
-                photoPreviewRow
+                    OnboardingEyebrowLabel(titleKey: "discovering.eyebrow.traveling_to")
 
-                if let secondaryMessage {
-                    Text(secondaryMessage)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    yearBlock
+                    photoPreviewRow
+
+                    Text("discovering.hero.title")
+                        .font(.onboardingSerifItalic(size: 19))
+                        .foregroundStyle(OnboardingTheme.cream.opacity(0.85))
                         .multilineTextAlignment(.center)
-                }
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 16)
 
-                if let checkpoint = scanningCheckpoint, let total = checkpoint.totalAssetsEstimated, total > 0 {
-                    VStack(spacing: 8) {
-                        Text("\(checkpoint.processedCount) / \(total)")
-                            .font(.headline)
-                        ProgressView(value: Double(checkpoint.processedCount), total: Double(total))
-                    }
-                    .padding(.horizontal, 24)
-                } else {
-                    ProgressView()
-                }
-
-                if case .failed(let message) = state {
-                    VStack(spacing: 12) {
-                        Text(localizedString("scan.progress.error.failed", defaultValue: "Survey failed: \(message)"))
-                            .font(.footnote)
-                            .foregroundStyle(.red)
+                    if let secondaryMessage {
+                        Text(secondaryMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(OnboardingTheme.cream.opacity(0.7))
                             .multilineTextAlignment(.center)
-                        Button("common.action.retry", action: runFlow)
-                            .buttonStyle(.borderedProminent)
                     }
-                }
 
-                if scanningCheckpoint?.status == .running {
-                    Button("scan.progress.action.pause") { pauseFlag.requestPause() }
-                } else if scanningCheckpoint?.status == .paused {
-                    Button("scan.progress.action.resume", action: runFlow)
-                        .buttonStyle(.borderedProminent)
-                }
-
-                if showHomeCard {
-                    HomeConfirmationCardView(
-                        candidates: homeCandidates,
-                        onSelect: { candidate in Task { await confirmHome(candidate) } },
-                        onChooseOnMap: {
-                            NiziLogger.discovery.info("home_map_selected")
-                            isMapPickerPresented = true
-                        },
-                        onSkip: {
-                            NiziLogger.discovery.info("home_confirmation_skipped")
-                            withAnimation { isHomeCardDismissed = true }
+                    if let checkpoint = coordinator.scanningCheckpoint, let total = checkpoint.totalAssetsEstimated, total > 0 {
+                        VStack(spacing: 8) {
+                            Text(localizedString("discovering.stats.photos_indexed", defaultValue: "\(checkpoint.processedCount) photos indexed"))
+                                .font(.system(size: 13))
+                                .foregroundStyle(OnboardingTheme.cream.opacity(0.6))
+                            ProgressView(value: Double(checkpoint.processedCount), total: Double(total))
+                                .tint(OnboardingTheme.accent)
                         }
-                    )
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                }
+                        .padding(.horizontal, 24)
+                    } else {
+                        ProgressView().tint(OnboardingTheme.cream)
+                    }
 
-                Spacer(minLength: 24)
+                    if case .failed(let message) = coordinator.state {
+                        VStack(spacing: 12) {
+                            Text(localizedString("scan.progress.error.failed", defaultValue: "Survey failed: \(message)"))
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                                .multilineTextAlignment(.center)
+                            OnboardingPillButton(titleKey: "common.action.retry", action: runFlow)
+                        }
+                    }
+
+                    if coordinator.scanningCheckpoint?.status == .running {
+                        OnboardingTextLink(titleKey: "scan.progress.action.pause") { coordinator.requestPause() }
+                    } else if coordinator.scanningCheckpoint?.status == .paused {
+                        OnboardingPillButton(titleKey: "scan.progress.action.resume", action: runFlow)
+                    }
+
+                    if coordinator.scanningCheckpoint?.status == .running || coordinator.scanningCheckpoint?.status == .paused {
+                        OnboardingTextLink(titleKey: "scan.progress.action.skip_ahead") { skipAhead() }
+                    }
+
+                    if showHomeCard {
+                        HomeConfirmationCardView(
+                            candidates: coordinator.homeCandidates,
+                            onSelect: { candidate in Task { await confirmHome(candidate) } },
+                            onChooseOnMap: {
+                                NiziLogger.discovery.info("home_map_selected")
+                                isMapPickerPresented = true
+                            },
+                            onSkip: {
+                                NiziLogger.discovery.info("home_confirmation_skipped")
+                                withAnimation { isHomeCardDismissed = true }
+                            }
+                        )
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+
+                    Spacer(minLength: 24)
+                }
+                .padding(.horizontal, 24)
+                .animation(.easeInOut(duration: 0.3), value: showHomeCard)
             }
-            .padding(.horizontal, 24)
-            .animation(.easeInOut(duration: 0.3), value: showHomeCard)
         }
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $isMapPickerPresented) {
             HomeMapPickerView(
                 onConfirm: { latitude, longitude in
@@ -109,8 +121,14 @@ struct UserScanProgressView: View {
             )
         }
         .onAppear {
-            NiziLogger.discovery.info("initial_scan_started")
-            runFlow()
+            if coordinator.isBackgroundScanRunning {
+                // Reopened (e.g. from Home's nudge card) while a background continuation is
+                // already live — just observe it, don't start a second concurrent runForeground.
+                NiziLogger.discovery.info("scan_progress_reopened_while_background_running")
+            } else {
+                NiziLogger.discovery.info("initial_scan_started")
+                runFlow()
+            }
         }
     }
 
@@ -118,16 +136,25 @@ struct UserScanProgressView: View {
 
     @ViewBuilder
     private var yearBlock: some View {
-        if let year = scanPreview.currentYear {
-            VStack(spacing: 2) {
+        if let year = coordinator.scanPreview.currentYear {
+            VStack(spacing: 4) {
+                if let previousYear {
+                    Text(String(previousYear))
+                        .font(.onboardingSerif(size: 17))
+                        .foregroundStyle(OnboardingTheme.cream.opacity(0.3))
+                }
                 Text(String(year))
-                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .font(.onboardingSerif(size: 48, weight: .semibold))
+                    .foregroundStyle(OnboardingTheme.cream)
                 Text(relativeYearText(year))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 14))
+                    .foregroundStyle(OnboardingTheme.cream.opacity(0.5))
             }
             .id(year)
             .transition(.opacity.animation(.easeOut(duration: 0.2)))
+            .onChange(of: year) { oldValue, _ in
+                previousYear = oldValue
+            }
         }
     }
 
@@ -143,41 +170,28 @@ struct UserScanProgressView: View {
 
     @ViewBuilder
     private var photoPreviewRow: some View {
-        if let hero = scanPreview.candidates.first {
-            VStack(spacing: 8) {
-                ScanPreviewPhotoCell(assetID: hero.assetID)
-                    .frame(height: 200)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .id(hero.assetID)
-                    .transition(.opacity.animation(.easeOut(duration: 0.25)))
-
-                let rest = scanPreview.candidates.dropFirst().prefix(3)
-                if !rest.isEmpty {
-                    HStack(spacing: 6) {
-                        ForEach(Array(rest)) { candidate in
-                            ScanPreviewPhotoCell(assetID: candidate.assetID)
-                                .frame(width: 64, height: 64)
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        }
-                    }
+        let thumbnails = Array(coordinator.scanPreview.candidates.prefix(3))
+        if !thumbnails.isEmpty {
+            HStack(spacing: 6) {
+                ForEach(thumbnails) { candidate in
+                    ScanPreviewPhotoCell(assetID: candidate.assetID)
+                        .frame(width: 64, height: 64)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .id(candidate.assetID)
                 }
             }
+            .transition(.opacity.animation(.easeOut(duration: 0.25)))
         }
     }
 
     // MARK: - State
 
-    private var scanningCheckpoint: ScanCheckpoint? {
-        if case .scanning(let checkpoint) = state { return checkpoint }
-        return nil
-    }
-
     private var showHomeCard: Bool {
-        !homeCandidates.isEmpty && !isHomeCardDismissed
+        !coordinator.homeCandidates.isEmpty && !isHomeCardDismissed
     }
 
     private var secondaryMessage: String? {
-        switch state {
+        switch coordinator.state {
         case .scanning:
             return localizedString("discovering.message.scanning", defaultValue: "Reliving years gone by…")
         case .discovering:
@@ -192,22 +206,9 @@ struct UserScanProgressView: View {
     // MARK: - Actions
 
     private func runFlow() {
-        pauseFlag.reset()
-
-        Task { @MainActor in
-            let coordinator = FirstExperienceCoordinator(modelContainer: modelContext.container)
-            let candidate = await coordinator.run(
-                scope: scope,
-                pauseFlag: pauseFlag,
-                onStateChange: { newState in state = newState },
-                onScanPreview: { newState in scanPreview = newState },
-                onHomeCandidatesReady: { candidates in
-                    NiziLogger.discovery.info("home_card_presented")
-                    withAnimation { homeCandidates = candidates }
-                }
-            )
-
-            switch state {
+        Task {
+            let candidate = await coordinator.runForeground(scope: scope)
+            switch coordinator.state {
             case .ready, .empty:
                 NiziLogger.discovery.info("initial_scan_completed")
                 onComplete(candidate)
@@ -215,6 +216,17 @@ struct UserScanProgressView: View {
                 // Paused (waiting for the resume tap above) or failed (retry button above) — stay put.
                 break
             }
+        }
+    }
+
+    private func skipAhead() {
+        NiziLogger.discovery.info("scan_skip_ahead_requested")
+        Task {
+            let candidate = await coordinator.skipAheadToResults(scope: scope)
+            // Deliberately unconditional: "Dừng lại, xem ngay" must proceed to Home immediately
+            // even if this partial index didn't clear the First-Memory threshold — Home has its
+            // own empty state, and the nudge card keeps the remaining work visible.
+            onComplete(candidate)
         }
     }
 
@@ -293,6 +305,7 @@ private struct ScanPreviewPhotoCell: View {
 
 #Preview {
     UserScanProgressView(scope: .fullLibrary, onComplete: { _ in })
+        .environment(BackgroundScanCoordinator())
         .modelContainer(
             for: [
                 MDLocalAsset.self, MDScanCheckpoint.self, MDPhotoSession.self, MDEventCandidate.self,

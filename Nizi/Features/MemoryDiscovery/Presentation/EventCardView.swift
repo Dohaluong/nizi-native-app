@@ -194,6 +194,11 @@ struct EventCardView: View {
     private var metadataOverlay: some View {
         HStack(alignment: .bottom, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
+                if event.isAutoMemory {
+                    Text("event.card.auto_memory_label")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.75))
+                }
                 Text(titleText)
                     .font(.footnote.bold())
                     .foregroundStyle(.white)

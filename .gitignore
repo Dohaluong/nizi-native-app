@@ -10,3 +10,7 @@ xcuserdata/
 # docs/modules/PHOTO-EDITOR-PRESET-GUIDE.md § 9 and ADDEDUM.md § 3.1, § 14.
 docs/modules/photo-editor/*.zip
 docs/modules/photo-editor/LUTs/
+
+# Design-system source archives — raw material only. The fonts actually embedded in the app
+# live under Nizi/Resources/Fonts/ instead (tracked normally, extracted from Newsreader.zip).
+docs/design-system/*.zip

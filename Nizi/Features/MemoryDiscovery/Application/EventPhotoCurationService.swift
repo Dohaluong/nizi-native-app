@@ -22,7 +22,11 @@ final class EventPhotoCurationService {
     /// diversity in the event-wide trim. Safe to bump only because manual-selection preservation
     /// (§ 5-8) and asset-fingerprint cache identity (§ 9-11) shipped first — every Event recurates
     /// lazily on next open, and any prior userAdded/userRemoved choice survives the recurate.
-    static let algorithmVersion = 2
+    ///
+    /// 2 → 3: SPRINT-NEXT § 22-23 — flat `maxAutoSelectedPerMoment` ceiling on top of the ratio
+    /// cap, fixing a real ~500-photo Event over-selecting to ~400. Existing cached results must be
+    /// invalidated so users who already scanned before this fix actually see it.
+    static let algorithmVersion = 3
 
     private let assetRepository: LocalAssetRepository
     private let sessionRepository: PhotoSessionRepository

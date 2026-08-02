@@ -29,6 +29,8 @@ struct EventBoundaryDiagnosticsView: View {
 
     var body: some View {
         List {
+            DiagnosticsBanner(title: "Preview only", subtitle: "Does not modify persisted Events", tone: .previewOnly)
+
             if let errorMessage {
                 Text(errorMessage)
                     .font(.footnote)

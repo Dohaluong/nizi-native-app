@@ -76,6 +76,14 @@ struct LocationIntelligenceEngineTests {
         #expect(result.home == nil)
     }
 
+    /// SPRINT-NEXT § 1-4 — a caller that already has a user-confirmed Home shouldn't pay for a
+    /// fresh Home computation only to discard it.
+    @Test func analyzeSkipsHomeDetectionWhenRequested() {
+        let assets = homeFixture() + vacationFixture()
+        let result = LocationIntelligenceEngine.analyze(from: assets, skipHomeDetection: true)
+        #expect(result.home == nil)
+    }
+
     @Test func recurringButNonDominantClusterBecomesFamiliarNotHome() throws {
         var officeAssets: [IndexedAsset] = []
         for week in 0..<20 {

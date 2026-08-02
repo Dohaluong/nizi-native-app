@@ -39,6 +39,7 @@ struct AlbumPhotoPreviewView: View {
     /// "Hide from Album" is meaningful only for actual Album pages. Other callers (Memory) keep
     /// the viewer's zoom/info/edit experience without exposing that destructive-looking action.
     let allowsHidingPhotos: Bool
+    let usesCompactTimestamp: Bool
     let onDismiss: () -> Void
     /// Called after Photo Editor's Album "save as new asset" flow (`PhotoAssetExporting`) creates
     /// a brand-new `PHAsset` for the photo that used to be `oldPhotoId` — this view has no direct
@@ -71,6 +72,7 @@ struct AlbumPhotoPreviewView: View {
         startIndex: Int,
         editorSourceType: EditorSourceType = .album,
         allowsHidingPhotos: Bool = true,
+        usesCompactTimestamp: Bool = false,
         onPhotoReplaced: @escaping (_ oldPhotoId: String, _ newPhoto: AlbumPhotoReference) -> Void = { _, _ in },
         onHidePhoto: @escaping (_ pageId: String, _ slotId: String) async -> Bool = { _, _ in false },
         onDismiss: @escaping () -> Void
@@ -81,6 +83,7 @@ struct AlbumPhotoPreviewView: View {
         self.pageId = pageId
         self.editorSourceType = editorSourceType
         self.allowsHidingPhotos = allowsHidingPhotos
+        self.usesCompactTimestamp = usesCompactTimestamp
         self.onPhotoReplaced = onPhotoReplaced
         self.onHidePhoto = onHidePhoto
         self.onDismiss = onDismiss
@@ -108,7 +111,7 @@ struct AlbumPhotoPreviewView: View {
 
             header
         }
-        .background(Color(.systemBackground).ignoresSafeArea())
+        .background((usesCompactTimestamp ? Color.white : Color(.systemBackground)).ignoresSafeArea())
         .task(id: currentIndex) {
             currentPhotoDate = await Self.fetchCreationDate(for: currentAssignment.photo)
         }
@@ -178,13 +181,13 @@ struct AlbumPhotoPreviewView: View {
     private var dateTimeInfo: some View {
         if let currentPhotoDate {
             VStack(spacing: 2) {
-                Text(Self.dayFormatted(currentPhotoDate))
+                Text(usesCompactTimestamp ? Self.compactDayFormatted(currentPhotoDate) : Self.dayFormatted(currentPhotoDate))
                     .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(usesCompactTimestamp ? Color.black : Color.primary)
                 Text(Self.timeFormatted(currentPhotoDate))
                     .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(usesCompactTimestamp ? Color.black.opacity(0.68) : Color.secondary)
             }
-            .foregroundStyle(.primary)
         }
     }
 
@@ -225,7 +228,7 @@ struct AlbumPhotoPreviewView: View {
         } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(usesCompactTimestamp ? Color.black : Color.primary)
                 .frame(width: 38, height: 38)
                 .background(.ultraThinMaterial, in: Circle())
         }
@@ -241,8 +244,26 @@ struct AlbumPhotoPreviewView: View {
     }
 
     private static func timeFormatted(_ date: Date) -> String {
-        date.formatted(.dateTime.hour().minute())
+        compactTimeFormatter.string(from: date)
     }
+
+    private static func compactDayFormatted(_ date: Date) -> String {
+        compactDayFormatter.string(from: date)
+    }
+
+    private static let compactDayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_GB")
+        formatter.dateFormat = "d/M/yyyy"
+        return formatter
+    }()
+
+    private static let compactTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_GB")
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
 
     /// Vertical-only, gated by `isZoomed` so it can never fire while the user is panning around a
     /// zoomed photo, and by "vertical translation dominates" so it never fights `TabView`'s own
@@ -269,7 +290,7 @@ struct AlbumPhotoPreviewView: View {
         Button(action: onDismiss) {
             Image(systemName: "xmark")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(usesCompactTimestamp ? Color.black : Color.primary)
                 .frame(width: 38, height: 38)
                 .background(.ultraThinMaterial, in: Circle())
         }

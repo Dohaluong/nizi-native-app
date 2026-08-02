@@ -42,16 +42,29 @@ final class DiscoverEventsUseCase {
     @discardableResult
     func execute() async throws -> [PhotoEvent] {
         let assets = try await assetRepository.fetchClusterableAssets()
-        let result = EventDiscoveryEngine.discover(from: assets, config: config)
+        // Unify Home Source (SPRINT-NEXT § 1-4): read back whatever Home is already persisted
+        // (confirmed or previously-inferred) so `discover` can prefer it over a brand-new guess.
+        let persistedHome = try await locationIntelligenceRepository.fetchHome()
+        let result = EventDiscoveryEngine.discover(from: assets, config: config, preferredHome: persistedHome)
 
         try await sessionRepository.replaceRebuildableSessions(result.sessions)
-        try await eventRepository.replaceRebuildableEvents(result.events)
         try await locationIntelligenceRepository.replaceLocationIntelligence(
             clusters: result.locationClusters, home: result.home, familiarPlaces: result.familiarPlaces
         )
 
         let classifiedTrips = await travelClassificationService.classify(trips: result.trips, home: result.home)
         try await tripRepository.replaceRebuildableTrips(classifiedTrips)
+
+        // Memory Potential (SPRINT-NEXT § 10-14) needs `classifiedTrips` (international/domestic
+        // already resolved) — this is exactly why it can't fold into the pure `discover()` pass
+        // above, same reason trip classification itself can't. Events are persisted once, here,
+        // after this runs — no second write pass.
+        let assetsByID = Dictionary(uniqueKeysWithValues: assets.map { ($0.id, $0) })
+        let memoryResults = MemoryPotentialEvaluator.evaluate(
+            events: result.events, trips: classifiedTrips, assetsByID: assetsByID,
+            home: result.home, familiarPlaces: result.familiarPlaces, config: config
+        )
+        try await eventRepository.replaceRebuildableEvents(memoryResults.map(\.event))
 
         NiziLogger.discovery.info("event_discovery_completed sessions=\(result.sessions.count, privacy: .public) events=\(result.events.count, privacy: .public) trips=\(classifiedTrips.count, privacy: .public) home=\(result.home != nil, privacy: .public)")
 

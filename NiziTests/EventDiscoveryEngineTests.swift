@@ -130,6 +130,75 @@ struct EventDiscoveryEngineTests {
         #expect(event.assetIDs.count == 8)
     }
 
+    @Test func discoverFoldsInFastEventQualityForEveryEvent() throws {
+        // Confirms the SPRINT-FAST-EVENT-QUALITY wiring end-to-end (not just the isolated
+        // `FastEventQualityService`) — `discover(...)` must return events already carrying
+        // plausible quality fields, not the struct's bare defaults.
+        let result = EventDiscoveryEngine.discover(from: tripFixture())
+
+        let event = try #require(result.events.first)
+        #expect(event.eventQualityScore > 0)
+        #expect(event.eventQualityScore <= 1)
+    }
+
+    // MARK: - Home Source Unification (SPRINT-NEXT § 1-4)
+
+    /// 10 weekly evening visits at one coordinate — enough distinct days/return visits for
+    /// `LocationIntelligenceEngine.detectHome` to win a real (if low-confidence) `HomeAnchor`.
+    private func recurringHomeFixture(latitude: Double, longitude: Double) -> [IndexedAsset] {
+        var assets: [IndexedAsset] = []
+        for week in 0..<10 {
+            for photoIndex in 0..<2 {
+                assets.append(makeAsset(
+                    id: "recurring-\(week)-\(photoIndex)",
+                    daysFromReference: Double(week * 7), hoursFromReference: 19 + Double(photoIndex) * 0.1,
+                    latitude: latitude, longitude: longitude
+                ))
+            }
+        }
+        return assets
+    }
+
+    @Test func userConfirmedPreferredHomeWinsOverFreshlyComputedHome() throws {
+        let assets = recurringHomeFixture(latitude: 21.0285, longitude: 105.8542)
+        let confirmed = HomeAnchor(
+            clusterID: UUID(), centerLatitude: 10.7626, centerLongitude: 106.6602,
+            homeScore: 0.9, confidence: .high, source: .userConfirmed
+        )
+
+        let result = EventDiscoveryEngine.discover(from: assets, preferredHome: confirmed)
+
+        #expect(result.home == confirmed)
+    }
+
+    @Test func noConfirmedHomeUsesFreshlyComputedHomeOverStaleInferred() throws {
+        let assets = recurringHomeFixture(latitude: 21.0285, longitude: 105.8542)
+        let staleInferred = HomeAnchor(
+            clusterID: UUID(), centerLatitude: 10.7626, centerLongitude: 106.6602,
+            homeScore: 0.5, confidence: .low, source: .inferred
+        )
+
+        let result = EventDiscoveryEngine.discover(from: assets, preferredHome: staleInferred)
+
+        let home = try #require(result.home)
+        #expect(home.source == .inferred)
+        #expect(abs(home.centerLatitude - 21.0285) < 0.1)
+    }
+
+    @Test func fallsBackToStaleInferredHomeWhenFreshComputationFindsNothing() {
+        // No GPS on any asset at all — LocationIntelligenceEngine.analyze finds zero located
+        // assets and returns `home: nil` before detectHome ever runs.
+        let assets = (0..<5).map { makeAsset(id: "nogps-\($0)", minutesFromReference: Double($0) * 10) }
+        let staleInferred = HomeAnchor(
+            clusterID: UUID(), centerLatitude: 10.7626, centerLongitude: 106.6602,
+            homeScore: 0.5, confidence: .low, source: .inferred
+        )
+
+        let result = EventDiscoveryEngine.discover(from: assets, preferredHome: staleInferred)
+
+        #expect(result.home == staleInferred)
+    }
+
     @Test func distinctSessionsFarApartInTimeAndSpaceStayAsSeparateEvents() {
         var assets: [IndexedAsset] = []
         for i in 0..<12 {

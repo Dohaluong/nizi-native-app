@@ -24,10 +24,18 @@ struct MemoryDetailView: View {
     @State private var isShowingAllPhotos = false
     @State private var resolvedPlaceName: String?
     @State private var preview: MemoryPhotoPreview?
+    /// Lets the screen that pushed this view (`HomeView`) reflect a newly-resolved place on its
+    /// own already-rendered card in place, mirroring `TripDetailView`'s `onPlaceResolved` — avoids
+    /// Home needing an unconditional reload on every single return just to catch the rare case
+    /// this event's place actually changed.
+    private let onEventUpdated: (PhotoEvent) -> Void
 
     fileprivate static let gallerySpacing: CGFloat = 4
     fileprivate static let maximumRowHeight: CGFloat = 242
     private static let heroHorizontalPadding: CGFloat = 24
+    /// The gallery only needs a display-size decode. The full-screen viewer owns the larger
+    /// preview tier after the user explicitly opens a photo.
+    private static let galleryThumbnailSize = CGSize(width: 480, height: 480)
 
     /// Hero width is deliberately taken from the UIKit viewport, not a `ScrollView` proposal or
     /// the photo's intrinsic size. This is the final layout authority for this full-bleed screen.
@@ -36,8 +44,9 @@ struct MemoryDetailView: View {
     private var heroHeight: CGFloat { heroWidth * 1.5 }
     private var heroTextWidth: CGFloat { heroWidth - Self.heroHorizontalPadding * 2 }
 
-    init(event: PhotoEvent) {
+    init(event: PhotoEvent, onEventUpdated: @escaping (PhotoEvent) -> Void = { _ in }) {
         self.event = event
+        self.onEventUpdated = onEventUpdated
         _resolvedPlaceName = State(initialValue: event.eventPlace?.displayName ?? event.primaryLocationLabel)
     }
 
@@ -69,6 +78,7 @@ struct MemoryDetailView: View {
                 startIndex: preview.openedIndex,
                 editorSourceType: .event,
                 allowsHidingPhotos: false,
+                usesCompactTimestamp: true,
                 onPhotoReplaced: { oldPhotoID, newPhoto in
                     replaceMemoryPhoto(oldPhotoID: oldPhotoID, with: newPhoto.sourceIdentifier)
                 },
@@ -171,7 +181,7 @@ struct MemoryDetailView: View {
                         } label: {
                             MemoryDetailImage(
                                 assetID: assetID, assetProvider: assetProvider,
-                                targetSize: CGSize(width: 900, height: 900), contentMode: .fill,
+                                targetSize: Self.galleryThumbnailSize, contentMode: .fill,
                                 onAspectAvailable: { aspect in imageAspects[assetID] = aspect }
                             )
                             .frame(width: row.width(for: assetID), height: row.height)
@@ -303,6 +313,9 @@ struct MemoryDetailView: View {
         let store = SwiftDataMemoryDiscoveryStore(modelContainer: modelContext.container)
         let enriched = await enrichPlaceIfNeeded(for: event, store: store)
         resolvedPlaceName = enriched.eventPlace?.displayName ?? enriched.primaryLocationLabel
+        if enriched.eventPlace?.displayName != event.eventPlace?.displayName {
+            onEventUpdated(enriched)
+        }
     }
 
     /// The shared Album viewer returns a newly exported Photos asset after an edit. Keep Memory's
@@ -382,6 +395,11 @@ private struct MemoryDetailImage: View {
     var onAspectAvailable: ((CGFloat) -> Void)? = nil
 
     @State private var image: PlatformImage?
+    /// `false` while `image` is only the fast local placeholder — mirrors `LovedMemoryCard`'s
+    /// same two-tier load (fill the slot instantly, then ease from blurred to sharp) so a gallery
+    /// cell never sits on a flat color while its real photo is still downloading from iCloud.
+    @State private var isSharp = false
+    private static let placeholderSize = CGSize(width: 40, height: 40)
 
     var body: some View {
         ZStack {
@@ -390,24 +408,49 @@ private struct MemoryDetailImage: View {
                 Image(uiImage: image)
                     .resizable()
                     .modifier(MemoryDetailImageSizing(contentMode: contentMode, fixedFrame: fixedFrame))
+                    .blur(radius: isSharp ? 0 : 14)
+                    .animation(.easeInOut(duration: 0.35), value: isSharp)
             }
         }
         .frame(width: fixedFrame?.width, height: fixedFrame?.height)
         .clipped()
         .task(id: assetID) {
+            isSharp = false
             guard let assetID else { return }
-            image = assetProvider.cachedThumbnail(assetID: assetID, targetSize: targetSize, contentMode: contentMode)
+            if let cached = assetProvider.cachedThumbnail(
+                assetID: assetID, targetSize: targetSize, contentMode: contentMode
+            ) {
+                image = cached
+                isSharp = true
+                onAspectAvailable?(cached.size.width / max(cached.size.height, 1))
+                return
+            }
+
+            // Fill the slot immediately with a tiny, local-only preview — near-instant even when
+            // the full-quality version below still needs a real iCloud download.
+            if let placeholder = try? await PhotoThumbnailRequestLoader.shared.thumbnail(
+                assetID: assetID,
+                targetSize: Self.placeholderSize,
+                contentMode: contentMode,
+                networkAccessAllowed: false,
+                deliveryMode: .fast
+            ) {
+                image = placeholder
+            }
+
             do {
-                let loaded = try await assetProvider.requestThumbnail(
+                let loaded = try await PhotoThumbnailRequestLoader.shared.thumbnail(
                     assetID: assetID,
                     targetSize: targetSize,
+                    contentMode: contentMode,
                     networkAccessAllowed: true,
-                    deliveryMode: .highQuality,
-                    contentMode: contentMode
+                    deliveryMode: .highQuality
                 )
                 image = loaded
+                isSharp = true
                 onAspectAvailable?(loaded.size.width / max(loaded.size.height, 1))
             } catch {
+                guard !(error is CancellationError) else { return }
                 NiziLogger.discovery.error("memory_detail_image_load_failed")
             }
         }

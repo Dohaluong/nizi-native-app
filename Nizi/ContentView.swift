@@ -9,7 +9,7 @@ import SwiftUI
 import SwiftData
 
 /// Root flow coordinator: Welcome → Permission → Discovering (scan/discover/score/curate) →
-/// First Memory → Home. No Scope Selection in this flow — always the full accessible library
+/// Home. No Scope Selection in this flow — always the full accessible library
 /// (see `ScopeSelectionView`'s own doc comment: kept for a future Diagnostics/Advanced entry
 /// point, not part of onboarding). Skips straight to Home on subsequent launches once a Memory
 /// already exists. See docs/sprint/SPRINT-FIRST-MEMORY-EXPERIENCE.md § 4/§ 22.
@@ -18,14 +18,17 @@ private enum OnboardingStage: Equatable {
     case helloNizi
     case permission(scope: LibraryScanScope)
     case discovering(scope: LibraryScanScope)
-    case firstMemory(MemoryCandidate?)
-    case memoryViewer(MemoryCandidate)
     case home
 }
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var stage: OnboardingStage = .checking
+    /// Owns the scan/discover pipeline independent of whichever stage is currently on screen, so
+    /// "Dừng lại, xem ngay" can keep indexing after the user moves on to Home. Lives here, not in
+    /// any individual stage's View, because `ContentView` itself is never recreated across stage
+    /// transitions — see `BackgroundScanCoordinator`'s own doc comment.
+    @State private var backgroundScanCoordinator = BackgroundScanCoordinator()
 
     var body: some View {
         Group {
@@ -48,30 +51,18 @@ struct ContentView: View {
 
             case .discovering(let scope):
                 NavigationStack {
-                    UserScanProgressView(scope: scope) { candidate in stage = .firstMemory(candidate) }
-                }
-
-            case .firstMemory(let candidate):
-                NavigationStack {
-                    FirstMemoryView(
-                        candidate: candidate,
-                        onOpen: { opened in stage = .memoryViewer(opened) },
-                        onContinue: { stage = .home }
-                    )
-                }
-
-            // Its own stage (not a `NavigationLink` push from `.firstMemory`) so this screen is
-            // always a stack root with no back destination — see `FirstMemoryView.onOpen`'s doc.
-            case .memoryViewer(let candidate):
-                NavigationStack {
-                    MemoryViewerView(candidate: candidate) { stage = .home }
+                    UserScanProgressView(scope: scope) { _ in stage = .home }
                 }
 
             case .home:
                 HomeView()
             }
         }
-        .task { await determineInitialStage() }
+        .environment(backgroundScanCoordinator)
+        .task {
+            backgroundScanCoordinator.configure(modelContainer: modelContext.container)
+            await determineInitialStage()
+        }
     }
 
     /// A returning user whose index is already complete but who has no Memory yet (e.g. they
@@ -81,14 +72,26 @@ struct ContentView: View {
     private func determineInitialStage() async {
         do {
             let store = SwiftDataMemoryDiscoveryStore(modelContainer: modelContext.container)
-            if let checkpoint = try await store.checkpoint(for: .initial),
-               checkpoint.status == .completed || checkpoint.status == .partiallyCompleted {
-                if try await store.fetchLatest() != nil {
-                    stage = .home
-                } else {
-                    stage = .discovering(scope: .fullLibrary)
+            if let checkpoint = try await store.checkpoint(for: .initial) {
+                if checkpoint.status == .completed || checkpoint.status == .partiallyCompleted {
+                    if try await store.fetchLatest() != nil {
+                        stage = .home
+                    } else {
+                        stage = .discovering(scope: .fullLibrary)
+                    }
+                    return
                 }
-                return
+                // A scan interrupted mid-batch (.running/.paused) that already produced a
+                // MemoryCandidate via an earlier "Dừng lại, xem ngay" shouldn't repeat onboarding
+                // — go straight to Home; `HomeView.task` asks the coordinator to resume the rest
+                // from this same persisted checkpoint. A plain interrupted scan that never
+                // skipped ahead (no candidate yet) falls through to `.helloNizi` below, same as
+                // before this feature existed.
+                if checkpoint.status == .running || checkpoint.status == .paused,
+                   try await store.fetchLatest() != nil {
+                    stage = .home
+                    return
+                }
             }
         } catch {
             NiziLogger.discovery.error("initial_stage_check_failed")

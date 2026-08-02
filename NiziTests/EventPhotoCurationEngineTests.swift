@@ -103,6 +103,25 @@ struct EventPhotoCurationEngineTests {
         #expect(Set(result.orderedSelectedAssetIdentifiers) == ["burst-0", "burst-6"])
     }
 
+    /// SPRINT-NEXT § 22-23 — the real bug: a moment full of genuinely distinct (non-duplicate)
+    /// subjects has no limit from `momentAutoSelectRatio` alone once the moment is large enough
+    /// (20 photos → a ratio-only cap of 10). `maxAutoSelectedPerMoment` must still bring this down
+    /// to a real ceiling regardless of moment size.
+    @Test func manyDistinctSubjectsInOneMomentAreCappedByTheFlatCeilingNotJustTheRatio() {
+        let photos = (0..<20).map { index in
+            photo(id: "distinct-\(index)", minutesFromReference: Double(index) * 0.1, clusterID: "distinct-\(index)")
+        }
+
+        let result = EventPhotoCurationEngine.curate(
+            analyzedPhotos: photos,
+            photoEventID: UUID(),
+            sourceAssetCount: photos.count,
+            algorithmVersion: 1
+        )
+
+        #expect(result.selectedAssetCount == EventPhotoCurationEngine.Configuration.default.maxAutoSelectedPerMoment)
+    }
+
     @Test func lowQualityClusterSelectsNothing() {
         let photos = (0..<4).map { index in
             photo(id: "bad-\(index)", minutesFromReference: Double(index), clusterID: "bad", sharpness: 0.05, exposure: 0.05)

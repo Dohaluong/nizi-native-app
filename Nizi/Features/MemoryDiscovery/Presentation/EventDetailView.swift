@@ -85,6 +85,7 @@ struct EventDetailView: View {
 
     @Environment(\.modelContext) private var modelContext
     @State private var sessions: [PhotoSession] = []
+    @State private var captureDatesByAssetID: [String: Date] = [:]
     @State private var curationResult: EventCurationResult?
     @State private var curationStatus: CurationStatus = .notStarted
     @State private var progress: (processed: Int, total: Int)?
@@ -140,6 +141,7 @@ struct EventDetailView: View {
             // Event"). Doesn't wait on curation, since the event's asset list is already
             // known. (The full-screen preview has its own windowed prefetch — see CurationPreviewView.)
             assetProvider.prefetchThumbnails(assetIDs: initialPrefetchAssetIDs, targetSize: ImageSizing.gridThumbnail, contentMode: .fill, networkAccessAllowed: false)
+            await loadCaptureDates()
             await loadSessions()
             await runCurationIfNeeded()
         }
@@ -176,6 +178,8 @@ struct EventDetailView: View {
                 initialThumbnail: presentation.initialThumbnail,
                 eventId: presentation.eventId,
                 assetProvider: assetProvider,
+                appearance: .lightTimestamp,
+                capturedAtByAssetID: captureDatesByAssetID,
                 onToggle: toggleSelection,
                 onAssetReplaced: replaceAsset
             )
@@ -434,6 +438,11 @@ struct EventDetailView: View {
         } catch {
             NiziLogger.discovery.error("event_detail_sessions_load_failed")
         }
+    }
+
+    private func loadCaptureDates() async {
+        guard let assets = try? await makeStore().fetchAssets(ids: event.assetIDs) else { return }
+        captureDatesByAssetID = Dictionary(uniqueKeysWithValues: assets.map { ($0.id, $0.creationDate) })
     }
 
     private func runCurationIfNeeded() async {
@@ -747,7 +756,17 @@ private struct CurationThumbnailCell: View {
 /// already-loaded thumbnail immediately, then upgrade to the `displayPreview` tier (fast, capped
 /// size — good enough to view and swipe, not full quality). A window of neighboring assets stays
 /// prefetched at that same tier so swiping doesn't re-pay the cost each time.
-private struct CurationPreviewView: View {
+/// Shared full-screen Event/Trip photo viewer. Its inputs are plain curation items, so Trip can
+/// reuse the same zoom, paging, photo information and editor presentation without duplicating
+/// the gesture-heavy implementation.
+enum CurationPreviewAppearance {
+    case eventDark
+    case lightTimestamp
+
+    var isLight: Bool { self == .lightTimestamp }
+}
+
+struct CurationPreviewView: View {
     @State var items: [PhotoCurationItem]
     /// Deliberately starts at -1 (not `openedAtIndex`) — see the `.task` below for why.
     @State private var currentIndex: Int = -1
@@ -756,6 +775,13 @@ private struct CurationPreviewView: View {
     /// This Event's own id — see `CurationPreviewPresentation.eventId`.
     let eventId: String
     let assetProvider: PhotoAssetProvider
+    /// Trip passes the asset creation dates it already resolved for its chronological gallery;
+    /// Event keeps the default empty map and therefore shows no timestamp title.
+    let capturedAtByAssetID: [String: Date]
+    let appearance: CurationPreviewAppearance
+    /// Event/Memory selection remains available; Trip is a read-only journey viewer and hides
+    /// this control rather than presenting a heart whose action would be a no-op.
+    let showsSelectionControl: Bool
     let onToggle: (UUID) -> Void
     /// Fired when Photo Editor's completion result carries a `newPhotoId` (Event's save flow
     /// always exports a real new asset, per `PhotoAssetExporting`) — `EventDetailView` owns
@@ -809,6 +835,9 @@ private struct CurationPreviewView: View {
         initialThumbnail: PlatformImage?,
         eventId: String,
         assetProvider: PhotoAssetProvider,
+        appearance: CurationPreviewAppearance = .eventDark,
+        capturedAtByAssetID: [String: Date] = [:],
+        showsSelectionControl: Bool = true,
         onToggle: @escaping (UUID) -> Void,
         onAssetReplaced: @escaping (_ itemID: UUID, _ newAssetID: String) -> Void
     ) {
@@ -823,6 +852,9 @@ private struct CurationPreviewView: View {
         self.initialThumbnail = initialThumbnail
         self.eventId = eventId
         self.assetProvider = assetProvider
+        self.appearance = appearance
+        self.capturedAtByAssetID = capturedAtByAssetID
+        self.showsSelectionControl = showsSelectionControl
         self.onToggle = onToggle
         self.onAssetReplaced = onAssetReplaced
     }
@@ -844,6 +876,8 @@ private struct CurationPreviewView: View {
                         assetProvider: assetProvider,
                         initialThumbnail: index == openedAtIndex ? initialThumbnail : nil,
                         isActive: index == currentIndex,
+                        isLightAppearance: appearance.isLight,
+                        showsSelectionControl: showsSelectionControl,
                         onZoomChanged: { isZoomed = $0 },
                         requestDisplayPreview: { assetID, idx in requestDisplayPreview(assetID: assetID, index: idx) }
                     ) {
@@ -854,7 +888,7 @@ private struct CurationPreviewView: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .background(Color.black)
+            .background(appearance.isLight ? Color.white : Color.black)
             .offset(y: verticalDragOffset)
             .opacity(1 - dismissProgress)
             // Only tracks/reacts when the drag is predominantly vertical, so horizontal swipes
@@ -876,10 +910,23 @@ private struct CurationPreviewView: View {
                         }
                     }
             )
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarColorScheme(appearance.isLight ? .light : .dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("common.action.close") { dismiss() }
+                }
+                if appearance == .lightTimestamp, let capturedAt = currentCapturedAt {
+                    ToolbarItem(placement: .principal) {
+                        VStack(spacing: 1) {
+                            Text(Self.captureDateFormatter.string(from: capturedAt))
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Color.black)
+                            Text(Self.captureTimeFormatter.string(from: capturedAt))
+                                .font(.system(size: 10.5))
+                                .foregroundStyle(Color.black.opacity(0.68))
+                        }
+                        .multilineTextAlignment(.center)
+                    }
                 }
                 ToolbarItem(placement: .primaryAction) {
                     editButton
@@ -944,6 +991,25 @@ private struct CurationPreviewView: View {
             displayPreviewTasks.removeAll()
         }
     }
+
+    private var currentCapturedAt: Date? {
+        guard items.indices.contains(currentIndex) else { return nil }
+        return capturedAtByAssetID[items[currentIndex].assetID]
+    }
+
+    private static let captureDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_GB")
+        formatter.dateFormat = "d/M/yyyy"
+        return formatter
+    }()
+
+    private static let captureTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_GB")
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
 
     /// § 4.2 — opens Photo Editor on whichever photo is currently on screen, scoped to every
     /// photo in this Event (`items`, the already-flattened full snapshot, not just one group).
@@ -1204,6 +1270,8 @@ private struct CurationPreviewPage: View {
     /// Whether this page is the one currently centered in the TabView — used only to reset zoom
     /// when the user swipes away, since each page keeps its own zoom `@State` independently.
     let isActive: Bool
+    let isLightAppearance: Bool
+    let showsSelectionControl: Bool
     let onZoomChanged: (Bool) -> Void
     /// Joins (or starts) the viewer-owned `displayPreview` task for an asset — see
     /// `CurationPreviewView.requestDisplayPreview`. Deliberately not owned by this page: a page
@@ -1249,6 +1317,8 @@ private struct CurationPreviewPage: View {
         assetProvider: PhotoAssetProvider,
         initialThumbnail: PlatformImage?,
         isActive: Bool,
+        isLightAppearance: Bool,
+        showsSelectionControl: Bool,
         onZoomChanged: @escaping (Bool) -> Void,
         requestDisplayPreview: @escaping (String, Int) -> Task<PlatformImage?, Never>,
         onToggleSelection: @escaping () -> Void
@@ -1257,6 +1327,8 @@ private struct CurationPreviewPage: View {
         self.item = item
         self.assetProvider = assetProvider
         self.isActive = isActive
+        self.isLightAppearance = isLightAppearance
+        self.showsSelectionControl = showsSelectionControl
         self.onZoomChanged = onZoomChanged
         self.requestDisplayPreview = requestDisplayPreview
         self.onToggleSelection = onToggleSelection
@@ -1288,7 +1360,7 @@ private struct CurationPreviewPage: View {
         // instead of centering them. The checkbox is positioned via a separate `.overlay`
         // instead, so it doesn't affect how the image itself is laid out.
         ZStack {
-            Color.black
+            isLightAppearance ? Color.white : Color.black
             if let displayedImage {
                 GeometryReader { proxy in
                     Image(uiImage: displayedImage)
@@ -1316,12 +1388,12 @@ private struct CurationPreviewPage: View {
                 }
                 .transition(.opacity.animation(.easeOut(duration: 0.15)))
             } else {
-                ProgressView().tint(.white)
+                ProgressView().tint(isLightAppearance ? .black : .white)
             }
 
             if showLoadingIndicator {
                 ProgressView()
-                    .tint(.white)
+                    .tint(isLightAppearance ? .black : .white)
                     .padding(14)
                     .background(Color.black.opacity(0.5), in: Circle())
             }
@@ -1331,20 +1403,22 @@ private struct CurationPreviewPage: View {
             resetZoom()
         }
         .overlay(alignment: .bottomTrailing) {
-            Button(action: onToggleSelection) {
-                ZStack {
-                    Image(systemName: item.isSelected ? "heart.fill" : "heart")
-                        .font(.largeTitle)
-                        .foregroundStyle(item.isSelected ? Color.red : Color.gray)
-                    if item.isSelected {
-                        Image(systemName: "heart")
+            if showsSelectionControl {
+                Button(action: onToggleSelection) {
+                    ZStack {
+                        Image(systemName: item.isSelected ? "heart.fill" : "heart")
                             .font(.largeTitle)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(item.isSelected ? Color.red : Color.gray)
+                        if item.isSelected {
+                            Image(systemName: "heart")
+                                .font(.largeTitle)
+                                .foregroundStyle(.white)
+                        }
                     }
                 }
+                .padding(24)
+                .accessibilityLabel(item.isSelected ? localizedString("event.photo.accessibility.deselect", defaultValue: "Deselect photo") : localizedString("event.photo.accessibility.select", defaultValue: "Select photo"))
             }
-            .padding(24)
-            .accessibilityLabel(item.isSelected ? localizedString("event.photo.accessibility.deselect", defaultValue: "Deselect photo") : localizedString("event.photo.accessibility.select", defaultValue: "Select photo"))
         }
         .task(id: item.assetID) {
             NiziLogger.discovery.notice("preview_page_task_start index=\(index, privacy: .public) assetID=\(item.assetID, privacy: .private) pageInstanceID=\(pageInstanceID.uuidString, privacy: .public)")

@@ -38,7 +38,7 @@ struct TripDiscoveryEngineTests {
         let (event2, session2) = makeEventWithSession(startOffsetDays: 1, durationHours: 2, latitude: 21.028, longitude: 105.855)
 
         let trips = DefaultTripDiscoveryEngine().detectTrips(
-            events: [event1, event2], sessions: [session1, session2], home: Self.home, config: .default
+            events: [event1, event2], sessions: [session1, session2], home: Self.home, familiarPlaces: [], config: .default
         )
 
         #expect(trips.isEmpty)
@@ -52,7 +52,7 @@ struct TripDiscoveryEngineTests {
         let (event3, session3) = makeEventWithSession(startOffsetDays: 12, durationHours: 6, latitude: 16.0544, longitude: 108.2022)
 
         let trips = DefaultTripDiscoveryEngine().detectTrips(
-            events: [event1, event2, event3], sessions: [session1, session2, session3], home: Self.home, config: .default
+            events: [event1, event2, event3], sessions: [session1, session2, session3], home: Self.home, familiarPlaces: [], config: .default
         )
 
         #expect(trips.count == 1)
@@ -66,7 +66,7 @@ struct TripDiscoveryEngineTests {
         let (kyotoEvent, kyotoSession) = makeEventWithSession(startOffsetDays: 21, durationHours: 6, latitude: 35.0116, longitude: 135.7681)
 
         let trips = DefaultTripDiscoveryEngine().detectTrips(
-            events: [tokyoEvent, kyotoEvent], sessions: [tokyoSession, kyotoSession], home: Self.home, config: .default
+            events: [tokyoEvent, kyotoEvent], sessions: [tokyoSession, kyotoSession], home: Self.home, familiarPlaces: [], config: .default
         )
 
         #expect(trips.count == 1)
@@ -76,8 +76,65 @@ struct TripDiscoveryEngineTests {
     @Test func noHomeProducesNoTrips() {
         let (event1, session1) = makeEventWithSession(startOffsetDays: 10, durationHours: 6, latitude: 16.0544, longitude: 108.2022)
 
-        let trips = DefaultTripDiscoveryEngine().detectTrips(events: [event1], sessions: [session1], home: nil, config: .default)
+        let trips = DefaultTripDiscoveryEngine().detectTrips(events: [event1], sessions: [session1], home: nil, familiarPlaces: [], config: .default)
 
         #expect(trips.isEmpty)
+    }
+
+    // MARK: - Trip Eligibility V1 (SPRINT-NEXT § 5-9)
+
+    /// AC: "Event gần Home trong thời gian ngắn không thành Trip" — 22km clears the .away
+    /// boundary (localRadiusKm=20) but is still under every eligibility distance floor
+    /// (overnight=25, dayTrip=30, international=150), even though the two events span a day
+    /// boundary (overnightCount == 1).
+    @Test func overnightTripTooCloseToHomeIsNotEligible() {
+        let (event1, session1) = makeEventWithSession(startOffsetDays: 10, durationHours: 2, latitude: 21.2262, longitude: 105.8542)
+        let (event2, session2) = makeEventWithSession(startOffsetDays: 11, durationHours: 2, latitude: 21.2262, longitude: 105.8542)
+
+        let trips = DefaultTripDiscoveryEngine().detectTrips(
+            events: [event1, event2], sessions: [session1, session2], home: Self.home, familiarPlaces: [], config: .default
+        )
+
+        #expect(trips.isEmpty)
+    }
+
+    /// Day Trip eligibility requires away + duration + distance + activity all together — two
+    /// same-day events ~35km away, 5 hours apart, 2 sessions total clears every Day Trip floor.
+    @Test func dayTripFarEnoughLongEnoughWithEnoughSessionsQualifies() {
+        let (event1, session1) = makeEventWithSession(startOffsetDays: 20, durationHours: 2, latitude: 21.3429, longitude: 105.8542)
+        let (event2, session2) = makeEventWithSession(startOffsetDays: 20.125, durationHours: 2, latitude: 21.3429, longitude: 105.8542)
+
+        let trips = DefaultTripDiscoveryEngine().detectTrips(
+            events: [event1, event2], sessions: [session1, session2], home: Self.home, familiarPlaces: [], config: .default
+        )
+
+        #expect(trips.count == 1)
+        #expect(trips.first?.travelContext.eligibilityReasons.contains(TripEligibilityReason.dayTrip.rawValue) == true)
+    }
+
+    /// AC: a short (15 min), single-session, 21km stopover must not become a Trip — it fails
+    /// every gate (no overnight, too short/too close for Day Trip, too close for international).
+    @Test func shortNearbyStopoverIsNotEligibleForDayTrip() {
+        let (event, session) = makeEventWithSession(startOffsetDays: 30, durationHours: 0.25, latitude: 21.2172, longitude: 105.8542)
+
+        let trips = DefaultTripDiscoveryEngine().detectTrips(
+            events: [event], sessions: [session], home: Self.home, familiarPlaces: [], config: .default
+        )
+
+        #expect(trips.isEmpty)
+    }
+
+    /// A single short (2h), far (160km) event can't clear the Day Trip gate (needs >= 4h) but
+    /// is far enough to be a plausible international candidate — SPEC § 7's explicit exception
+    /// that a single international Event can become a Trip on its own.
+    @Test func internationalCandidateSingleEventBecomesProvisionallyEligible() {
+        let (event, session) = makeEventWithSession(startOffsetDays: 40, durationHours: 2, latitude: 22.4658, longitude: 105.8542)
+
+        let trips = DefaultTripDiscoveryEngine().detectTrips(
+            events: [event], sessions: [session], home: Self.home, familiarPlaces: [], config: .default
+        )
+
+        #expect(trips.count == 1)
+        #expect(trips.first?.travelContext.eligibilityReasons == [TripEligibilityReason.internationalCandidate.rawValue])
     }
 }

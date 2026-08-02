@@ -222,9 +222,17 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
         return try modelContext.fetch(descriptor).map(PhotoEvent.init)
     }
 
-    func fetchLovedEvents() async throws -> [PhotoEvent] {
+    func fetchEvents(ids: [UUID]) async throws -> [PhotoEvent] {
+        let idSet = Set(ids)
         let descriptor = FetchDescriptor<MDEventCandidate>(
-            predicate: #Predicate { $0.isLoved },
+            predicate: #Predicate { idSet.contains($0.candidateID) }
+        )
+        return try modelContext.fetch(descriptor).map(PhotoEvent.init)
+    }
+
+    func fetchMemoryEvents() async throws -> [PhotoEvent] {
+        let descriptor = FetchDescriptor<MDEventCandidate>(
+            predicate: #Predicate { $0.isLoved || $0.isAutoMemory },
             sortBy: [SortDescriptor(\.startDate, order: .reverse)]
         )
         return try modelContext.fetch(descriptor).map(PhotoEvent.init)
@@ -560,5 +568,14 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
     func fetchTrips() async throws -> [PhotoTrip] {
         let descriptor = FetchDescriptor<MDPhotoTrip>(sortBy: [SortDescriptor(\.startDate, order: .reverse)])
         return try modelContext.fetch(descriptor).map(PhotoTrip.init)
+    }
+
+    func setTripPlace(tripID: UUID, place: EventPlace?) async throws {
+        var descriptor = FetchDescriptor<MDPhotoTrip>(predicate: #Predicate { $0.tripID == tripID })
+        descriptor.fetchLimit = 1
+        guard let trip = try modelContext.fetch(descriptor).first else { return }
+        trip.primaryPlaceName = place?.displayName
+        trip.primaryCountryCode = place?.countryCode
+        try modelContext.save()
     }
 }

@@ -20,7 +20,13 @@ protocol PhotoEventRepository {
     /// cluster boundaries across incremental scans. See docs/sprint/SPRINT-004-INTEGRATION-CHECKLIST.md.
     func replaceRebuildableEvents(_ events: [PhotoEvent]) async throws
     func fetchEvents(sortedBy order: PhotoEventSortOrder) async throws -> [PhotoEvent]
-    func fetchLovedEvents() async throws -> [PhotoEvent]
+    /// Batched lookup by ID — mirrors `PhotoSessionRepository.fetchSessions(ids:)`. Lets Trips UI
+    /// resolve a `PhotoTrip.eventIDs` list into real `PhotoEvent`s (for cover/photo/event counts)
+    /// with one call across many trips, instead of a fetch-all-then-filter per trip.
+    func fetchEvents(ids: [UUID]) async throws -> [PhotoEvent]
+    /// Events surfaced on Home's "Kỷ niệm" section — user-loved OR Nizi-selected Auto Memories
+    /// (SPRINT-NEXT § 18), sorted newest first.
+    func fetchMemoryEvents() async throws -> [PhotoEvent]
     func setEventLoved(eventID: UUID, isLoved: Bool) async throws
     func setEventPlace(eventID: UUID, place: EventPlace?, state: EventPlaceResolutionState) async throws
     /// Removes only the local Event candidate and its derived curation data. It never calls the

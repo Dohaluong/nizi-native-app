@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&amp;display=swap" rel="stylesheet">
+<script src="./image-slot.js"></script>
+<style>
+  body{margin:0;background:#f4f1ec;font-family:-apple-system,system-ui,sans-serif}
+  a{color:#B5643B}a:hover{color:#8f4c2a}
+  .dv-turn{padding:44px 44px 36px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+  .dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 22px}
+  .dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+  .dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+  .dv-opts{display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start}
+  .dv-opt{flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:12px;scroll-margin-top:16px}
+  .dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+  .dv-olabel{display:flex;align-items:baseline;gap:10px}
+  .dv-oname{font:600 15px/1.3 system-ui,sans-serif;color:#1a1a1a}
+  .dv-opitch{font:400 12.5px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.55);margin:2px 0 0;max-width:560px}
+  .dv-row{display:flex;align-items:center;gap:18px}
+  .dv-arrow{font:400 22px system-ui,sans-serif;color:rgba(0,0,0,.28);flex-shrink:0}
+  .dv-caption{font:600 11px system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;color:rgba(0,0,0,.4);text-align:center;margin-top:2px}
+  .dv-framewrap{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .dv-next{margin:24px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+  .dv-next a{font-weight:600}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t7">
+  <div class="dv-thd"><a class="dv-tid" href="#t7">7</a><span class="dv-tname">Shared with you — feed những Album bạn cùng đi</span></div>
+  <div class="dv-opts">
+    <div class="dv-opt" id="7a">
+      <div class="dv-olabel"><a class="dv-oid" href="#7a">7a</a><span class="dv-oname">Together — feed 2 chiều, không phải social network</span></div>
+      <p class="dv-opitch">Chỉ hiện Album/Memory mà bạn bè đã cùng bạn trải qua và chủ động share cho bạn — không có discover người lạ, không follow, không feed công khai.</p>
+      <div class="dv-row">
+        <div class="dv-framewrap">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402,874">
+            <div style="height:874px;overflow-y:auto;background:#0E0D10;font-family:-apple-system,system-ui,sans-serif">
+
+              <div style="padding:64px 24px 4px">
+                <div style="font-family:'Newsreader',serif;font-size:30px;color:#F6F1EA">Shared with you</div>
+                <div style="font-size:12.5px;color:rgba(246,241,234,.45);margin-top:6px">Albums friends shared from trips you took together</div>
+              </div>
+
+              <div style="padding:22px 24px 0">
+                <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
+                  <image-slot id="7a-av1" shape="circle" placeholder="M" style="width:28px;height:28px"></image-slot>
+                  <span style="font-size:13px;color:rgba(246,241,234,.7)"><span style="color:#F6F1EA;font-weight:600">Mai</span> shared an album from your trip together · 2h</span>
+                </div>
+                <div style="border-radius:18px;overflow:hidden;background:rgba(255,255,255,.05)">
+                  <div style="position:relative;height:210px;display:grid;grid-template-columns:1.3fr 1fr;grid-template-rows:1fr 1fr;gap:2px">
+                    <image-slot id="7a-p1a" shape="rect" placeholder="·" style="grid-row:1/3"></image-slot>
+                    <image-slot id="7a-p1b" shape="rect" placeholder="·"></image-slot>
+                    <image-slot id="7a-p1c" shape="rect" placeholder="·"></image-slot>
+                  </div>
+                  <div style="padding:14px 16px">
+                    <div style="font-family:'Newsreader',serif;font-size:19px;color:#F6F1EA">Đà Nẵng, together</div>
+                    <div style="font-size:12px;color:rgba(246,241,234,.5);margin-top:4px">You were both there · 42 shared photos</div>
+                    <div style="display:flex;align-items:center;gap:16px;margin-top:14px">
+                      <div style="display:flex;align-items:center;gap:6px"><svg width="16" height="14" viewBox="0 0 24 21"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="none" stroke="rgba(246,241,234,.55)" stroke-width="1.6"/></svg><span style="font-size:12px;color:rgba(246,241,234,.55)">3</span></div>
+                      <div style="display:flex;align-items:center;gap:6px"><svg width="15" height="14" viewBox="0 0 20 18"><path d="M1 1h18v12H8l-4 4v-4H1z" fill="none" stroke="rgba(246,241,234,.55)" stroke-width="1.5" stroke-linejoin="round"/></svg><span style="font-size:12px;color:rgba(246,241,234,.55)">1</span></div>
+                      <div style="flex:1"></div>
+                      <span style="font-size:12.5px;color:#E1875B;font-weight:600">View album</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="padding:26px 24px 0">
+                <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
+                  <image-slot id="7a-av2" shape="circle" placeholder="K" style="width:28px;height:28px"></image-slot>
+                  <span style="font-size:13px;color:rgba(246,241,234,.7)"><span style="color:#F6F1EA;font-weight:600">Khang</span> shared a memory from your trip together · 1d</span>
+                </div>
+                <div style="border-radius:18px;overflow:hidden;background:rgba(255,255,255,.05)">
+                  <image-slot id="7a-p2" shape="rect" placeholder="Japan trip" style="width:100%;height:180px"></image-slot>
+                  <div style="padding:14px 16px">
+                    <div style="font-family:'Newsreader',serif;font-size:19px;color:#F6F1EA">Japan, once more</div>
+                    <div style="font-size:12px;color:rgba(246,241,234,.5);margin-top:4px">Tokyo · Kyoto · Osaka — 7 days together</div>
+                    <div style="display:flex;align-items:center;gap:16px;margin-top:14px">
+                      <div style="display:flex;align-items:center;gap:6px"><svg width="16" height="14" viewBox="0 0 24 21"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="#E1875B"/></svg><span style="font-size:12px;color:rgba(246,241,234,.55)">7</span></div>
+                      <div style="display:flex;align-items:center;gap:6px"><svg width="15" height="14" viewBox="0 0 20 18"><path d="M1 1h18v12H8l-4 4v-4H1z" fill="none" stroke="rgba(246,241,234,.55)" stroke-width="1.5" stroke-linejoin="round"/></svg><span style="font-size:12px;color:rgba(246,241,234,.55)">4</span></div>
+                      <div style="flex:1"></div>
+                      <span style="font-size:12.5px;color:#E1875B;font-weight:600">View memory</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="padding:26px 24px 40px">
+                <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
+                  <image-slot id="7a-av3" shape="circle" placeholder="L" style="width:28px;height:28px"></image-slot>
+                  <span style="font-size:13px;color:rgba(246,241,234,.7)"><span style="color:#F6F1EA;font-weight:600">Linh</span> shared an album from your trip together · 4d</span>
+                </div>
+                <div style="border-radius:18px;overflow:hidden;background:rgba(255,255,255,.05)">
+                  <image-slot id="7a-p3" shape="rect" placeholder="Sa Pa" style="width:100%;height:180px"></image-slot>
+                  <div style="padding:14px 16px">
+                    <div style="font-family:'Newsreader',serif;font-size:19px;color:#F6F1EA">Sa Pa, above the clouds</div>
+                    <div style="font-size:12px;color:rgba(246,241,234,.5);margin-top:4px">You were both there · 18 shared photos</div>
+                    <div style="display:flex;align-items:center;gap:16px;margin-top:14px">
+                      <div style="display:flex;align-items:center;gap:6px"><svg width="16" height="14" viewBox="0 0 24 21"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="none" stroke="rgba(246,241,234,.55)" stroke-width="1.6"/></svg><span style="font-size:12px;color:rgba(246,241,234,.55)">0</span></div>
+                      <div style="display:flex;align-items:center;gap:6px"><svg width="15" height="14" viewBox="0 0 20 18"><path d="M1 1h18v12H8l-4 4v-4H1z" fill="none" stroke="rgba(246,241,234,.55)" stroke-width="1.5" stroke-linejoin="round"/></svg><span style="font-size:12px;color:rgba(246,241,234,.55)">0</span></div>
+                      <div style="flex:1"></div>
+                      <span style="font-size:12.5px;color:#E1875B;font-weight:600">View album</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </x-import>
+          <div class="dv-caption">Shared with you</div>
+        </div>
+      </div>
+      <p class="dv-next">Thử tiếp: "thêm badge chưa xem cho item mới" · "gộp màn này với Home làm 1 tab riêng" · "cho reply nhanh ngay trên feed"</p>
+    </div>
+  </div>
+</section>
+<section class="dv-turn" id="t6">
+  <div class="dv-thd"><a class="dv-tid" href="#t6">6</a><span class="dv-tname">Shared Memory — người khác xem, love &amp; comment</span></div>
+  <div class="dv-opts">
+    <div class="dv-opt" id="6a">
+      <div class="dv-olabel"><a class="dv-oid" href="#6a">6a</a><span class="dv-oname">Shared Memory viewer</span></div>
+      <p class="dv-opitch">Người nhận link chỉ xem một Memory được share — không phải feed. Có thể ♥ và bình luận, không có news feed, không follow, không khám phá người khác.</p>
+      <div class="dv-row">
+        <div class="dv-framewrap">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402,874">
+            <div style="height:874px;position:relative;background:#0E0D10;font-family:-apple-system,system-ui,sans-serif">
+
+              <div style="position:absolute;inset:0;overflow-y:auto;padding-bottom:78px;box-sizing:border-box">
+
+                <div style="position:relative;height:480px;width:100%;overflow:hidden">
+                  <image-slot id="6a-hero" shape="rect" placeholder="Shared memory photo" style="position:absolute;inset:0;width:100%;height:100%"></image-slot>
+                  <div style="position:absolute;top:0;left:0;right:0;height:130px;background:linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,0));pointer-events:none"></div>
+                  <div style="position:absolute;bottom:0;left:0;right:0;height:220px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.85));pointer-events:none"></div>
+
+                  <div style="position:absolute;top:62px;left:16px;right:16px;display:flex;gap:4px;pointer-events:none">
+                    <div style="flex:1;height:2.5px;border-radius:2px;background:rgba(255,255,255,.9)"></div>
+                    <div style="flex:1;height:2.5px;border-radius:2px;background:rgba(255,255,255,.35)"></div>
+                    <div style="flex:1;height:2.5px;border-radius:2px;background:rgba(255,255,255,.35)"></div>
+                    <div style="flex:1;height:2.5px;border-radius:2px;background:rgba(255,255,255,.35)"></div>
+                  </div>
+
+                  <div style="position:absolute;top:80px;left:16px;display:flex;align-items:center;gap:8px;padding:5px 12px 5px 5px;border-radius:100px;background:rgba(0,0,0,.4);pointer-events:none">
+                    <image-slot id="6a-sender" shape="circle" placeholder="M" style="width:26px;height:26px"></image-slot>
+                    <span style="font-size:12px;color:#fff">Shared by Mai</span>
+                  </div>
+                  <div style="position:absolute;top:80px;right:16px;width:32px;height:32px;border-radius:16px;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;pointer-events:none">
+                    <svg width="12" height="12" viewBox="0 0 14 14"><path d="M1 1l12 12M13 1L1 13" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>
+                  </div>
+
+                  <div style="position:absolute;left:22px;right:22px;bottom:22px;pointer-events:none">
+                    <div style="font-size:11px;font-weight:600;letter-spacing:.09em;color:rgba(255,255,255,.65);text-transform:uppercase">Memory</div>
+                    <div style="font-family:'Newsreader',serif;font-size:30px;color:#fff;margin-top:6px">Summer in Da Nang</div>
+                    <div style="font-size:12.5px;color:rgba(255,255,255,.6);margin-top:8px">Mỹ An · Đà Nẵng · Jul 2018</div>
+                  </div>
+                </div>
+
+                <div style="display:flex;align-items:center;gap:18px;padding:16px 22px">
+                  <div style="display:flex;align-items:center;gap:7px">
+                    <svg width="19" height="17" viewBox="0 0 24 21"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="#E1875B"/></svg>
+                    <span style="font-size:13.5px;color:#F6F1EA">24</span>
+                  </div>
+                  <div style="display:flex;align-items:center;margin-left:-4px">
+                    <image-slot id="6a-av1" shape="circle" placeholder="·" style="width:22px;height:22px;border:2px solid #0E0D10"></image-slot>
+                    <image-slot id="6a-av2" shape="circle" placeholder="·" style="width:22px;height:22px;margin-left:-8px;border:2px solid #0E0D10"></image-slot>
+                    <image-slot id="6a-av3" shape="circle" placeholder="·" style="width:22px;height:22px;margin-left:-8px;border:2px solid #0E0D10"></image-slot>
+                    <span style="font-size:12px;color:rgba(246,241,234,.5);margin-left:8px">Mai, Khang +12</span>
+                  </div>
+                  <div style="flex:1"></div>
+                  <div style="display:flex;align-items:center;gap:7px">
+                    <svg width="18" height="17" viewBox="0 0 20 18"><path d="M1 1h18v12H8l-4 4v-4H1z" fill="none" stroke="rgba(246,241,234,.5)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                    <span style="font-size:13.5px;color:rgba(246,241,234,.5)">8</span>
+                  </div>
+                </div>
+
+                <div style="height:1px;background:rgba(255,255,255,.08);margin:0 22px"></div>
+
+                <div style="padding:16px 22px 0;display:flex;flex-direction:column;gap:18px">
+                  <div style="display:flex;gap:11px">
+                    <image-slot id="6a-c1" shape="circle" placeholder="M" style="width:34px;height:34px;flex-shrink:0"></image-slot>
+                    <div style="flex:1">
+                      <div style="font-size:13px;color:#F6F1EA"><span style="font-weight:600">Mai</span> <span style="color:rgba(246,241,234,.4);font-weight:400;font-size:11.5px">· 2h</span></div>
+                      <div style="font-size:13.5px;color:rgba(246,241,234,.75);margin-top:4px;line-height:1.4">I had completely forgotten about this trip. Thank you for finding it.</div>
+                    </div>
+                  </div>
+                  <div style="display:flex;gap:11px">
+                    <image-slot id="6a-c2" shape="circle" placeholder="K" style="width:34px;height:34px;flex-shrink:0"></image-slot>
+                    <div style="flex:1">
+                      <div style="font-size:13px;color:#F6F1EA"><span style="font-weight:600">Khang</span> <span style="color:rgba(246,241,234,.4);font-weight:400;font-size:11.5px">· 5h</span></div>
+                      <div style="font-size:13.5px;color:rgba(246,241,234,.75);margin-top:4px;line-height:1.4">We need to go back.</div>
+                    </div>
+                  </div>
+                  <div style="display:flex;gap:11px">
+                    <image-slot id="6a-c3" shape="circle" placeholder="L" style="width:34px;height:34px;flex-shrink:0"></image-slot>
+                    <div style="flex:1">
+                      <div style="font-size:13px;color:#F6F1EA"><span style="font-weight:600">Linh</span> <span style="color:rgba(246,241,234,.4);font-weight:400;font-size:11.5px">· 1d</span></div>
+                      <div style="font-size:13.5px;color:rgba(246,241,234,.75);margin-top:4px;line-height:1.4">This might be my favorite one yet.</div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <div style="position:absolute;left:0;right:0;bottom:0;padding:10px 16px 26px;background:rgba(14,13,16,.94);backdrop-filter:blur(10px);border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px">
+                <image-slot id="6a-self" shape="circle" placeholder="You" style="width:32px;height:32px;flex-shrink:0"></image-slot>
+                <div style="flex:1;height:38px;border-radius:100px;background:rgba(255,255,255,.08);display:flex;align-items:center;padding:0 14px"><span style="font-size:13px;color:rgba(246,241,234,.4)">Add a comment…</span></div>
+                <svg width="19" height="17" viewBox="0 0 24 21" style="flex-shrink:0"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="none" stroke="rgba(246,241,234,.6)" stroke-width="1.6"/></svg>
+              </div>
+
+            </div>
+          </x-import>
+          <div class="dv-caption">Shared Memory</div>
+        </div>
+      </div>
+      <p class="dv-next">Thử tiếp: "thêm màn xin xác nhận trước khi share" · "cho reply comment" · "thêm nút Save vào thư viện của người xem"</p>
+    </div>
+  </div>
+</section>
+<section class="dv-turn" id="t5">
+  <div class="dv-thd"><a class="dv-tid" href="#t5">5</a><span class="dv-tname">Event Detail (<a href="#1b">1b</a>) — View All Photos</span></div>
+  <div class="dv-opts">
+    <div class="dv-opt" id="5a">
+      <div class="dv-olabel"><a class="dv-oid" href="#5a">5a</a><span class="dv-oname">Masonry 2 cột, quote xen giữa</span></div>
+      <p class="dv-opitch">Từ "View all photos" trong Event Detail của <a href="#1b">1b</a> — toàn bộ ảnh (tỷ lệ khác nhau) đổ xuống theo masonry 2 cột, scroll tiếp; thỉnh thoảng thay một ô ảnh bằng ô quote để nhịp đọc không đều tay.</p>
+      <div class="dv-row">
+        <div class="dv-framewrap">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402,874">
+            <div style="height:874px;overflow-y:auto;background:#0E0D10;font-family:-apple-system,system-ui,sans-serif">
+
+              <div style="padding:64px 20px 0">
+                <div style="width:36px;height:36px;border-radius:18px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center"><svg width="10" height="16" viewBox="0 0 10 16"><path d="M8 1L1 8l7 7" stroke="#F6F1EA" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              </div>
+              <div style="padding:16px 20px 16px">
+                <div style="font-family:'Newsreader',serif;font-size:24px;color:#F6F1EA">All Photos</div>
+                <div style="font-size:12.5px;color:rgba(246,241,234,.5);margin-top:4px">156 photos · Summer in Da Nang</div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 20px 40px;width:100%;box-sizing:border-box">
+                <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+                  <image-slot id="5a-c1-1" shape="rounded" radius="8" placeholder="·" style="width:100%;height:210px"></image-slot>
+                  <image-slot id="5a-c1-2" shape="rounded" radius="8" placeholder="·" style="width:100%;height:150px"></image-slot>
+                  <div style="width:100%;min-height:170px;border-radius:8px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box">
+                    <span style="font-family:'Newsreader',serif;font-style:italic;font-size:14px;color:rgba(246,241,234,.75);text-align:center;line-height:1.5">"We almost didn't stop the car for this one."</span>
+                  </div>
+                  <image-slot id="5a-c1-3" shape="rounded" radius="8" placeholder="·" style="width:100%;height:260px"></image-slot>
+                  <image-slot id="5a-c1-4" shape="rounded" radius="8" placeholder="·" style="width:100%;height:190px"></image-slot>
+                  <image-slot id="5a-c1-5" shape="rounded" radius="8" placeholder="·" style="width:100%;height:230px"></image-slot>
+                  <image-slot id="5a-c1-6" shape="rounded" radius="8" placeholder="·" style="width:100%;height:160px"></image-slot>
+                  <div style="width:100%;min-height:150px;border-radius:8px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box">
+                    <span style="font-family:'Newsreader',serif;font-style:italic;font-size:14px;color:rgba(246,241,234,.75);text-align:center;line-height:1.5">"Nobody remembers who took this."</span>
+                  </div>
+                  <image-slot id="5a-c1-7" shape="rounded" radius="8" placeholder="·" style="width:100%;height:220px"></image-slot>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+                  <image-slot id="5a-c2-1" shape="rounded" radius="8" placeholder="·" style="width:100%;height:260px"></image-slot>
+                  <image-slot id="5a-c2-2" shape="rounded" radius="8" placeholder="·" style="width:100%;height:180px"></image-slot>
+                  <image-slot id="5a-c2-3" shape="rounded" radius="8" placeholder="·" style="width:100%;height:220px"></image-slot>
+                  <image-slot id="5a-c2-4" shape="rounded" radius="8" placeholder="·" style="width:100%;height:150px"></image-slot>
+                  <image-slot id="5a-c2-5" shape="rounded" radius="8" placeholder="·" style="width:100%;height:240px"></image-slot>
+                  <image-slot id="5a-c2-6" shape="rounded" radius="8" placeholder="·" style="width:100%;height:170px"></image-slot>
+                  <image-slot id="5a-c2-7" shape="rounded" radius="8" placeholder="·" style="width:100%;height:200px"></image-slot>
+                  <image-slot id="5a-c2-8" shape="rounded" radius="8" placeholder="·" style="width:100%;height:250px"></image-slot>
+                </div>
+              </div>
+
+            </div>
+          </x-import>
+          <div class="dv-caption">Event Detail — All Photos</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="dv-next">Thử tiếp: "thêm nút chọn nhiều ảnh để xoá/thêm highlight" · "cho tap ảnh mở full-screen viewer" · "đổi quote card sang màu accent"</p>
+</section>
+<section class="dv-turn" id="t4">
+  <div class="dv-thd"><a class="dv-tid" href="#t4">4</a><span class="dv-tname">Events — archive có filter theo năm</span></div>
+  <div class="dv-opts">
+    <div class="dv-opt" id="4a">
+      <div class="dv-olabel"><a class="dv-oid" href="#4a">4a</a><span class="dv-oname">Year chips (sticky) + nhóm theo tháng</span></div>
+      <p class="dv-opitch">Vài chục Event/năm vẫn dễ lướt: chip năm dính lại khi cuộn, danh sách gộp theo tháng, row gọn (thumbnail nhỏ, 1 dòng info) thay vì card lớn như Home.</p>
+      <div class="dv-row">
+        <div class="dv-framewrap">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402,874">
+            <div style="height:874px;position:relative;background:#0E0D10;font-family:-apple-system,system-ui,sans-serif">
+
+              <div style="position:absolute;inset:0;overflow-y:auto;padding-bottom:70px;box-sizing:border-box">
+
+                <div style="padding:64px 24px 14px">
+                  <div style="font-family:'Newsreader',serif;font-size:30px;color:#F6F1EA">Events</div>
+                </div>
+
+                <div style="position:sticky;top:0;z-index:5;background:#0E0D10;padding:8px 0 12px;box-shadow:0 12px 12px -6px #0E0D10">
+                  <div style="display:flex;gap:8px;overflow-x:auto;padding:0 24px">
+                    <div style="flex-shrink:0;padding:7px 16px;border-radius:100px;background:rgba(255,255,255,.07);font-size:13px;color:rgba(246,241,234,.55)">2026</div>
+                    <div style="flex-shrink:0;padding:7px 16px;border-radius:100px;background:rgba(255,255,255,.07);font-size:13px;color:rgba(246,241,234,.55)">2025</div>
+                    <div style="flex-shrink:0;padding:7px 16px;border-radius:100px;background:rgba(255,255,255,.07);font-size:13px;color:rgba(246,241,234,.55)">2024</div>
+                    <div style="flex-shrink:0;padding:7px 16px;border-radius:100px;background:rgba(255,255,255,.07);font-size:13px;color:rgba(246,241,234,.55)">2019</div>
+                    <div style="flex-shrink:0;padding:7px 16px;border-radius:100px;background:#E1875B;font-size:13px;font-weight:600;color:#0E0D10">2018</div>
+                    <div style="flex-shrink:0;padding:7px 16px;border-radius:100px;background:rgba(255,255,255,.07);font-size:13px;color:rgba(246,241,234,.55)">2017</div>
+                  </div>
+                  <div style="font-size:11.5px;color:rgba(246,241,234,.4);padding:10px 24px 0">38 events in 2018</div>
+                </div>
+
+                <div style="padding:18px 24px 6px;font-size:11px;font-weight:600;letter-spacing:.08em;color:rgba(246,241,234,.4);text-transform:uppercase">July</div>
+                <div style="padding:0 24px">
+                  <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07)">
+                    <image-slot id="4a-e1" shape="rounded" radius="10" placeholder="·" style="width:60px;height:60px;flex-shrink:0"></image-slot>
+                    <div style="flex:1;min-width:0"><div style="font-size:14.5px;color:#F6F1EA">Mỹ An · Đà Nẵng</div><div style="font-size:12px;color:rgba(246,241,234,.45);margin-top:2px">12–14 Jul · 187 photos</div></div>
+                    <svg width="17" height="15" viewBox="0 0 24 21" style="flex-shrink:0"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="#E1875B"/></svg>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07)">
+                    <image-slot id="4a-e2" shape="rounded" radius="10" placeholder="·" style="width:60px;height:60px;flex-shrink:0"></image-slot>
+                    <div style="flex:1;min-width:0"><div style="font-size:14.5px;color:#F6F1EA">Hội An</div><div style="font-size:12px;color:rgba(246,241,234,.45);margin-top:2px">20 Jul · 34 photos</div></div>
+                    <svg width="17" height="15" viewBox="0 0 24 21" style="flex-shrink:0"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="none" stroke="rgba(246,241,234,.45)" stroke-width="1.6"/></svg>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07)">
+                    <image-slot id="4a-e3" shape="rounded" radius="10" placeholder="·" style="width:60px;height:60px;flex-shrink:0"></image-slot>
+                    <div style="flex:1;min-width:0"><div style="font-size:14.5px;color:#F6F1EA">Hòa Hải · Đà Nẵng</div><div style="font-size:12px;color:rgba(246,241,234,.45);margin-top:2px">27–28 Jul · 56 photos</div></div>
+                    <svg width="17" height="15" viewBox="0 0 24 21" style="flex-shrink:0"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="none" stroke="rgba(246,241,234,.45)" stroke-width="1.6"/></svg>
+                  </div>
+                </div>
+
+                <div style="padding:20px 24px 6px;font-size:11px;font-weight:600;letter-spacing:.08em;color:rgba(246,241,234,.4);text-transform:uppercase">May</div>
+                <div style="padding:0 24px">
+                  <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07)">
+                    <image-slot id="4a-e4" shape="rounded" radius="10" placeholder="·" style="width:60px;height:60px;flex-shrink:0"></image-slot>
+                    <div style="flex:1;min-width:0"><div style="font-size:14.5px;color:#F6F1EA">Tokyo · Nhật Bản</div><div style="font-size:12px;color:rgba(246,241,234,.45);margin-top:2px">3–9 May · 412 photos</div></div>
+                    <svg width="17" height="15" viewBox="0 0 24 21" style="flex-shrink:0"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="#E1875B"/></svg>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07)">
+                    <image-slot id="4a-e5" shape="rounded" radius="10" placeholder="·" style="width:60px;height:60px;flex-shrink:0"></image-slot>
+                    <div style="flex:1;min-width:0"><div style="font-size:14.5px;color:#F6F1EA">Kyoto · Nhật Bản</div><div style="font-size:12px;color:rgba(246,241,234,.45);margin-top:2px">9–11 May · 201 photos</div></div>
+                    <svg width="17" height="15" viewBox="0 0 24 21" style="flex-shrink:0"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="none" stroke="rgba(246,241,234,.45)" stroke-width="1.6"/></svg>
+                  </div>
+                </div>
+
+                <div style="padding:20px 24px 6px;font-size:11px;font-weight:600;letter-spacing:.08em;color:rgba(246,241,234,.4);text-transform:uppercase">March</div>
+                <div style="padding:0 24px">
+                  <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07)">
+                    <image-slot id="4a-e6" shape="rounded" radius="10" placeholder="·" style="width:60px;height:60px;flex-shrink:0"></image-slot>
+                    <div style="flex:1;min-width:0"><div style="font-size:14.5px;color:#F6F1EA">Sơn Trà · Đà Nẵng</div><div style="font-size:12px;color:rgba(246,241,234,.45);margin-top:2px">30–31 Mar · 76 photos</div></div>
+                    <svg width="17" height="15" viewBox="0 0 24 21" style="flex-shrink:0"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="none" stroke="rgba(246,241,234,.45)" stroke-width="1.6"/></svg>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07)">
+                    <image-slot id="4a-e7" shape="rounded" radius="10" placeholder="·" style="width:60px;height:60px;flex-shrink:0"></image-slot>
+                    <div style="flex:1;min-width:0"><div style="font-size:14.5px;color:#F6F1EA">Hải Châu · Đà Nẵng</div><div style="font-size:12px;color:rgba(246,241,234,.45);margin-top:2px">15 Mar · 44 photos</div></div>
+                    <svg width="17" height="15" viewBox="0 0 24 21" style="flex-shrink:0"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="none" stroke="rgba(246,241,234,.45)" stroke-width="1.6"/></svg>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07)">
+                    <image-slot id="4a-e8" shape="rounded" radius="10" placeholder="·" style="width:60px;height:60px;flex-shrink:0"></image-slot>
+                    <div style="flex:1;min-width:0"><div style="font-size:14.5px;color:#F6F1EA">Mỹ An · Đà Nẵng</div><div style="font-size:12px;color:rgba(246,241,234,.45);margin-top:2px">2 Mar · 18 photos</div></div>
+                    <svg width="17" height="15" viewBox="0 0 24 21" style="flex-shrink:0"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="none" stroke="rgba(246,241,234,.45)" stroke-width="1.6"/></svg>
+                  </div>
+                </div>
+
+                <div style="padding:20px 24px 6px;font-size:11px;font-weight:600;letter-spacing:.08em;color:rgba(246,241,234,.4);text-transform:uppercase">January</div>
+                <div style="padding:0 24px">
+                  <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07)">
+                    <image-slot id="4a-e9" shape="rounded" radius="10" placeholder="·" style="width:60px;height:60px;flex-shrink:0"></image-slot>
+                    <div style="flex:1;min-width:0"><div style="font-size:14.5px;color:#F6F1EA">Mỹ An · Đà Nẵng</div><div style="font-size:12px;color:rgba(246,241,234,.45);margin-top:2px">20 Jan · 63 photos</div></div>
+                    <svg width="17" height="15" viewBox="0 0 24 21" style="flex-shrink:0"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="none" stroke="rgba(246,241,234,.45)" stroke-width="1.6"/></svg>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;padding:11px 0">
+                    <image-slot id="4a-e10" shape="rounded" radius="10" placeholder="·" style="width:60px;height:60px;flex-shrink:0"></image-slot>
+                    <div style="flex:1;min-width:0"><div style="font-size:14.5px;color:#F6F1EA">Hà Nội</div><div style="font-size:12px;color:rgba(246,241,234,.45);margin-top:2px">1 Jan · 9 photos</div></div>
+                    <svg width="17" height="15" viewBox="0 0 24 21" style="flex-shrink:0"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="none" stroke="rgba(246,241,234,.45)" stroke-width="1.6"/></svg>
+                  </div>
+                </div>
+
+              </div>
+
+              <div style="position:absolute;left:0;right:0;bottom:0;height:64px;display:flex;align-items:center;justify-content:space-around;background:rgba(20,19,22,.85);backdrop-filter:blur(14px);border-top:1px solid rgba(255,255,255,.08)">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><svg width="19" height="18" viewBox="0 0 20 18"><path d="M2 8L10 1l8 7v9a1 1 0 01-1 1h-5v-6H8v6H3a1 1 0 01-1-1V8z" fill="none" stroke="rgba(246,241,234,.4)" stroke-width="1.5" stroke-linejoin="round"/></svg><span style="font-size:10.5px;color:rgba(246,241,234,.4)">Home</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><svg width="17" height="18" viewBox="0 0 18 18"><rect x="1" y="3" width="16" height="14" rx="2" fill="none" stroke="#F6F1EA" stroke-width="1.5"/><path d="M1 7h16M6 1v4M12 1v4" stroke="#F6F1EA" stroke-width="1.5"/></svg><span style="font-size:10.5px;color:#F6F1EA;font-weight:600">Events</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><svg width="18" height="18" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="none" stroke="rgba(246,241,234,.4)" stroke-width="1.5"/><path d="M13 7l-2 5-4 1 2-5z" fill="rgba(246,241,234,.4)"/></svg><span style="font-size:10.5px;color:rgba(246,241,234,.4)">Trips</span></div>
+              </div>
+
+            </div>
+          </x-import>
+          <div class="dv-caption">Events</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="dv-next">Thử tiếp: "thêm ô search theo địa điểm" · "cho phép chọn nhiều Event để đưa vào Photobook" · "đổi row sang dạng lưới 2 cột"</p>
+</section>
+<section class="dv-turn" id="t3">
+  <div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Photobook Detail</span></div>
+  <div class="dv-opts">
+    <div class="dv-opt" id="3a">
+      <div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a><span class="dv-oname">Photobook, tạo từ một Memory</span></div>
+      <p class="dv-opitch">Bìa vuông + trang ruột vuông, xem trước layout đa dạng (full photo / collage / quote), CTA đặt hàng cố định ở đáy.</p>
+      <div class="dv-row">
+        <div class="dv-framewrap">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402,874">
+            <div style="height:874px;position:relative;background:#0E0D10;font-family:-apple-system,system-ui,sans-serif">
+
+              <div style="position:absolute;inset:0;overflow-y:auto;padding-bottom:112px;box-sizing:border-box">
+
+                <div style="padding:68px 24px 0">
+                  <div style="width:36px;height:36px;border-radius:18px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center"><svg width="10" height="16" viewBox="0 0 10 16"><path d="M8 1L1 8l7 7" stroke="#F6F1EA" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+                </div>
+
+                <div style="padding: 28px 40px 0; display: flex; flex-direction: column; align-items: center">
+                  <div style="position: relative; width: 100%">
+                    <div style="position: absolute; left: 6px; top: 6px; width: 100%; aspect-ratio: 1/1; border-radius: 6px; background: rgba(255,255,255,.06)"></div>
+                    <div style="position: absolute; left: 3px; top: 3px; width: 100%; aspect-ratio: 1/1; border-radius: 6px; background: rgba(255,255,255,.1)"></div>
+                    <div style="position:relative;width:100%;aspect-ratio:1/1;border-radius:6px;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,.5)">
+                      <image-slot id="3a-cover" shape="rect" placeholder="Cover photo" style="width: 100%; height: 100%"></image-slot>
+                      <div style="position:absolute;inset:0;background:linear-gradient(rgba(0,0,0,0) 55%,rgba(0,0,0,.6));pointer-events:none"></div>
+                      <div style="position:absolute;left:20px;right:20px;bottom:18px;pointer-events:none">
+                        <div style="font-family:'Newsreader',serif;font-size:22px;color:#fff">Summer in Da Nang</div>
+                        <div style="font-size:11.5px;color:rgba(255,255,255,.7);margin-top:4px">Jul 2018</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style="margin-top:18px;font-size:12.5px;color:rgba(246,241,234,.5)">24 pages · 7×7 in · Hardcover</div>
+                </div>
+
+                <div style="padding:36px 24px 0;font-size:11px;font-weight:600;letter-spacing:.1em;color:rgba(246,241,234,.4);text-transform:uppercase">Inside the book</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 24px 0">
+                  <div>
+                    <image-slot id="3a-p1" shape="rounded" radius="8" placeholder="Page 1–2" style="width:100%;aspect-ratio:1/1"></image-slot>
+                    <div style="font-size:10.5px;color:rgba(246,241,234,.35);margin-top:6px">1–2 · full photo</div>
+                  </div>
+                  <div style="width:100%;aspect-ratio:1/1;border-radius:8px;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:2px;background:#161519">
+                    <image-slot id="3a-p2a" shape="rect" placeholder="·"></image-slot>
+                    <image-slot id="3a-p2b" shape="rect" placeholder="·"></image-slot>
+                    <image-slot id="3a-p2c" shape="rect" placeholder="·"></image-slot>
+                    <image-slot id="3a-p2d" shape="rect" placeholder="·"></image-slot>
+                  </div>
+                  <div style="grid-column:span 1;font-size:10.5px;color:rgba(246,241,234,.35);margin-top:-4px">3–4 · collage</div>
+                  <div></div>
+                  <div style="width: 100%; aspect-ratio: 1/1; border-radius: 8px; background: #ddd; display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box">
+                    <span style="font-family: 'Newsreader',serif; font-style: italic; font-size: 15px; color: #222; text-align: center; line-height: 1.5">"24 moments from an afternoon we almost forgot."</span>
+                  </div>
+                  <div>
+                    <image-slot id="3a-p3" shape="rounded" radius="8" placeholder="Page 7" style="width:100%;aspect-ratio:1/1"></image-slot>
+                  </div>
+                  <div style="font-size:10.5px;color:rgba(246,241,234,.35);margin-top:-4px">5–6 · quote</div>
+                  <div style="font-size:10.5px;color:rgba(246,241,234,.35);margin-top:-4px">7–8 · full photo</div>
+                </div>
+
+                <div style="padding:36px 24px 0">
+                  <div style="height:1px;background:rgba(255,255,255,.1)"></div>
+                  <div style="display:flex;justify-content:space-between;padding:14px 0;font-size:13.5px"><span style="color:rgba(246,241,234,.5)">Size</span><span style="color:#F6F1EA">7×7 in, square</span></div>
+                  <div style="height:1px;background:rgba(255,255,255,.08)"></div>
+                  <div style="display:flex;justify-content:space-between;padding:14px 0;font-size:13.5px"><span style="color:rgba(246,241,234,.5)">Cover</span><span style="color:#F6F1EA">Hardcover, matte</span></div>
+                  <div style="height:1px;background:rgba(255,255,255,.08)"></div>
+                  <div style="display:flex;justify-content:space-between;padding:14px 0;font-size:13.5px"><span style="color:rgba(246,241,234,.5)">Pages</span><span style="color:#F6F1EA">24</span></div>
+                  <div style="height:1px;background:rgba(255,255,255,.08)"></div>
+                </div>
+
+              </div>
+
+              <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 24px 30px;background:linear-gradient(rgba(14,13,16,0),rgba(14,13,16,.96) 30%)">
+                <div style="height:54px;border-radius:100px;background:#E1875B;display:flex;align-items:center;justify-content:center;gap:8px">
+                  <span style="font-size:15px;font-weight:600;color:#0E0D10">Order Photobook</span>
+                  <span style="font-size:13px;color:rgba(14,13,16,.6)">· $34</span>
+                </div>
+              </div>
+
+            </div>
+          </x-import>
+          <div class="dv-caption">Photobook Detail</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="dv-next">Thử tiếp: "thêm nút chỉnh sửa layout trang" · "cho xem tất cả trang dạng lật sách" · "thêm lựa chọn size/cover khác"</p>
+</section>
+<section class="dv-turn" id="t2">
+  <div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Màn mở đầu — Onboarding &amp; Initial Scan</span></div>
+  <div class="dv-opts">
+    <div class="dv-opt" id="2a">
+      <div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a><span class="dv-oname">Welcome → Permission → Scan as time travel → First Memory</span></div>
+      <p class="dv-opitch">Scan 2–5 phút được kể như một chuyến quay ngược thời gian: ảnh cũ nổi dần lên, năm tháng lùi lại, kết thúc bằng một Memory đầu tiên thay vì progress bar kỹ thuật.</p>
+      <div class="dv-row">
+
+        <div class="dv-framewrap">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402,874">
+            <div style="height:874px;overflow:hidden;background:#0E0D10;font-family:-apple-system,system-ui,sans-serif;position:relative">
+              <div style="position:absolute;inset:0;display:grid;grid-template-columns:1fr 1fr 1fr;opacity:.5">
+                <image-slot id="2a-w1" shape="rect" placeholder="Old photo"></image-slot>
+                <image-slot id="2a-w2" shape="rect" placeholder="Old photo"></image-slot>
+                <image-slot id="2a-w3" shape="rect" placeholder="Old photo"></image-slot>
+                <image-slot id="2a-w4" shape="rect" placeholder="Old photo"></image-slot>
+                <image-slot id="2a-w5" shape="rect" placeholder="Old photo"></image-slot>
+                <image-slot id="2a-w6" shape="rect" placeholder="Old photo"></image-slot>
+              </div>
+              <div style="position:absolute;inset:0;background:linear-gradient(rgba(14,13,16,.35),rgba(14,13,16,.93) 78%)"></div>
+              <div style="position:absolute;left:28px;right:28px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center">
+                <div style="font-family:'Newsreader',serif;font-size:44px;color:#F6F1EA">Nizi</div>
+                <div style="font-family:'Newsreader',serif;font-size:21px;font-style:italic;color:rgba(246,241,234,.85);margin-top:22px;line-height:1.45">Somewhere in your library,<br>a memory is waiting to be found.</div>
+                <div style="font-size:13px;color:rgba(246,241,234,.45);margin-top:16px">42,318 photos, untouched for years.</div>
+              </div>
+              <div style="position:absolute;left:24px;right:24px;bottom:44px">
+                <div style="height:52px;border-radius:100px;background:#E1875B;display:flex;align-items:center;justify-content:center"><span style="font-size:15px;font-weight:600;color:#0E0D10">Get Started</span></div>
+              </div>
+            </div>
+          </x-import>
+          <div class="dv-caption">Welcome</div>
+        </div>
+        <div class="dv-arrow">→</div>
+
+        <div class="dv-framewrap">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402,874">
+            <div style="height:874px;background:#0E0D10;font-family:-apple-system,system-ui,sans-serif;display:flex;flex-direction:column;padding:100px 30px 44px;box-sizing:border-box">
+              <div style="width:60px;height:60px;border-radius:20px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;margin-bottom:28px">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#E1875B" stroke-width="1.6"></rect><circle cx="8.5" cy="9" r="1.7" fill="#E1875B"></circle><path d="M4 17l5-5 4 3 3-4 4 5" stroke="#E1875B" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              </div>
+              <div style="font-family:'Newsreader',serif;font-size:28px;color:#F6F1EA;line-height:1.2">This stays on your phone</div>
+              <div style="font-size:14px;color:rgba(246,241,234,.55);margin-top:16px;line-height:1.6">Nizi looks through your library privately — indexing, sorting, discovering. Nothing is uploaded, nothing is shared.</div>
+              <div style="flex:1"></div>
+              <div style="height:52px;border-radius:100px;background:#E1875B;display:flex;align-items:center;justify-content:center"><span style="font-size:15px;font-weight:600;color:#0E0D10">Allow Photo Access</span></div>
+              <div style="text-align:center;margin-top:16px"><span style="font-size:13px;color:rgba(246,241,234,.4)">Maybe later</span></div>
+            </div>
+          </x-import>
+          <div class="dv-caption">Permission</div>
+        </div>
+        <div class="dv-arrow">→</div>
+
+        <div class="dv-framewrap">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402,874">
+            <div style="height:874px;background:#0E0D10;font-family:-apple-system,system-ui,sans-serif;position:relative;overflow:hidden">
+              <div style="position:absolute;inset:0;display:grid;grid-template-columns:repeat(5,1fr);grid-auto-rows:76px;gap:2px;opacity:.9">
+                <image-slot id="2a-s1" shape="rect" placeholder="·"></image-slot>
+                <image-slot id="2a-s2" shape="rect" placeholder="·"></image-slot>
+                <div style="background:rgba(255,255,255,.03)"></div>
+                <image-slot id="2a-s3" shape="rect" placeholder="·"></image-slot>
+                <div style="background:rgba(255,255,255,.03)"></div>
+                <div style="background:rgba(255,255,255,.03)"></div>
+                <image-slot id="2a-s4" shape="rect" placeholder="·"></image-slot>
+                <image-slot id="2a-s5" shape="rect" placeholder="·"></image-slot>
+                <image-slot id="2a-s6" shape="rect" placeholder="·"></image-slot>
+                <div style="background:rgba(255,255,255,.03)"></div>
+                <image-slot id="2a-s7" shape="rect" placeholder="·"></image-slot>
+                <div style="background:rgba(255,255,255,.03)"></div>
+                <image-slot id="2a-s8" shape="rect" placeholder="·"></image-slot>
+                <image-slot id="2a-s9" shape="rect" placeholder="·"></image-slot>
+                <div style="background:rgba(255,255,255,.03)"></div>
+                <image-slot id="2a-s10" shape="rect" placeholder="·"></image-slot>
+                <div style="background:rgba(255,255,255,.03)"></div>
+                <div style="background:rgba(255,255,255,.03)"></div>
+                <image-slot id="2a-s11" shape="rect" placeholder="·"></image-slot>
+                <image-slot id="2a-s12" shape="rect" placeholder="·"></image-slot>
+              </div>
+              <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 42%,rgba(14,13,16,.4),rgba(14,13,16,.94) 72%)"></div>
+              <div style="position:absolute;left:0;right:0;top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                <div style="font-size:12px;letter-spacing:.1em;color:rgba(246,241,234,.5);text-transform:uppercase">Traveling back to</div>
+                <div style="display:flex;flex-direction:column;align-items:center;margin-top:10px">
+                  <div style="font-family:'Newsreader',serif;font-size:20px;color:rgba(246,241,234,.28)">2019</div>
+                  <div style="font-family:'Newsreader',serif;font-size:56px;color:#F6F1EA;margin:2px 0">2016</div>
+                  <div style="font-family:'Newsreader',serif;font-size:20px;color:rgba(246,241,234,.28)">2012</div>
+                </div>
+                <div style="font-family:'Newsreader',serif;font-size:16px;font-style:italic;color:rgba(246,241,234,.7);margin-top:26px;text-align:center;padding:0 40px">You have more memories<br>than you remember.</div>
+              </div>
+              <div style="position:absolute;left:26px;right:26px;bottom:52px">
+                <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.14);overflow:hidden"><div style="width:58%;height:100%;background:#E1875B"></div></div>
+                <div style="display:flex;justify-content:space-between;margin-top:12px"><span style="font-size:11.5px;color:rgba(246,241,234,.45)">84,213 photos indexed</span><span style="font-size:11.5px;color:rgba(246,241,234,.45)">612 events found</span></div>
+              </div>
+            </div>
+          </x-import>
+          <div class="dv-caption">Scanning — time travel</div>
+        </div>
+        <div class="dv-arrow">→</div>
+
+        <div class="dv-framewrap">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402,874">
+            <div style="height:874px;background:#0E0D10;font-family:-apple-system,system-ui,sans-serif;position:relative;overflow:hidden">
+              <div style="position:absolute;inset:16px;border-radius:26px;overflow:hidden;box-shadow:0 0 0 1px rgba(225,135,91,.5),0 0 60px rgba(225,135,91,.25)">
+                <image-slot id="2a-first" shape="rect" placeholder="First memory found" style="width:100%;height:100%"></image-slot>
+                <div style="position:absolute;top:0;left:0;right:0;height:130px;background:linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,0))"></div>
+                <div style="position:absolute;bottom:0;left:0;right:0;height:300px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.9))"></div>
+                <div style="position:absolute;top:70px;left:24px;padding:6px 12px;border-radius:100px;background:rgba(225,135,91,.9)"><span style="font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#0E0D10;text-transform:uppercase">First memory found</span></div>
+                <div style="position:absolute;left:24px;right:24px;bottom:96px">
+                  <div style="font-family:'Newsreader',serif;font-size:32px;color:#fff;line-height:1.1">A morning in 2015</div>
+                  <div style="font-size:13px;color:rgba(255,255,255,.65);margin-top:10px">Nizi thinks this one matters. You be the judge.</div>
+                </div>
+                <div style="position:absolute;left:24px;right:24px;bottom:32px">
+                  <div style="height:52px;border-radius:100px;background:#fff;display:flex;align-items:center;justify-content:center"><span style="font-size:15px;font-weight:600;color:#0E0D10">See it</span></div>
+                </div>
+              </div>
+            </div>
+          </x-import>
+          <div class="dv-caption">First Memory</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  <p class="dv-next">Thử tiếp: "gắn flow này trước Home <a href="#1b">1b</a>" · "thêm micro-copy khi ảnh Favorite xuất hiện lúc scan" · "làm bản scan sáng hơn (light mode)"</p>
+</section>
+<section class="dv-turn" id="t1">
+  <div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Nizi Home — 3 hướng thiết kế (Mature Home, English copy)</span></div>
+  <div class="dv-opts">
+
+    <div class="dv-opt" id="1a">
+      <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a><span class="dv-oname">The Memory Surface</span></div>
+      <p class="dv-opitch">Cinematic hero-led feed — one dominant Memory up top, curated sections (Loved / Recent / Trip) unfold on scroll.</p>
+      <div class="dv-row">
+        <div class="dv-framewrap">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402,874">
+
+            <div style="height:874px;overflow-y:auto;background:#0E0D10;font-family:-apple-system,system-ui,sans-serif">
+
+              <div style="position:relative;height:700px;width:100%;overflow:hidden">
+                <image-slot id="1a-hero" shape="rect" placeholder="Hero memory photo" style="position:absolute;inset:0;width:100%;height:100%"></image-slot>
+                <div style="position:absolute;top:0;left:0;right:0;height:150px;background:linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,0));pointer-events:none"></div>
+                <div style="position:absolute;bottom:0;left:0;right:0;height:340px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.88));pointer-events:none"></div>
+                <div style="position:absolute;left:24px;right:24px;bottom:32px">
+                  <div style="font-size:12px;font-weight:600;letter-spacing:.09em;color:rgba(255,255,255,.75);text-transform:uppercase">8 years ago</div>
+                  <div style="font-family:'Newsreader',serif;font-size:38px;font-weight:500;color:#fff;margin-top:6px;line-height:1.08">Summer in Da Nang</div>
+                  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:14px">
+                    <span style="font-size:12.5px;color:rgba(255,255,255,.65)">Mỹ An · Đà Nẵng — Jul 2018 · 24 of 156 photos</span>
+                    <svg width="21" height="19" viewBox="0 0 24 21" style="flex-shrink:0;margin-left:12px"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="#E1875B"></path></svg>
+                  </div>
+                </div>
+              </div>
+
+              <div style="padding:26px 24px 10px">
+                <div style="font-size:11.5px;font-weight:600;letter-spacing:.08em;color:rgba(246,241,234,.45);text-transform:uppercase">Loved Memories</div>
+                <div style="display:flex;gap:13px;overflow-x:auto;padding:14px 0 4px">
+                  <div style="flex-shrink:0;width:132px;height:172px;position:relative;border-radius:14px;overflow:hidden">
+                    <image-slot id="1a-loved1" shape="rect" placeholder="Loved event" style="width:100%;height:100%"></image-slot>
+                    <div style="position:absolute;bottom:0;left:0;right:0;height:70px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.75))"></div>
+                    <div style="position:absolute;bottom:9px;left:10px;right:10px;font-size:11.5px;color:#fff">Hội An · 2021</div>
+                  </div>
+                  <div style="flex-shrink:0;width:132px;height:172px;position:relative;border-radius:14px;overflow:hidden">
+                    <image-slot id="1a-loved2" shape="rect" placeholder="Loved event" style="width:100%;height:100%"></image-slot>
+                    <div style="position:absolute;bottom:0;left:0;right:0;height:70px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.75))"></div>
+                    <div style="position:absolute;bottom:9px;left:10px;right:10px;font-size:11.5px;color:#fff">Sapa · 2020</div>
+                  </div>
+                  <div style="flex-shrink:0;width:132px;height:172px;position:relative;border-radius:14px;overflow:hidden">
+                    <image-slot id="1a-loved3" shape="rect" placeholder="Loved event" style="width:100%;height:100%"></image-slot>
+                    <div style="position:absolute;bottom:0;left:0;right:0;height:70px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.75))"></div>
+                    <div style="position:absolute;bottom:9px;left:10px;right:10px;font-size:11.5px;color:#fff">Đà Lạt · 2019</div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="padding:14px 24px 26px">
+                <div style="font-size:11.5px;font-weight:600;letter-spacing:.08em;color:rgba(246,241,234,.45);text-transform:uppercase;margin-bottom:12px">Recent</div>
+                <div style="display:flex;gap:14px;align-items:center;background:rgba(255,255,255,.05);border-radius:16px;padding:12px">
+                  <image-slot id="1a-recent" shape="rounded" radius="12" placeholder="Recent event" style="width:110px;height:110px;flex-shrink:0"></image-slot>
+                  <div style="flex:1">
+                    <div style="font-family:'Newsreader',serif;font-size:19px;color:#F6F1EA">Last weekend</div>
+                    <div style="font-size:12px;color:rgba(246,241,234,.5);margin-top:4px">12–13 Jul · 42 photos</div>
+                    <div style="display:flex;align-items:center;gap:14px;margin-top:12px">
+                      <span style="font-size:12px;color:#E1875B;font-weight:600">View</span>
+                      <svg width="16" height="14" viewBox="0 0 24 21"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="none" stroke="rgba(246,241,234,.5)" stroke-width="1.6"></path></svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="padding:0 24px 40px">
+                <div style="font-size:11.5px;font-weight:600;letter-spacing:.08em;color:rgba(246,241,234,.45);text-transform:uppercase;margin-bottom:12px">A trip worth revisiting</div>
+                <div style="position:relative;height:200px;border-radius:18px;overflow:hidden;display:grid;grid-template-columns:1.2fr 1fr;grid-template-rows:1fr 1fr;gap:2px">
+                  <image-slot id="1a-trip1" shape="rect" placeholder="Tokyo" style="grid-row:1/3"></image-slot>
+                  <image-slot id="1a-trip2" shape="rect" placeholder="Kyoto"></image-slot>
+                  <image-slot id="1a-trip3" shape="rect" placeholder="Osaka"></image-slot>
+                  <div style="position:absolute;inset:0;background:linear-gradient(rgba(0,0,0,0) 40%,rgba(0,0,0,.82));pointer-events:none"></div>
+                  <div style="position:absolute;left:16px;bottom:14px;pointer-events:none">
+                    <div style="font-family:'Newsreader',serif;font-size:22px;color:#fff">Japan</div>
+                    <div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:2px">Tokyo · Kyoto · Osaka — 7 days</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </x-import>
+          <div class="dv-caption">Home</div>
+        </div>
+        <div class="dv-arrow">→</div>
+        <div class="dv-framewrap">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402,874">
+            <div style="height:874px;overflow-y:auto;background:#0E0D10;font-family:-apple-system,system-ui,sans-serif">
+              <div style="position:relative;height:420px;width:100%;overflow:hidden">
+                <image-slot id="1a-ed-hero" shape="rect" placeholder="Event cover" style="position:absolute;inset:0;width:100%;height:100%"></image-slot>
+                <div style="position:absolute;top:0;left:0;right:0;height:140px;background:linear-gradient(rgba(0,0,0,.5),rgba(0,0,0,0))"></div>
+                <div style="position:absolute;bottom:0;left:0;right:0;height:200px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.85))"></div>
+                <div style="position:absolute;top:68px;left:20px;width:36px;height:36px;border-radius:18px;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center"><svg width="10" height="16" viewBox="0 0 10 16"><path d="M8 1L1 8l7 7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+                <div style="position:absolute;top:68px;right:20px;width:36px;height:36px;border-radius:18px;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center"><svg width="19" height="17" viewBox="0 0 24 21"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="#E1875B"></path></svg></div>
+                <div style="position:absolute;left:22px;right:22px;bottom:20px">
+                  <div style="font-family:'Newsreader',serif;font-size:28px;color:#fff">Summer in Da Nang</div>
+                  <div style="font-size:12.5px;color:rgba(255,255,255,.65);margin-top:6px">Mỹ An · Đà Nẵng · Jul 12–14, 2018</div>
+                </div>
+              </div>
+              <div style="padding:20px 22px 8px;font-size:11.5px;font-weight:600;letter-spacing:.08em;color:rgba(246,241,234,.45);text-transform:uppercase">24 highlights · from 156 photos</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 22px 28px">
+                <image-slot id="1a-ed-t1" shape="rounded" radius="8" style="height:112px"></image-slot>
+                <image-slot id="1a-ed-t2" shape="rounded" radius="8" style="height:112px"></image-slot>
+                <image-slot id="1a-ed-t3" shape="rounded" radius="8" style="height:112px"></image-slot>
+                <image-slot id="1a-ed-t4" shape="rounded" radius="8" style="height:112px"></image-slot>
+                <image-slot id="1a-ed-t5" shape="rounded" radius="8" style="height:112px"></image-slot>
+                <image-slot id="1a-ed-t6" shape="rounded" radius="8" style="height:112px"></image-slot>
+              </div>
+              <div style="text-align:center;padding:0 0 40px"><span style="font-size:13px;color:#E1875B;font-weight:600">View all 156 photos</span></div>
+            </div>
+          </x-import>
+          <div class="dv-caption">Event Detail — on tap</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dv-opt" id="1b">
+      <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a><span class="dv-oname">Today's Find</span></div>
+      <p class="dv-opitch">A daily rediscovery ritual — one memory Nizi found for today, anchoring a chronological journal below.</p>
+      <div class="dv-row">
+        <div class="dv-framewrap">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402,874">
+            <div style="height:874px;overflow-y:auto;background:#0E0D10;font-family:-apple-system,system-ui,sans-serif">
+
+              <div style="padding:66px 22px 14px">
+                <div style="font-size:12.5px;color:rgba(246,241,234,.5)">Thursday</div>
+                <div style="font-family:'Newsreader',serif;font-size:24px;color:#F6F1EA;margin-top:2px">31 July</div>
+              </div>
+
+              <div style="margin:6px 20px 0;height:540px;border-radius:26px;overflow:hidden;position:relative;box-shadow:0 20px 40px rgba(0,0,0,.4)">
+                <image-slot id="1b-hero" shape="rect" placeholder="Today's rediscovery" style="position:absolute;inset:0;width:100%;height:100%"></image-slot>
+                <div style="position:absolute;top:16px;left:16px;padding:6px 12px;border-radius:100px;background:rgba(0,0,0,.4);backdrop-filter:blur(8px)"><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#fff;text-transform:uppercase">Today's find</span></div>
+                <div style="position:absolute;bottom:0;left:0;right:0;height:280px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.88))"></div>
+                <div style="position:absolute;left:22px;right:22px;bottom:24px">
+                  <div style="font-size:11.5px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em">On this day · 2018</div>
+                  <div style="font-family:'Newsreader',serif;font-size:30px;color:#fff;margin-top:6px;line-height:1.1">You were in Hội An</div>
+                  <div style="font-size:12.5px;color:rgba(255,255,255,.6);margin-top:8px">8 years ago · 19 photos</div>
+                  <div style="display:flex;align-items:center;gap:12px;margin-top:16px">
+                    <div style="padding:9px 18px;border-radius:100px;border:1px solid rgba(255,255,255,.4);font-size:13px;color:#fff;font-weight:500">Revisit</div>
+                    <svg width="19" height="17" viewBox="0 0 24 21"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1.6"></path></svg>
+                  </div>
+                </div>
+              </div>
+
+              <div style="padding:26px 22px 10px">
+                <div style="font-size:11.5px;font-weight:600;letter-spacing:.08em;color:rgba(246,241,234,.45);text-transform:uppercase">Loved Memories</div>
+                <div style="display:flex;gap:11px;overflow-x:auto;padding:14px 0 4px">
+                  <image-slot id="1b-loved1" shape="rounded" radius="12" placeholder="Loved" style="flex-shrink:0;width:112px;height:140px"></image-slot>
+                  <image-slot id="1b-loved2" shape="rounded" radius="12" placeholder="Loved" style="flex-shrink:0;width:112px;height:140px"></image-slot>
+                  <image-slot id="1b-loved3" shape="rounded" radius="12" placeholder="Loved" style="flex-shrink:0;width:112px;height:140px"></image-slot>
+                  <image-slot id="1b-loved4" shape="rounded" radius="12" placeholder="Loved" style="flex-shrink:0;width:112px;height:140px"></image-slot>
+                </div>
+              </div>
+
+              <div style="padding:20px 22px 6px;font-size:11.5px;font-weight:600;letter-spacing:.08em;color:rgba(246,241,234,.45);text-transform:uppercase">Your memories</div>
+
+              <div style="padding:12px 22px 0">
+                <div style="position:relative;height:280px;border-radius:18px;overflow:hidden">
+                  <image-slot id="1b-j1" shape="rect" placeholder="Memory" style="width:100%;height:100%"></image-slot>
+                  <div style="position:absolute;bottom:0;left:0;right:0;height:130px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.8))"></div>
+                  <div style="position:absolute;left:16px;bottom:14px"><div style="font-family:'Newsreader',serif;font-size:21px;color:#fff">A weekend that snuck by</div><div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:3px">Đà Nẵng · 6 days ago</div></div>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:10px;padding:16px 22px 0">
+                <div style="position:relative;flex:1;height:150px;border-radius:14px;overflow:hidden">
+                  <image-slot id="1b-j2" shape="rect" placeholder="Memory" style="width:100%;height:100%"></image-slot>
+                  <div style="position:absolute;left:9px;bottom:8px;font-size:11px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.6)">Feb 2022</div>
+                </div>
+                <div style="position:relative;flex:1;height:150px;border-radius:14px;overflow:hidden">
+                  <image-slot id="1b-j3" shape="rect" placeholder="Memory" style="width:100%;height:100%"></image-slot>
+                  <div style="position:absolute;left:9px;bottom:8px;font-size:11px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.6)">2019</div>
+                </div>
+              </div>
+
+              <div style="padding:16px 22px 40px">
+                <div style="position:relative;height:190px;border-radius:16px;overflow:hidden">
+                  <image-slot id="1b-trip" shape="rect" placeholder="Trip" style="width:100%;height:100%"></image-slot>
+                  <div style="position:absolute;bottom:0;left:0;right:0;height:100px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.78))"></div>
+                  <div style="position:absolute;left:14px;bottom:12px"><div style="font-family:'Newsreader',serif;font-size:19px;color:#fff">Japan</div><div style="font-size:11.5px;color:rgba(255,255,255,.65);margin-top:2px">7 days · 3 events</div></div>
+                </div>
+              </div>
+
+            </div>
+          </x-import>
+          <div class="dv-caption">Home</div>
+        </div>
+        <div class="dv-arrow">→</div>
+        <div class="dv-framewrap">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402,874">
+            <div style="height:874px;overflow-y:auto;background:#0E0D10;font-family:-apple-system,system-ui,sans-serif">
+              <div style="position:relative;height:420px;width:100%;overflow:hidden">
+                <image-slot id="1b-ed-hero" shape="rect" placeholder="Event cover" style="position:absolute;inset:0;width:100%;height:100%"></image-slot>
+                <div style="position:absolute;top:0;left:0;right:0;height:140px;background:linear-gradient(rgba(0,0,0,.5),rgba(0,0,0,0))"></div>
+                <div style="position:absolute;bottom:0;left:0;right:0;height:200px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.85))"></div>
+                <div style="position:absolute;top:68px;left:20px;width:36px;height:36px;border-radius:18px;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center"><svg width="10" height="16" viewBox="0 0 10 16"><path d="M8 1L1 8l7 7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+                <div style="position:absolute;top:68px;right:20px;width:36px;height:36px;border-radius:18px;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center"><svg width="19" height="17" viewBox="0 0 24 21"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="#E1875B"></path></svg></div>
+                <div style="position:absolute;left:22px;right:22px;bottom:20px">
+                  <div style="font-family:'Newsreader',serif;font-size:28px;color:#fff">You were in Hội An</div>
+                  <div style="font-size:12.5px;color:rgba(255,255,255,.65);margin-top:6px">Hội An · Jul 2018</div>
+                </div>
+              </div>
+              <div style="padding:20px 22px 8px;font-size:11.5px;font-weight:600;letter-spacing:.08em;color:rgba(246,241,234,.45);text-transform:uppercase">19 highlights</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 22px 28px">
+                <image-slot id="1b-ed-t1" shape="rounded" radius="8" style="height:112px"></image-slot>
+                <image-slot id="1b-ed-t2" shape="rounded" radius="8" style="height:112px"></image-slot>
+                <image-slot id="1b-ed-t3" shape="rounded" radius="8" style="height:112px"></image-slot>
+                <image-slot id="1b-ed-t4" shape="rounded" radius="8" style="height:112px"></image-slot>
+                <image-slot id="1b-ed-t5" shape="rounded" radius="8" style="height:112px"></image-slot>
+                <image-slot id="1b-ed-t6" shape="rounded" radius="8" style="height:112px"></image-slot>
+              </div>
+              <div style="text-align:center;padding:0 0 40px"><span style="font-size:13px;color:#E1875B;font-weight:600">View all photos</span></div>
+            </div>
+          </x-import>
+          <div class="dv-caption">Event Detail — on tap</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dv-opt" id="1c">
+      <div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a><span class="dv-oname">Memory Journal</span></div>
+      <p class="dv-opitch">A continuous editorial scroll — photo, number, and text set like a printed journal; no category labels, just pages.</p>
+      <div class="dv-row">
+        <div class="dv-framewrap">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402,874">
+            <div style="height:874px;overflow-y:auto;background:#0E0D10;font-family:-apple-system,system-ui,sans-serif">
+
+              <div style="padding:68px 24px 18px">
+                <div style="font-size:10.5px;font-weight:600;letter-spacing:.12em;color:rgba(246,241,234,.4);text-transform:uppercase">Memory Journal</div>
+                <div style="font-family:'Newsreader',serif;font-size:30px;color:#F6F1EA;margin-top:6px">Nizi</div>
+                <div style="height:1px;background:rgba(246,241,234,.12);margin-top:16px"></div>
+              </div>
+
+              <div style="margin:8px 24px 0">
+                <image-slot id="1c-e1" shape="rounded" radius="10" placeholder="Memory photo" style="width:100%;height:460px"></image-slot>
+                <div style="padding:14px 2px 0">
+                  <div style="font-family:'Newsreader',serif;font-size:21px;color:#F6F1EA">The summer that got away</div>
+                  <div style="font-size:12px;color:rgba(246,241,234,.5);margin-top:5px">Mỹ An · Đà Nẵng — July 2018 · 8 years ago</div>
+                </div>
+              </div>
+
+              <div style="padding:44px 24px;text-align:center">
+                <div style="display:flex;align-items:baseline;justify-content:center;gap:16px">
+                  <span style="font-family:'Newsreader',serif;font-size:44px;color:rgba(246,241,234,.4)">156</span>
+                  <span style="font-size:20px;color:rgba(246,241,234,.3)">→</span>
+                  <span style="font-family:'Newsreader',serif;font-size:44px;color:#F6F1EA">24</span>
+                </div>
+                <div style="font-size:12px;color:rgba(246,241,234,.45);margin-top:10px">photos in the event · moments Nizi kept</div>
+              </div>
+
+              <div style="display:flex;gap:3px;padding:0 24px">
+                <div style="flex:1">
+                  <image-slot id="1c-e2a" shape="rect" placeholder="2019" style="width:100%;height:220px"></image-slot>
+                  <div style="font-size:11px;color:rgba(246,241,234,.45);padding-top:8px">2019</div>
+                </div>
+                <div style="flex:1">
+                  <image-slot id="1c-e2b" shape="rect" placeholder="2016" style="width:100%;height:220px"></image-slot>
+                  <div style="font-size:11px;color:rgba(246,241,234,.45);padding-top:8px">2016</div>
+                </div>
+              </div>
+
+              <div style="padding:40px 24px 10px;font-size:10.5px;font-weight:600;letter-spacing:.1em;color:rgba(246,241,234,.4);text-transform:uppercase">24 moments, one afternoon</div>
+              <div style="display:flex;gap:5px;padding:10px 24px 0;overflow-x:auto">
+                <div style="position:relative;flex-shrink:0"><image-slot id="1c-s1" shape="rounded" radius="6" style="width:88px;height:132px"></image-slot><svg width="13" height="12" viewBox="0 0 24 21" style="position:absolute;top:8px;right:8px"><path d="M12 20S1.5 13.7 1.5 6.9C1.5 3.6 4 1.2 7.1 1.2c2 0 3.7 1 4.9 2.7C13.2 2.2 14.9 1.2 16.9 1.2c3.1 0 5.6 2.4 5.6 5.7C22.5 13.7 12 20 12 20z" fill="#E1875B"></path></svg></div>
+                <image-slot id="1c-s2" shape="rounded" radius="6" style="width:88px;height:132px;flex-shrink:0"></image-slot>
+                <image-slot id="1c-s3" shape="rounded" radius="6" style="width:88px;height:132px;flex-shrink:0"></image-slot>
+                <image-slot id="1c-s4" shape="rounded" radius="6" style="width:88px;height:132px;flex-shrink:0"></image-slot>
+                <image-slot id="1c-s5" shape="rounded" radius="6" style="width:88px;height:132px;flex-shrink:0"></image-slot>
+              </div>
+
+              <div style="margin:44px 24px 0;position:relative;height:280px;border-radius:16px;overflow:hidden">
+                <image-slot id="1c-trip" shape="rect" placeholder="Japan trip" style="width:100%;height:100%"></image-slot>
+                <div style="position:absolute;bottom:0;left:0;right:0;height:140px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.82))"></div>
+                <div style="position:absolute;left:18px;bottom:16px"><div style="font-family:'Newsreader',serif;font-size:24px;color:#fff">Japan, once more</div><div style="font-size:12px;color:rgba(255,255,255,.65);margin-top:4px">Tokyo · Kyoto · Osaka — 7 days</div></div>
+              </div>
+
+              <div style="padding:48px 24px 44px;text-align:center">
+                <div style="font-size:11px;color:rgba(246,241,234,.35);letter-spacing:.1em;text-transform:uppercase">That's today's page</div>
+              </div>
+
+            </div>
+          </x-import>
+          <div class="dv-caption">Home</div>
+        </div>
+        <div class="dv-arrow">→</div>
+        <div class="dv-framewrap">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402,874">
+            <div style="height:874px;overflow-y:auto;background:#0E0D10;font-family:-apple-system,system-ui,sans-serif">
+              <div style="padding:68px 24px 0">
+                <div style="width:32px;height:32px;border-radius:16px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;margin-bottom:20px"><svg width="9" height="15" viewBox="0 0 10 16"><path d="M8 1L1 8l7 7" stroke="#F6F1EA" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+              </div>
+              <div style="margin:0 24px">
+                <image-slot id="1c-ed-hero" shape="rounded" radius="10" placeholder="Event cover" style="width:100%;height:360px"></image-slot>
+                <div style="padding:16px 2px 0">
+                  <div style="font-family:'Newsreader',serif;font-size:24px;color:#F6F1EA">The summer that got away</div>
+                  <div style="font-size:12px;color:rgba(246,241,234,.5);margin-top:6px">Đà Nẵng · Jul 12–14, 2018 · 24 of 156 photos</div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:22px 24px 28px">
+                <image-slot id="1c-ed-t1" shape="rounded" radius="8" style="height:112px"></image-slot>
+                <image-slot id="1c-ed-t2" shape="rounded" radius="8" style="height:112px"></image-slot>
+                <image-slot id="1c-ed-t3" shape="rounded" radius="8" style="height:112px"></image-slot>
+                <image-slot id="1c-ed-t4" shape="rounded" radius="8" style="height:112px"></image-slot>
+                <image-slot id="1c-ed-t5" shape="rounded" radius="8" style="height:112px"></image-slot>
+                <image-slot id="1c-ed-t6" shape="rounded" radius="8" style="height:112px"></image-slot>
+              </div>
+              <div style="text-align:center;padding:0 0 40px"><span style="font-size:13px;color:#E1875B;font-weight:600">View all 156 photos</span></div>
+            </div>
+          </x-import>
+          <div class="dv-caption">Event Detail — on tap</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <p class="dv-next">Thử tiếp: "kết hợp today's find của <a href="#1b">1b</a> với editorial rhythm của <a href="#1c">1c</a>" · "làm rõ empty state cho <a href="#1a">1a</a>" · "thêm heart tap animation cho một concept"</p>
+</section>
+
+</x-dc>
+</body>
+</html>

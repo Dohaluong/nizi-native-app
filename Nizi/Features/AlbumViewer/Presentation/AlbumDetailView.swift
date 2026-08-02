@@ -28,6 +28,7 @@ struct AlbumDetailView: View {
     @State private var showDeleteConfirmation = false
     @State private var isDeleting = false
     @State private var pagesScrollOffset: CGFloat = 0
+    @State private var albumPhotoProvider = ApplePhotosAlbumPhotoProvider()
 
     private static let backToTopThreshold: CGFloat = 700
     private static let backSwipeEdgeWidth: CGFloat = 28
@@ -87,6 +88,11 @@ struct AlbumDetailView: View {
             return "\(place) · \(photos) · \(spreads)"
         }
         return "\(photos) · \(spreads)"
+    }
+
+    private var bookSummary: String {
+        let pages = draft.spreads.count * 2
+        return "\(pages) pages · 7×7 in · Hardcover"
     }
 
     /// Every photo across every Page of this Album, in `AlbumDraft` order — what `EditorContext.
@@ -157,9 +163,7 @@ struct AlbumDetailView: View {
         // this view actually allowed to be" — it reflects the real window/scene size in every
         // context (iPad Split View, Slide Over, rotation), where `UIScreen.main.bounds` only
         // reflects the full physical screen and would be wrong the moment this app's window is
-        // narrower than that (this project targets both iPhone and iPad, and supports landscape
-        // on both — see `TARGETED_DEVICE_FAMILY`/`INFOPLIST_KEY_UISupportedInterfaceOrientations*`
-        // in the project settings).
+        // narrower than that (for example, iPad multitasking).
         GeometryReader { proxy in
             // A UIKit control is used for Back to Top: it receives the touch independently of
             // SwiftUI's `ScrollView` gesture system and directly cancels any current deceleration
@@ -168,9 +172,9 @@ struct AlbumDetailView: View {
             ZStack(alignment: .bottomTrailing) {
                     ScrollView {
                         VStack(spacing: 0) {
-                            heroCover
-                            albumIntroduction
+                            heroCover(width: proxy.size.width)
                             albumPagesSection(width: proxy.size.width)
+                            bookSpecifications
                         }
                         // Hard-clamped to the real available width. `ScrollView` only constrains its
                         // content on the scrolling (vertical) axis — on the cross (horizontal) axis it
@@ -203,11 +207,19 @@ struct AlbumDetailView: View {
                             .zIndex(1)
                     }
             }
+            .overlay(alignment: .top) {
+                stickyTopControls
+                    .zIndex(2)
+            }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(AlbumDetailSurface.background)
         .ignoresSafeArea(edges: .top)
+        .safeAreaInset(edge: .bottom) {
+            orderPhotobookBar
+        }
         .toolbar(.hidden, for: .navigationBar)
-        .environment(\.albumPhotoProvider, ApplePhotosAlbumPhotoProvider())
+        .environment(\.albumPhotoProvider, albumPhotoProvider)
+        .preferredColorScheme(.light)
         // The Album can be either a pushed NavigationStack destination or the root of a
         // full-screen cover. `dismiss()` is the correct back operation in both cases, whereas
         // UIKit's built-in interactive-pop gesture only exists in the first case. Keeping this
@@ -269,7 +281,79 @@ struct AlbumDetailView: View {
 
     // MARK: - Hero
 
-    private var heroCover: some View {
+    private func heroCover(width: CGFloat) -> some View {
+        let coverSize = max(0, min(width - 80, 320))
+        return VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                albumOptionsMenu
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 54)
+
+            ZStack {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.white.opacity(0.06))
+                    .frame(width: coverSize, height: coverSize)
+                    .offset(x: 6, y: 6)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.white.opacity(0.1))
+                    .frame(width: coverSize, height: coverSize)
+                    .offset(x: 3, y: 3)
+
+                ZStack(alignment: .bottomLeading) {
+                    AlbumPhotoView(
+                        reference: draft.coverPhotoReference,
+                        crop: .centered,
+                        contentMode: .fill,
+                        targetSize: CGSize(width: coverSize * 2, height: coverSize * 2)
+                    )
+                    .frame(width: coverSize, height: coverSize)
+                    .clipped()
+                    LinearGradient(colors: [.clear, .black.opacity(0.65)], startPoint: .center, endPoint: .bottom)
+                        .frame(width: coverSize, height: coverSize)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(draft.title)
+                            .font(.onboardingSerif(size: 22, weight: .medium))
+                            .foregroundStyle(.white)
+                            .lineLimit(2)
+                        if let dateText = coverConfiguration.dateText {
+                            Text(dateText)
+                                .font(.system(size: 11.5))
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
+                    }
+                    .frame(width: coverSize - 40, alignment: .leading)
+                    .padding(.leading, 20)
+                    .padding(.bottom, 18)
+                }
+                .frame(width: coverSize, height: coverSize)
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .shadow(color: .black.opacity(0.5), radius: 20, y: 12)
+            }
+            .padding(.top, 28)
+
+            Text(bookSummary)
+                .font(.system(size: 12.5))
+                .foregroundStyle(AlbumDetailSurface.mutedText)
+                .padding(.top, 18)
+        }
+        .frame(width: width)
+    }
+
+    private var stickyTopControls: some View {
+        HStack {
+            heroButton(systemImage: "chevron.left") { dismiss() }
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 54)
+        .padding(.bottom, 10)
+    }
+
+    /// Retained only for the existing hero subviews below; the 3a book-stack cover above is the
+    /// detail screen's active presentation.
+    private var legacyHeroCover: some View {
         ZStack {
             heroImage
             heroGradient
@@ -388,6 +472,39 @@ struct AlbumDetailView: View {
         .buttonStyle(.plain)
     }
 
+    private var orderPhotobookBar: some View {
+        Button {
+            // Ordering is presentation-only until checkout is connected; do not create an
+            // external purchase or mutate the draft from this display affordance.
+            NiziLogger.discovery.notice("photobook_order_requested albumID=\(draft.id, privacy: .public)")
+        } label: {
+            HStack(spacing: 8) {
+                Text("Order Photobook")
+                    .font(.system(size: 15, weight: .semibold))
+                Text("· $34")
+                    .font(.system(size: 13))
+                    .foregroundStyle(AlbumDetailSurface.background.opacity(0.62))
+            }
+            .foregroundStyle(AlbumDetailSurface.background)
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .background(OnboardingTheme.accent, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 24)
+        .padding(.top, 6)
+        .padding(.bottom, 2)
+        .background(alignment: .bottom) {
+            LinearGradient(
+                colors: [.black.opacity(0.16), .clear],
+                startPoint: .bottom,
+                endPoint: .top
+            )
+            .allowsHitTesting(false)
+            .ignoresSafeArea(edges: .bottom)
+        }
+    }
+
     private func backToTopButton() -> some View {
         AlbumBackToTopControl()
             .frame(width: 46, height: 46)
@@ -438,6 +555,31 @@ struct AlbumDetailView: View {
         }
     }
 
+    private var bookSpecifications: some View {
+        VStack(spacing: 0) {
+            bookSpecificationRow(label: "Size", value: "7×7 in, square")
+            bookSpecificationRow(label: "Cover", value: "Hardcover, matte")
+            bookSpecificationRow(label: "Pages", value: "\(draft.spreads.count * 2)")
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 120)
+    }
+
+    private func bookSpecificationRow(label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .foregroundStyle(AlbumDetailSurface.mutedText)
+            Spacer()
+            Text(value)
+                .foregroundStyle(AlbumDetailSurface.primaryText)
+        }
+        .font(.system(size: 13.5))
+        .padding(.vertical, 14)
+        .overlay(alignment: .top) {
+            AlbumDetailSurface.divider.frame(height: 1)
+        }
+    }
+
     // MARK: - Album Pages
 
     private func albumPagesSection(width: CGFloat) -> some View {
@@ -447,8 +589,8 @@ struct AlbumDetailView: View {
             addPageButton
                 .padding(.horizontal, 20)
         }
-        .padding(.top, 26)
-        .padding(.bottom, 48)
+        .padding(.top, 36)
+        .padding(.bottom, 28)
         // Belt-and-suspenders alongside the hard clamp on `pagesColumn` below — a `VStack`
         // reports its own width as whatever its widest child needs, then *proposes that same
         // width back down* to every child (including `pageSectionHeader`, which is why its own
@@ -464,30 +606,93 @@ struct AlbumDetailView: View {
     // `pagerItemView`).
     private var pageSectionHeader: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("album.detail.pages_section.title")
-                .font(.system(size: 26, weight: .bold))
-            Text(localizedString("album.detail.page_count", defaultValue: "\(pagerItems.count) pages"))
+            Text("INSIDE THE BOOK")
+                .font(.system(size: 11, weight: .semibold))
+                .tracking(1)
+                .foregroundStyle(AlbumDetailSurface.mutedText)
+            Text(localizedString("album.detail.page_count", defaultValue: "\(draft.spreads.count * 2) pages"))
                 .font(.system(size: 15))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AlbumDetailSurface.mutedText)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 24)
     }
 
-    /// Cover, then every Page, stacked vertically in one continuous scroll — the user swipes up
-    /// through Cover → Page 1 → Page 2 → … seamlessly, the same gesture that scrolls the rest of
-    /// this screen, instead of a horizontal-swipe carousel. `LazyVStack`, not a plain `VStack`, is
-    /// what makes "generate a Page only once it's about to be scrolled into view" real: each
-    /// Page's `AlbumPageCardView` (its photo loads included) is only actually built once it's near
-    /// the visible viewport, not all `pagerItems.count` of them the moment this Album opens — the
-    /// memory win the vertical-scroll request specifically asked for.
+    /// Concept 3a previews a physical spread, not isolated pages. Each lazy row renders both
+    /// persisted sides together; each page remains a separate edit entry point.
     private func pagesColumn(width: CGFloat) -> some View {
-        LazyVStack(alignment: .leading, spacing: 36) {
-            ForEach(pagerItems) { item in
-                pagerItemView(item)
-                    .padding(.horizontal, 20)
+        let pageWidth = max(0, (width - 48 - 2) / 2)
+        return LazyVStack(alignment: .leading, spacing: 22) {
+            ForEach(draft.spreads) { spread in
+                if let leftPage = viewerPagesByID[spread.leftPage.id],
+                   let rightPage = viewerPagesByID[spread.rightPage.id] {
+                    VStack(alignment: .leading, spacing: 7) {
+                        HStack(alignment: .top, spacing: 2) {
+                            pagePreviewColumn(leftPage, pageWidth: pageWidth, isRightPage: false)
+                            pagePreviewColumn(rightPage, pageWidth: pageWidth, isRightPage: true)
+                        }
+                    }
+                    .padding(.horizontal, 24)
+                }
             }
         }
         .frame(width: width, alignment: .leading)
+    }
+
+    private var viewerPagesByID: [String: AlbumViewerPage] {
+        Dictionary(uniqueKeysWithValues: pagerItems.compactMap { item -> AlbumViewerPage? in
+            guard case let .page(page) = item else { return nil }
+            return page
+        }.map { ($0.id, $0) })
+    }
+
+    @ViewBuilder
+    private func pagePreviewColumn(
+        _ viewerPage: AlbumViewerPage,
+        pageWidth: CGFloat,
+        isRightPage: Bool
+    ) -> some View {
+        VStack(alignment: isRightPage ? .trailing : .leading, spacing: 7) {
+            spreadPagePreview(viewerPage, isRightPage: isRightPage)
+                .frame(width: pageWidth)
+
+            Text("Trang \(viewerPage.pageNumber)")
+                .font(.system(size: 10.5, weight: .medium))
+                .foregroundStyle(AlbumDetailSurface.mutedText)
+        }
+        .frame(width: pageWidth, alignment: isRightPage ? .trailing : .leading)
+    }
+
+    @ViewBuilder
+    private func spreadPagePreview(_ viewerPage: AlbumViewerPage, isRightPage: Bool) -> some View {
+        AlbumPageCardView(
+            viewerPage: viewerPage,
+            layoutRepository: layoutRepository,
+            // A spread in Album Detail is now an editing entry point, not a photo viewer. The
+            // transparent tap layer deliberately covers every slot, including a blank page.
+            onTapBlankPage: nil
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+        .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 5)
+        .overlay {
+            ZStack {
+                if isRightPage {
+                    // A restrained shadow at the gutter gives the right leaf a book-like curve
+                    // without tinting the artwork across the rest of the page.
+                    LinearGradient(
+                        colors: [.black.opacity(0.14), .clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .allowsHitTesting(false)
+                }
+
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        editTarget = EditTarget(itemId: viewerPage.id)
+                    }
+            }
+        }
     }
 
     /// § user request — "Ngoài Album ở trang cuối cùng có 1 nút: Thêm trang. Khi thêm sẽ tạo ra 1
@@ -578,6 +783,15 @@ struct AlbumDetailView: View {
             return localizedString("album.viewer.page_number_label", defaultValue: "Page \(page.pageNumber)")
         }
     }
+}
+
+private enum AlbumDetailSurface {
+    // Album spreads contain substantial white space. A warm light surface keeps their edges
+    // visible without the harsh contrast of the app's dark archive screens.
+    static let background = Color(red: 246 / 255, green: 244 / 255, blue: 239 / 255)
+    static let primaryText = Color(red: 39 / 255, green: 36 / 255, blue: 32 / 255)
+    static let mutedText = primaryText.opacity(0.52)
+    static let divider = primaryText.opacity(0.12)
 }
 
 /// A direct UIKit control avoids the `UIScrollView` behavior where the first SwiftUI tap while

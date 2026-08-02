@@ -34,6 +34,15 @@ struct EventListView: View {
     @State private var loadedCoverImages: [PhotoEvent.ID: PlatformImage] = [:]
 
     private let assetProvider: PhotoAssetProvider = PhotoKitAssetProvider()
+    /// Lets Home reflect a love toggle made here on its own already-rendered rail card, in place —
+    /// mirroring `TripDetailView`/`MemoryDetailView`'s `onPlaceResolved`/`onEventUpdated`. Home
+    /// deliberately does not reload/re-render its rails on every appearance (see HomeView.swift's
+    /// `.task`/`onChange` comments), so this is the only way a love change made here reaches Home.
+    var onEventUpdated: (PhotoEvent) -> Void = { _ in }
+    /// Home/Events/Trips/Photobook/Diagnostics act like tabs — this is `HomeView`'s single shared
+    /// `navigationPath` mutator (see its own doc comment), threaded down so this screen's bottom
+    /// bar jumps directly to another tab instead of nesting a fresh local push under itself.
+    var onSelectTab: (NiziBottomTabBar.Tab) -> Void = { _ in }
 
     var body: some View {
         ScrollViewReader { scrollProxy in
@@ -47,28 +56,45 @@ struct EventListView: View {
                 emptyState
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 16, pinnedViews: [.sectionHeaders]) {
+                    LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
                         Section {
                             if filteredEvents.isEmpty {
                                 emptyFilteredState
                             } else {
-                                ForEach(filteredEvents) { event in
-                                    eventRow(event, scrollProxy: scrollProxy)
-                                        .id(event.id)
-                                        .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
+                                ForEach(monthSections) { section in
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        // § user request — as big and clear a divider as the
+                                        // Trips list's year headers.
+                                        Text(section.title)
+                                            .font(.onboardingSerif(size: 28, weight: .bold))
+                                            .foregroundStyle(EventArchiveStyle.primaryText)
+                                            .padding(.top, 22)
+                                            .padding(.bottom, 10)
+
+                                        ForEach(section.events) { event in
+                                            eventRow(event, scrollProxy: scrollProxy)
+                                                .id(event.id)
+                                                .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
+                                        }
+                                    }
+                                    .padding(.horizontal, 24)
                                 }
                             }
                         } header: {
                             yearFilterHeader
                         }
                     }
-                    .padding()
+                    .padding(.bottom, 28)
                 }
                 .scrollContentBackground(.hidden)
             }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(EventArchiveStyle.background)
         .navigationTitle("event.list.title")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbarBackground(EventArchiveStyle.background, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 filterMenu
@@ -83,6 +109,17 @@ struct EventListView: View {
                 selectionActionBar(scrollProxy: scrollProxy)
             }
         }
+        .safeAreaInset(edge: .bottom) {
+            NiziBottomTabBar(
+                selected: .events,
+                onHome: { onSelectTab(.home) },
+                onEvents: {},
+                onTrips: { onSelectTab(.trips) },
+                onPhotobooks: { onSelectTab(.photobooks) },
+                onDiagnostics: { onSelectTab(.diagnostics) }
+            )
+        }
+        .navigationBarBackButtonHidden(true)
         .alert("Không thể cập nhật sự kiện", isPresented: Binding(
             get: { actionError != nil }, set: { if !$0 { actionError = nil } }
         )) {
@@ -121,7 +158,7 @@ struct EventListView: View {
                 } label: {
                     HStack(spacing: 12) {
                         selectionIndicator(isSelected: selectedEventIDs.contains(event.id))
-                        eventCard(event, showsLoveControl: false)
+                        eventArchiveRow(event)
                     }
                 }
             } else {
@@ -134,31 +171,26 @@ struct EventListView: View {
                         }
                     )
                 } label: {
-                    eventCard(event, showsLoveControl: false)
+                    eventArchiveRow(event)
                 }
 
                 loveButton(for: event)
-                    .padding(10)
+                    .padding(.trailing, 2)
             }
             }
         }
         .buttonStyle(.plain)
     }
 
-    private func eventCard(_ event: PhotoEvent, showsLoveControl: Bool = true) -> some View {
-        EventCardView(
+    private func eventArchiveRow(_ event: PhotoEvent) -> some View {
+        EventArchiveRow(
             event: event,
             assetProvider: assetProvider,
             onCoverLoaded: { loadedCoverImages[event.id] = $0 },
-            onLoveTapped: showsLoveControl ? {
-                Task { await toggleLove(for: event) }
-            } : nil,
             onPlaceRequested: { event in
                 Task { await resolvePlace(for: event) }
             }
         )
-        .frame(maxWidth: .infinity)
-        .frame(height: EventCardView.cardHeight)
     }
 
     private func selectionIndicator(isSelected: Bool) -> some View {
@@ -227,6 +259,7 @@ struct EventListView: View {
             try await store.setEventLoved(eventID: event.id, isLoved: isLoved)
             guard let index = allEvents.firstIndex(where: { $0.id == event.id }) else { return }
             allEvents[index].isLoved = isLoved
+            onEventUpdated(allEvents[index])
         } catch {
             actionError = "Không thể cập nhật sự kiện yêu thích. Vui lòng thử lại."
         }
@@ -245,19 +278,47 @@ struct EventListView: View {
     private var filteredEvents: [PhotoEvent] {
         allEvents
             .filter { event in
-                (selectedYear == nil || Calendar.current.component(.year, from: event.startDate) == selectedYear)
+                Self.isVisibleInProductionList(event)
+                    && (selectedYear == nil || Calendar.current.component(.year, from: event.startDate) == selectedYear)
                     && (selectedType == nil || event.eventType == selectedType)
             }
             .sorted { $0.startDate > $1.startDate }
+    }
+
+    /// `.hiddenNoise` Events stay out of the production list by default (SPRINT-FAST-EVENT-
+    /// QUALITY § 8) — Diagnostics reads the same repository unfiltered, so it still sees
+    /// everything. Not `private` so it's directly testable without going through a `View`.
+    static func isVisibleInProductionList(_ event: PhotoEvent) -> Bool {
+        event.eventVisibility != .hiddenNoise
     }
 
     private var availableYears: [Int] {
         Array(Set(allEvents.map { Calendar.current.component(.year, from: $0.startDate) })).sorted(by: >)
     }
 
+    private var monthSections: [EventArchiveMonthSection] {
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: filteredEvents) { event in
+            calendar.date(from: calendar.dateComponents([.year, .month], from: event.startDate)) ?? event.startDate
+        }
+        return grouped
+            .map { month, events in
+                EventArchiveMonthSection(
+                    month: month,
+                    events: events.sorted { $0.startDate > $1.startDate },
+                    includesYear: selectedYear == nil
+                )
+            }
+            .sorted { $0.month > $1.month }
+    }
+
     private var yearFilterHeader: some View {
-        YearFilterBar(years: availableYears, selectedYear: $selectedYear, placesAllLast: true)
-            .padding(.vertical, 10)
+        EventArchiveYearFilter(
+            years: availableYears,
+            selectedYear: $selectedYear,
+            eventCount: filteredEvents.count
+        )
+        .background(EventArchiveStyle.background)
     }
 
     private var filterMenu: some View {
@@ -280,7 +341,7 @@ struct EventListView: View {
                 .font(.headline)
             Text("event.list.empty.message")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(EventArchiveStyle.mutedText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
@@ -292,7 +353,7 @@ struct EventListView: View {
                 .font(.headline)
             Text("event.list.empty.message")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(EventArchiveStyle.mutedText)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 60)
@@ -302,7 +363,7 @@ struct EventListView: View {
         VStack(spacing: 12) {
             Text(message)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+            .foregroundStyle(EventArchiveStyle.mutedText)
                 .multilineTextAlignment(.center)
             Button("common.action.retry") {
                 Task { await loadEvents() }
@@ -397,6 +458,210 @@ struct EventListView: View {
             }
         } catch {
             actionError = "Không thể gộp các sự kiện đã chọn. Vui lòng thử lại."
+        }
+    }
+}
+
+private enum EventArchiveStyle {
+    static let background = Color(red: 14 / 255, green: 13 / 255, blue: 16 / 255)
+    static let primaryText = Color(red: 246 / 255, green: 241 / 255, blue: 234 / 255)
+    static let mutedText = primaryText.opacity(0.45)
+    static let divider = Color.white.opacity(0.07)
+    static let accent = Color(red: 225 / 255, green: 135 / 255, blue: 91 / 255)
+}
+
+private struct EventArchiveMonthSection: Identifiable {
+    let month: Date
+    let events: [PhotoEvent]
+    let includesYear: Bool
+
+    var id: Date { month }
+
+    var title: String {
+        let format = includesYear ? "LLLL yyyy" : "LLLL"
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "vi_VN")
+        formatter.dateFormat = format
+        return formatter.string(from: month).capitalized
+    }
+}
+
+private struct EventArchiveYearFilter: View {
+    let years: [Int]
+    @Binding var selectedYear: Int?
+    let eventCount: Int
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            VStack(alignment: .leading, spacing: 9) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(years, id: \.self) { year in
+                            chip(title: String(year), isSelected: selectedYear == year) {
+                                select(year, proxy: proxy)
+                            }
+                            .id(Optional(year))
+                        }
+                        chip(title: localizedString("album.year_filter.all", defaultValue: "All"), isSelected: selectedYear == nil) {
+                            select(nil, proxy: proxy)
+                        }
+                        .id(Optional<Int>.none)
+                    }
+                    .padding(.horizontal, 24)
+                }
+
+                Text(eventCountLabel)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(EventArchiveStyle.mutedText)
+                    .padding(.horizontal, 24)
+            }
+            .padding(.top, 8)
+            .padding(.bottom, 12)
+        }
+    }
+
+    private var eventCountLabel: String {
+        if let selectedYear {
+            return "\(eventCount) sự kiện trong năm \(selectedYear)"
+        }
+        return "\(eventCount) sự kiện"
+    }
+
+    private func select(_ year: Int?, proxy: ScrollViewProxy) {
+        withAnimation(.snappy(duration: 0.25)) {
+            selectedYear = year
+        }
+        withAnimation(.snappy(duration: 0.3)) {
+            proxy.scrollTo(year, anchor: .center)
+        }
+    }
+
+    private func chip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? EventArchiveStyle.background : EventArchiveStyle.mutedText)
+                .padding(.horizontal, 16)
+                .frame(height: 31)
+                .background(isSelected ? EventArchiveStyle.accent : Color.white.opacity(0.07), in: Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct EventArchiveRow: View {
+    let event: PhotoEvent
+    let assetProvider: PhotoAssetProvider
+    let onCoverLoaded: (PlatformImage) -> Void
+    let onPlaceRequested: (PhotoEvent) -> Void
+
+    @State private var coverImage: PlatformImage?
+    /// Explicit ownership is important here: a LazyVStack may keep rows alive briefly while the
+    /// user flings through a long year. Cancelling at disappearance prevents those rows from
+    /// continuing iCloud/PhotoKit work after they are no longer useful on screen.
+    @State private var thumbnailTask: Task<Void, Never>?
+    private static let thumbnailPixelSize = CGSize(width: 120, height: 120)
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.white.opacity(0.09))
+                if let coverImage {
+                    Image(uiImage: coverImage)
+                        .resizable()
+                        .scaledToFill()
+                }
+            }
+            .frame(width: 60, height: 60)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(event.eventPlace?.displayName ?? event.primaryLocationLabel ?? event.titleSuggestion)
+                    .font(.system(size: 14.5))
+                    .foregroundStyle(EventArchiveStyle.primaryText)
+                    .lineLimit(1)
+                Text(metadata)
+                    .font(.system(size: 12))
+                    .foregroundStyle(EventArchiveStyle.mutedText)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.trailing, 34)
+        }
+        .padding(.vertical, 11)
+        .overlay(alignment: .bottom) {
+            EventArchiveStyle.divider.frame(height: 1)
+        }
+        .contentShape(Rectangle())
+        .onAppear { startThumbnailLoad() }
+        .onDisappear {
+            thumbnailTask?.cancel()
+            thumbnailTask = nil
+        }
+        .onChange(of: event.coverAssetID) { _, _ in
+            thumbnailTask?.cancel()
+            coverImage = nil
+            startThumbnailLoad()
+        }
+        .task(id: event.placeResolutionState) {
+            guard eventNeedsPlaceResolution(event) else { return }
+            onPlaceRequested(event)
+        }
+    }
+
+    private var metadata: String {
+        "\(dateRange) · \(event.assetCount) ảnh"
+    }
+
+    private var dateRange: String {
+        let calendar = Calendar.current
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "d MMM"
+        guard !calendar.isDate(event.startDate, inSameDayAs: event.endDate) else {
+            return formatter.string(from: event.startDate)
+        }
+        if calendar.component(.month, from: event.startDate) == calendar.component(.month, from: event.endDate),
+           calendar.component(.year, from: event.startDate) == calendar.component(.year, from: event.endDate) {
+            let endMonth = DateFormatter()
+            endMonth.locale = Locale(identifier: "en_US_POSIX")
+            endMonth.dateFormat = "MMM"
+            return "\(event.startDate.formatted(.dateTime.day()))–\(event.endDate.formatted(.dateTime.day())) \(endMonth.string(from: event.endDate))"
+        }
+        return "\(formatter.string(from: event.startDate)) – \(formatter.string(from: event.endDate))"
+    }
+
+    private func startThumbnailLoad() {
+        guard let assetID = event.coverAssetID else { return }
+        // A cache hit is synchronous and free; do not issue a PhotoKit request in that case.
+        coverImage = assetProvider.cachedThumbnail(
+            assetID: assetID, targetSize: Self.thumbnailPixelSize, contentMode: .fill
+        )
+        guard coverImage == nil else { return }
+
+        thumbnailTask?.cancel()
+        thumbnailTask = Task {
+            do {
+                // List scrolling must never wait for an iCloud original. A local fast thumbnail
+                // is enough for a 60pt row; the detail screen owns any higher-quality request.
+                let image = try await assetProvider.requestThumbnail(
+                    assetID: assetID,
+                    targetSize: Self.thumbnailPixelSize,
+                    networkAccessAllowed: false,
+                    deliveryMode: .fast,
+                    contentMode: .fill
+                )
+                guard !Task.isCancelled else { return }
+                coverImage = image
+                onCoverLoaded(image)
+            } catch is CancellationError {
+                // Expected while a fast scroll recycles this row.
+            } catch {
+                // iCloud-only assets intentionally remain as a lightweight placeholder here;
+                // opening the Event is where network-backed imagery is allowed.
+                NiziLogger.discovery.notice("event_archive_thumbnail_unavailable")
+            }
         }
     }
 }

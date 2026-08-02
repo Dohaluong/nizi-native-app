@@ -17,9 +17,16 @@ struct PhotoLibraryDiagnosticsView: View {
     #if DEBUG
     @AppStorage(DebugLocaleOverride.storageKey) private var localeOverrideRawValue: String = DebugLocaleOverride.system.rawValue
     #endif
+    /// Home/Events/Trips/Photobook/Diagnostics act like tabs — see `HomeView.selectTab`'s doc
+    /// comment. Threaded down so this screen's own bottom bar jumps directly to another tab.
+    var onSelectTab: (NiziBottomTabBar.Tab) -> Void
 
-    init(authorizationService: PhotoLibraryAuthorizationService = PhotoKitAuthorizationService()) {
+    init(
+        authorizationService: PhotoLibraryAuthorizationService = PhotoKitAuthorizationService(),
+        onSelectTab: @escaping (NiziBottomTabBar.Tab) -> Void = { _ in }
+    ) {
         self.authorizationService = authorizationService
+        self.onSelectTab = onSelectTab
     }
 
     var body: some View {
@@ -101,10 +108,28 @@ struct PhotoLibraryDiagnosticsView: View {
                 }
                 .disabled(status != .full && status != .limited)
 
+                NavigationLink("Fast Event Quality") {
+                    FastEventQualityDiagnosticsView()
+                }
+                .disabled(status != .full && status != .limited)
+
                 NavigationLink("Detected Trips") {
                     TripDiscoveryDiagnosticsView()
                 }
                 .disabled(status != .full && status != .limited)
+
+                NavigationLink("Memory Potential") {
+                    MemoryPotentialDiagnosticsView()
+                }
+                .disabled(status != .full && status != .limited)
+            }
+
+            // Placeholder-only — pure UI, no data source, not gated on `status`. Temporary design
+            // comparisons; delete each entry once its design decision is made.
+            Section("Design Concepts") {
+                NavigationLink("Home — 1a The Memory Surface") {
+                    HomeDesignPreview1A()
+                }
             }
 
             // Placeholder-only — doesn't touch Photos, so not gated on `status` like the
@@ -138,6 +163,17 @@ struct PhotoLibraryDiagnosticsView: View {
             }
         }
         .navigationTitle("Photo Library Diagnostics")
+        .navigationBarBackButtonHidden(true)
+        .safeAreaInset(edge: .bottom) {
+            NiziBottomTabBar(
+                selected: .diagnostics,
+                onHome: { onSelectTab(.home) },
+                onEvents: { onSelectTab(.events) },
+                onTrips: { onSelectTab(.trips) },
+                onPhotobooks: { onSelectTab(.photobooks) },
+                onDiagnostics: {}
+            )
+        }
         .task {
             status = await authorizationService.currentStatus()
         }

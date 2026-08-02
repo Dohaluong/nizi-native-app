@@ -12,4 +12,7 @@ import Foundation
 protocol PhotoTripRepository {
     func replaceRebuildableTrips(_ trips: [PhotoTrip]) async throws
     func fetchTrips() async throws -> [PhotoTrip]
+    /// Lazy, on-open place re-resolution (`TripDetailView`) — updates just the two place fields
+    /// on an already-persisted trip, without touching anything else about it.
+    func setTripPlace(tripID: UUID, place: EventPlace?) async throws
 }

@@ -22,6 +22,15 @@ actor ApplePhotoPlaceResolver: PhotoPlaceResolving {
         do {
             placemarks = try await geocoder.reverseGeocodeLocation(location)
         } catch {
+            // Diagnostic-only: the real CLError code (e.g. kCLErrorNetwork, which is what
+            // CLGeocoder's undocumented rate limit typically surfaces as when many reverse-geocode
+            // calls fire back-to-back) gets lost once this rethrows as the generic
+            // `PhotoLocationError.geocodingFailed` — log it here, at the source, so a burst of
+            // failures during a rebuild can be told apart from a genuinely-unreachable network.
+            // Never log the coordinate itself (docs/modules/memory-discovery/ARCHITECTURE.md § 11
+            // — GPS is sensitive metadata; event name + error code only).
+            let clErrorCode = (error as? CLError)?.code.rawValue
+            NiziLogger.discovery.error("apple_photo_place_resolver_geocode_failed clErrorCode=\(clErrorCode.map(String.init) ?? "n/a", privacy: .public)")
             throw PhotoLocationError.geocodingFailed
         }
 

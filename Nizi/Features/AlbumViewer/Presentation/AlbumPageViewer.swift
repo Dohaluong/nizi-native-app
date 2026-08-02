@@ -142,7 +142,7 @@ struct AlbumPageViewer: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .background(Color(.systemGroupedBackground))
+            .background(AlbumEditorSurface.background)
             .safeAreaInset(edge: .top) {
                 if isEditing {
                     layoutPickerHeader
@@ -178,6 +178,7 @@ struct AlbumPageViewer: View {
             .navigationDestination(item: $cropTarget) { target in
                 cropDestination(target)
             }
+            .preferredColorScheme(.light)
         }
     }
 
@@ -303,6 +304,7 @@ struct AlbumPageViewer: View {
         // `AlbumPagingLockView`'s own doc comment) so walking `superview` from it resolves to
         // *this* Page's own `UIPageViewController`-backed `UIScrollView`, not some unrelated one.
         .background(AlbumPagingLockView(isLocked: isPhotoDragActive))
+        .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 7)
     }
 
     // MARK: - Edit mode
@@ -362,7 +364,7 @@ struct AlbumPageViewer: View {
                 // a touch darker than the Page area's own `.systemGroupedBackground`, in both
                 // light and dark mode, so each swatch's white border reads clearly against it
                 // instead of blending in.
-                .background(Color(.systemGroupedBackground).overlay(Color.black.opacity(0.06)))
+                .background(AlbumEditorSurface.layoutPickerBackground)
                 .onAppear {
                     scrollProxy.scrollTo(viewerPage.page.layoutId, anchor: .center)
                 }
@@ -559,4 +561,11 @@ struct AlbumPageViewer: View {
             }
         }
     }
+}
+
+private enum AlbumEditorSurface {
+    static let background = Color(red: 246 / 255, green: 244 / 255, blue: 239 / 255)
+    // A slightly deeper neutral behind the white layout swatches makes their silhouette clear
+    // while staying within the light Photobook surface.
+    static let layoutPickerBackground = Color(red: 225 / 255, green: 222 / 255, blue: 215 / 255)
 }

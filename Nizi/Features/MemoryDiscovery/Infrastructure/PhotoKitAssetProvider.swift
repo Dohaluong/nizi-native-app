@@ -16,7 +16,15 @@ final class PhotoKitAssetProvider: PhotoAssetProvider {
     /// originals — checked before every PhotoKit request so a photo already seen this session
     /// shows with zero round trip. Content mode is part of the key so a `.fill` (cropped) and a
     /// `.fit` (letterboxed) request at the same pixel size can never be confused for each other.
-    private let memoryCache = NSCache<NSString, PlatformImage>()
+    /// Shared for the app session: SwiftUI can recreate Home cells or Home itself after a
+    /// navigation return, and an instance-only cache made that look like a full image reload.
+    /// `NSCache` releases entries under memory pressure.
+    private static let sharedMemoryCache: NSCache<NSString, PlatformImage> = {
+        let cache = NSCache<NSString, PlatformImage>()
+        cache.countLimit = 500
+        return cache
+    }()
+    private let memoryCache = PhotoKitAssetProvider.sharedMemoryCache
 
     func scanSummary() async throws -> LibraryScanSummary {
         let start = Date()

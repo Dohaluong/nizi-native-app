@@ -39,6 +39,13 @@ final class TravelClassificationService {
         for trip in trips {
             classified.append(await classify(trip: trip, homeCountryCode: homeCountryCode))
         }
+
+        // Diagnostic-only summary — one line to see, at a glance, how many trips actually got a
+        // real place name this run vs. how many didn't (and see it shrink/grow across reruns
+        // without having to count individual per-trip log lines).
+        let resolvedCount = classified.filter { $0.primaryPlaceName != nil }.count
+        NiziLogger.discovery.info("trip_classification_completed total=\(classified.count, privacy: .public) resolved=\(resolvedCount, privacy: .public) unresolved=\(classified.count - resolvedCount, privacy: .public)")
+
         return classified
     }
 
@@ -46,17 +53,32 @@ final class TravelClassificationService {
         var trip = trip
         trip.travelContext.homeCountryCode = homeCountryCode
 
-        // No overnight stay and already back — a Day Trip, no geocoding needed at all (SPEC § 29).
-        guard trip.travelContext.overnightCount > 0 else {
-            trip.classification = .dayTrip
+        // "Day Trip" (no overnight stay, and not a provisional international candidate) used to
+        // skip geocoding entirely (SPEC § 29) to avoid a network call for every trivial away-from-
+        // home cluster. Trip Eligibility V1 (SPRINT-NEXT § 5-9) now already requires a day trip to
+        // clear a real distance/duration/session-count bar before it exists as a `PhotoTrip` at
+        // all, so by the time classification runs it's never a trivial case — skipping geocoding
+        // just meant a real, eligible day trip's place name was never resolved. Always attempt
+        // geocoding when a coordinate is available; `isDayTrip` only decides the final
+        // classification label, not whether a place name gets resolved.
+        let isProvisionalInternationalCandidate = trip.travelContext.eligibilityReasons
+            .contains(TripEligibilityReason.internationalCandidate.rawValue)
+        let isDayTrip = trip.travelContext.overnightCount == 0 && !isProvisionalInternationalCandidate
+
+        // Split out so a trip that never had a resolvable coordinate at all (no session in any of
+        // its Events had GPS) can be told apart, in the logs, from one that had a coordinate but
+        // whose geocode attempt failed (already logged inside `resolvePlace`/
+        // `ApplePhotoPlaceResolver` — see those for the real CLError detail).
+        guard let latitude = trip.primaryLatitude, let longitude = trip.primaryLongitude,
+              let coordinate = PhotoCoordinate(latitude: latitude, longitude: longitude)
+        else {
+            NiziLogger.discovery.info("trip_classification_no_coordinate tripID=\(trip.id, privacy: .public)")
+            trip.classification = isDayTrip ? .dayTrip : .unknown
             return trip
         }
 
-        guard let latitude = trip.primaryLatitude, let longitude = trip.primaryLongitude,
-              let coordinate = PhotoCoordinate(latitude: latitude, longitude: longitude),
-              let place = await resolvePlace(for: coordinate)
-        else {
-            trip.classification = .unknown
+        guard let place = await resolvePlace(for: coordinate) else {
+            trip.classification = isDayTrip ? .dayTrip : .unknown
             return trip
         }
 
@@ -64,6 +86,11 @@ final class TravelClassificationService {
         trip.primaryCountryCode = place.isoCountryCode
         if let countryCode = place.isoCountryCode {
             trip.travelContext.countryCodes = [countryCode]
+        }
+
+        if isDayTrip {
+            trip.classification = .dayTrip
+            return trip
         }
 
         switch (place.isoCountryCode, homeCountryCode) {

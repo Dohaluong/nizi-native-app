@@ -116,6 +116,18 @@ struct SwiftDataMemoryDiscoveryStoreTests {
         #expect(clusterable.map(\.id) == ["asset-dated"])
     }
 
+    @Test func persistedEventRoundTripsQualityScoreAndVisibility() async throws {
+        let store = try makeStore()
+        let event = PhotoEvent.fixture(status: .new, eventQualityScore: 0.72, eventVisibility: .lowValue)
+        try await store.replaceRebuildableEvents([event])
+
+        let reloaded = try await store.fetchEvents(sortedBy: .scoreDescending)
+        let reloadedEvent = try #require(reloaded.first)
+
+        #expect(reloadedEvent.eventQualityScore == 0.72)
+        #expect(reloadedEvent.eventVisibility == .lowValue)
+    }
+
     @Test func rebuildDoesNotAccumulateDuplicateEvents() async throws {
         let store = try makeStore()
         let firstRun = [PhotoEvent.fixture(status: .new), PhotoEvent.fixture(status: .new)]
@@ -127,6 +139,24 @@ struct SwiftDataMemoryDiscoveryStoreTests {
         try await store.replaceRebuildableEvents(secondRun)
 
         #expect(try await store.fetchEvents(sortedBy: .scoreDescending).count == 2)
+    }
+
+    /// Trips UI (Home + List) needs to resolve a `PhotoTrip.eventIDs` list into real `PhotoEvent`s.
+    @Test func fetchEventsByIDsReturnsOnlyRequestedEvents() async throws {
+        let store = try makeStore()
+        try await store.replaceRebuildableEvents([.fixture(status: .new), .fixture(status: .new), .fixture(status: .new)])
+        let saved = try await store.fetchEvents(sortedBy: .scoreDescending)
+        let targetIDs = Array(saved.prefix(2).map(\.id))
+
+        let fetched = try await store.fetchEvents(ids: targetIDs)
+
+        #expect(Set(fetched.map(\.id)) == Set(targetIDs))
+    }
+
+    @Test func fetchEventsByIDsReturnsEmptyForUnknownIDs() async throws {
+        let store = try makeStore()
+        let fetched = try await store.fetchEvents(ids: [UUID()])
+        #expect(fetched.isEmpty)
     }
 
     @Test func rebuildPreservesAcceptedAndConvertedEvents() async throws {
@@ -150,9 +180,23 @@ struct SwiftDataMemoryDiscoveryStoreTests {
         try await store.setEventLoved(eventID: older.id, isLoved: true)
         try await store.setEventLoved(eventID: newer.id, isLoved: true)
 
-        let loved = try await store.fetchLovedEvents()
+        let loved = try await store.fetchMemoryEvents()
         #expect(loved.map(\.id) == [newer.id, older.id])
         #expect(loved.allSatisfy { $0.isLoved })
+    }
+
+    /// SPRINT-NEXT § 18 — `fetchMemoryEvents` surfaces `isLoved OR isAutoMemory`, not just loved.
+    @Test func fetchMemoryEventsIncludesAutoMemoriesNotJustLoved() async throws {
+        let store = try makeStore()
+        let loved = PhotoEvent.fixture(status: .new, startDate: Date(timeIntervalSince1970: 1_700_000_000))
+        let autoMemory = PhotoEvent.fixture(status: .new, startDate: Date(timeIntervalSince1970: 1_710_000_000), isAutoMemory: true)
+        let ordinary = PhotoEvent.fixture(status: .new, startDate: Date(timeIntervalSince1970: 1_720_000_000))
+        try await store.replaceRebuildableEvents([loved, autoMemory, ordinary])
+        try await store.setEventLoved(eventID: loved.id, isLoved: true)
+
+        let memoryEvents = try await store.fetchMemoryEvents()
+
+        #expect(Set(memoryEvents.map(\.id)) == [loved.id, autoMemory.id])
     }
 
     @Test func rebuildPreservesLoveForAnEventWithTheSameAssets() async throws {
@@ -164,7 +208,7 @@ struct SwiftDataMemoryDiscoveryStoreTests {
         let rebuilt = PhotoEvent.fixture(status: .new, assetIDs: ["asset-b", "asset-a"])
         try await store.replaceRebuildableEvents([rebuilt])
 
-        let loved = try await store.fetchLovedEvents()
+        let loved = try await store.fetchMemoryEvents()
         #expect(loved.map(\.id) == [rebuilt.id])
         #expect(loved.first?.isLoved == true)
     }
@@ -349,7 +393,10 @@ private extension PhotoEvent {
         status: PhotoEventStatus,
         startDate: Date = Date(),
         sessionIDs: [UUID] = [UUID()],
-        assetIDs: [String] = ["asset-1", "asset-2"]
+        assetIDs: [String] = ["asset-1", "asset-2"],
+        eventQualityScore: Double = 0,
+        eventVisibility: EventVisibility = .normal,
+        isAutoMemory: Bool = false
     ) -> PhotoEvent {
         let now = startDate
         return PhotoEvent(
@@ -367,7 +414,10 @@ private extension PhotoEvent {
             discoveryReasons: [DiscoveryReason(kind: .assetCountOverDuration, text: "2 ảnh trong ngày")],
             algorithmVersion: 1,
             createdAt: now,
-            updatedAt: now
+            updatedAt: now,
+            eventQualityScore: eventQualityScore,
+            eventVisibility: eventVisibility,
+            isAutoMemory: isAutoMemory
         )
     }
 }

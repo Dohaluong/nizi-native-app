@@ -4,6 +4,9 @@
     "" : {
 
     },
+    "· $34" : {
+
+    },
     "[%@] %@: %@" : {
       "localizations" : {
         "en" : {
@@ -87,7 +90,7 @@
         }
       }
     },
-    "%lld moments" : {
+    "%lld events" : {
 
     },
     "%lld pages" : {
@@ -95,6 +98,16 @@
     },
     "%lld photos" : {
 
+    },
+    "%lld photos · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld photos · %2$@"
+          }
+        }
+      }
     },
     "%lld photos · Nizi picked %lld" : {
       "localizations" : {
@@ -105,6 +118,9 @@
           }
         }
       }
+    },
+    "%lld photos indexed" : {
+
     },
     "%lld spreads" : {
 
@@ -141,7 +157,13 @@
     "🏠 HOME" : {
 
     },
-    "0 Album · %lld photos surveyed" : {
+    "8 YEARS AGO" : {
+
+    },
+    "12–13 Jul · 42 photos" : {
+
+    },
+    "A Trip to" : {
 
     },
     "Album Draft Planner" : {
@@ -1984,6 +2006,12 @@
     "Authorization" : {
 
     },
+    "AUTO MEMORY: NO" : {
+
+    },
+    "AUTO MEMORY: YES" : {
+
+    },
     "Bỏ yêu thích sự kiện" : {
 
     },
@@ -2009,6 +2037,12 @@
 
     },
     "Chưa có cluster nào. Bấm Run để phân tích Local Memory Index hiện tại." : {
+
+    },
+    "Chưa có dữ liệu. Bấm Run để chạy Event Discovery và xem Fast Event Quality từng Event." : {
+
+    },
+    "Chưa có dữ liệu. Bấm Run để chạy Event Discovery và xem Memory Potential từng Event." : {
 
     },
     "Chưa có dữ liệu. Bấm Run để chạy Event Discovery và xem trace từng cặp session." : {
@@ -2183,6 +2217,9 @@
     "Couldn't load the events list." : {
 
     },
+    "Couldn't load your trips." : {
+
+    },
     "Cover" : {
 
     },
@@ -2193,6 +2230,9 @@
 
     },
     "Day Event" : {
+
+    },
+    "Day Trip" : {
 
     },
     "DECISION: MERGE" : {
@@ -2213,11 +2253,28 @@
     "Deselect photo" : {
 
     },
+    "Design Concepts" : {
+
+    },
     "Detected Trips" : {
 
     },
-    "Diagnostics" : {
-
+    "discovering.eyebrow.traveling_to" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traveling back to"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang quay ngược về"
+          }
+        }
+      }
     },
     "discovering.hero.title" : {
       "extractionState" : "manual",
@@ -2299,6 +2356,35 @@
         }
       }
     },
+    "discovering.stats.photos_indexed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld photo indexed"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld photos indexed"
+                }
+              }
+            }
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ảnh đã lập chỉ mục"
+          }
+        }
+      }
+    },
     "discovering.year.this_year" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2344,6 +2430,9 @@
           }
         }
       }
+    },
+    "Domestic" : {
+
     },
     "Done" : {
 
@@ -2517,6 +2606,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%2$@ %1$@ %3$@, %4$lld ảnh, %5$@"
+          }
+        }
+      }
+    },
+    "event.card.auto_memory_label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nizi's pick"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nizi chọn"
           }
         }
       }
@@ -3188,6 +3294,9 @@
     "Familiar" : {
 
     },
+    "Fast Event Quality" : {
+
+    },
     "Favorite (selected)" : {
 
     },
@@ -3206,120 +3315,6 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "First seen %1$@ · Last seen %2$@"
-          }
-        }
-      }
-    },
-    "first_memory.action.continue" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continue"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tiếp tục"
-          }
-        }
-      }
-    },
-    "first_memory.action.view" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "View memory"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Xem lại"
-          }
-        }
-      }
-    },
-    "first_memory.empty.message" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No memory was clear enough to create automatically yet."
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chưa tìm thấy một kỷ niệm đủ rõ để tạo tự động."
-          }
-        }
-      }
-    },
-    "first_memory.empty.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nizi looked through your library."
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nizi đã xem qua thư viện của bạn."
-          }
-        }
-      }
-    },
-    "first_memory.subtitle_count" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld moment"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld moments"
-                }
-              }
-            }
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld khoảnh khắc"
-          }
-        }
-      }
-    },
-    "first_memory.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nizi just found a memory"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nizi vừa tìm thấy một kỷ niệm"
           }
         }
       }
@@ -3346,6 +3341,9 @@
 
     },
     "Histogram" : {
+
+    },
+    "Home — 1a The Memory Surface" : {
 
     },
     "Home Detection" : {
@@ -3521,6 +3519,52 @@
         }
       }
     },
+    "home.background_scan.eyebrow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "STILL SURVEYING"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ĐANG KHẢO SÁT"
+          }
+        }
+      }
+    },
+    "home.background_scan.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "You still have %lld photo left to survey — don't miss out."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "You still have %lld photos left to survey — don't miss out."
+                }
+              }
+            }
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bạn còn %lld tấm ảnh chưa được khảo sát, đừng bỏ lỡ."
+          }
+        }
+      }
+    },
     "home.empty_timeline.message" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3568,6 +3612,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chào bạn 👋"
+          }
+        }
+      }
+    },
+    "home.latest_memory.eyebrow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RECENT"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GẦN ĐÂY"
+          }
+        }
+      }
+    },
+    "home.latest_memory.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your latest memory"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kỷ niệm mới nhất của bạn"
           }
         }
       }
@@ -3669,6 +3747,40 @@
         }
       }
     },
+    "home.trips_preview.see_all" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See all Trips"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xem tất cả Chuyến đi"
+          }
+        }
+      }
+    },
+    "home.trips_preview.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TRIPS"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CHUYẾN ĐI"
+          }
+        }
+      }
+    },
     "HSL" : {
 
     },
@@ -3678,13 +3790,19 @@
     "Import New LUT…" : {
 
     },
+    "INSIDE THE BOOK" : {
+
+    },
+    "International" : {
+
+    },
+    "Japan" : {
+
+    },
     "Không thể cập nhật sự kiện" : {
 
     },
     "Không thể xoá Event" : {
-
-    },
-    "Kỷ niệm" : {
 
     },
     "Landscape" : {
@@ -3707,6 +3825,9 @@
 
     },
     "Last result: saved" : {
+
+    },
+    "Last weekend" : {
 
     },
     "Layout Gallery" : {
@@ -3736,6 +3857,9 @@
     "Localization" : {
 
     },
+    "LOVED MEMORIES" : {
+
+    },
     "LUT" : {
 
     },
@@ -3743,6 +3867,9 @@
 
     },
     "Manage Selected Photos" : {
+
+    },
+    "Memory Potential" : {
 
     },
     "memory_selection_edit.title" : {
@@ -3802,6 +3929,12 @@
     "Metrics (§ 60)" : {
 
     },
+    "Mỹ An · Đà Nẵng — Jul 2018 · 24 of 156 photos" : {
+
+    },
+    "Nearby" : {
+
+    },
     "New Album" : {
 
     },
@@ -3809,6 +3942,9 @@
 
     },
     "Next Sample" : {
+
+    },
+    "Những kỷ niệm" : {
 
     },
     "Nizi" : {
@@ -3849,36 +3985,36 @@
         }
       }
     },
-    "onboarding.hello.description" : {
+    "onboarding.hello.tagline" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nizi will survey your photo library to find trips, events, and groups of photos that could become an Album.\n\nAll processing happens on your device.\n\nYou always choose how much of your library to survey."
+            "value" : "Somewhere in your library, a memory is waiting to be found."
           }
         },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nizi sẽ khảo sát thư viện ảnh của bạn để tìm các chuyến đi, các sự kiện và những nhóm ảnh có thể trở thành một Album.\n\nToàn bộ dữ liệu được xử lý trên thiết bị của bạn.\n\nBạn luôn có quyền lựa chọn phạm vi khảo sát."
+            "value" : "Đâu đó trong thư viện của bạn, có một kỷ niệm đang chờ được tìm thấy."
           }
         }
       }
     },
-    "onboarding.hello.title" : {
+    "onboarding.permission.denied.message" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hello Nizi"
+            "value" : "Nizi needs access to your photos to find and organise your meaningful memories."
           }
         },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hello Nizi"
+            "value" : "Nizi cần quyền truy cập ảnh của bạn để tìm và sắp xếp những kỷ niệm đáng nhớ."
           }
         }
       }
@@ -3951,10 +4087,64 @@
         }
       }
     },
+    "onboarding.permission.softask.action.allow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow Photo Access"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cho phép truy cập ảnh"
+          }
+        }
+      }
+    },
+    "onboarding.permission.softask.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nizi looks through your library privately — indexing, sorting, discovering. Nothing is uploaded, nothing is shared."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nizi xem qua thư viện ảnh của bạn một cách riêng tư — lập chỉ mục, sắp xếp, khám phá. Không có gì được tải lên, không có gì được chia sẻ."
+          }
+        }
+      }
+    },
+    "onboarding.permission.softask.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This stays on your phone"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mọi thứ chỉ nằm trên máy bạn"
+          }
+        }
+      }
+    },
     "Open Editor" : {
 
     },
     "Open Settings" : {
+
+    },
+    "Order Photobook" : {
 
     },
     "Original" : {
@@ -3998,6 +4188,9 @@
 
     },
     "Photo Location Diagnostics" : {
+
+    },
+    "PHOTOBOOK" : {
 
     },
     "photoEditor.adjust.contrast" : {
@@ -5219,6 +5412,9 @@
     "Real Album Photo Diagnostics" : {
 
     },
+    "RECENT" : {
+
+    },
     "Refresh Stats" : {
 
     },
@@ -5294,6 +5490,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tiếp tục"
+          }
+        }
+      }
+    },
+    "scan.progress.action.skip_ahead" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop, show me now"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dừng lại, xem ngay"
           }
         }
       }
@@ -5599,6 +5812,9 @@
     "Status" : {
 
     },
+    "Summer in Da Nang" : {
+
+    },
     "Survey failed: %@" : {
 
     },
@@ -5609,6 +5825,9 @@
 
     },
     "This year" : {
+
+    },
+    "Tokyo · Kyoto · Osaka — 7 days" : {
 
     },
     "TOTAL" : {
@@ -5627,8 +5846,290 @@
     "Total photos" : {
 
     },
+    "Trang %lld" : {
+
+    },
     "Trip" : {
 
+    },
+    "trip.classification.day_trip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Day Trip"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trong ngày"
+          }
+        }
+      }
+    },
+    "trip.classification.domestic" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domestic"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trong nước"
+          }
+        }
+      }
+    },
+    "trip.classification.international" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "International"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nước ngoài"
+          }
+        }
+      }
+    },
+    "trip.classification.local" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nearby"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gần nhà"
+          }
+        }
+      }
+    },
+    "trip.classification.unknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trip"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chuyến đi"
+          }
+        }
+      }
+    },
+    "trip.count.events" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld event"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld events"
+                }
+              }
+            }
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld sự kiện"
+          }
+        }
+      }
+    },
+    "trip.count.photos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld photo"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld photos"
+                }
+              }
+            }
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ảnh"
+          }
+        }
+      }
+    },
+    "trip.detail.all_photos.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld photos · %2$@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld ảnh · %2$@"
+          }
+        }
+      }
+    },
+    "trip.detail.all_photos.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Photos"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tất cả ảnh"
+          }
+        }
+      }
+    },
+    "trips.list.empty.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trips you take will appear here once Nizi finds them."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Các chuyến đi sẽ xuất hiện ở đây khi Nizi tìm thấy."
+          }
+        }
+      }
+    },
+    "trips.list.empty.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No trips yet"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chưa có chuyến đi nào"
+          }
+        }
+      }
+    },
+    "trips.list.error.load_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load your trips."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không thể tải danh sách chuyến đi."
+          }
+        }
+      }
+    },
+    "trips.list.filter.all" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tất cả"
+          }
+        }
+      }
+    },
+    "trips.list.filter.label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter trips"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lọc chuyến đi"
+          }
+        }
+      }
+    },
+    "trips.list.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trips"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chuyến đi"
+          }
+        }
+      }
     },
     "Tuning" : {
 
@@ -5637,6 +6138,9 @@
 
     },
     "User overrides" : {
+
+    },
+    "View" : {
 
     },
     "Weekend" : {
@@ -5668,6 +6172,12 @@
 
     },
     "Yêu thích sự kiện" : {
+
+    },
+    "You still have %lld photos left to survey — don't miss out." : {
+
+    },
+    "Your latest memory" : {
 
     },
     "Your memories, beautifully collected." : {

@@ -77,7 +77,6 @@ final class FirstExperienceCoordinator {
         onScanPreview: @escaping (ScanPreviewState) -> Void = { _ in },
         onHomeCandidatesReady: @escaping ([HomeCandidate]) -> Void = { _ in }
     ) async -> MemoryCandidate? {
-        let startedAt = Date()
         NiziLogger.discovery.info("first_experience_started")
 
         let store = SwiftDataMemoryDiscoveryStore(modelContainer: modelContainer)
@@ -127,6 +126,25 @@ final class FirstExperienceCoordinator {
             }
             NiziLogger.discovery.info("photo_scan_completed")
 
+            return await discoverScoreAndBuild(onStateChange: onStateChange)
+        } catch {
+            NiziLogger.discovery.error("first_experience_failed error=\(String(describing: error), privacy: .public)")
+            onStateChange(.failed(error.localizedDescription))
+            return nil
+        }
+    }
+
+    /// Runs Discover→Score→Curate→Build on whatever is CURRENTLY in the Local Memory Index — no
+    /// assumption the scan is complete. Used by `run()` above (after a completed scan) and by
+    /// `BackgroundScanCoordinator.skipAheadToResults` (deliberately on a still-partial index —
+    /// Discover/Score/Curate have no dependency on scan completeness; they only read whatever
+    /// `assetRepository.fetchClusterableAssets()` currently returns).
+    @discardableResult
+    func discoverScoreAndBuild(onStateChange: @escaping (FirstExperienceState) -> Void) async -> MemoryCandidate? {
+        let startedAt = Date()
+        let store = SwiftDataMemoryDiscoveryStore(modelContainer: modelContainer)
+
+        do {
             // MARK: Discover
             onStateChange(.discovering)
             let discoverUseCase = DiscoverEventsUseCase(

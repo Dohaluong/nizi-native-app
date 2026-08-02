@@ -24,12 +24,17 @@ enum LocationIntelligenceEngine {
         let familiarPlaces: [FamiliarPlace]
     }
 
-    static func analyze(from assets: [IndexedAsset], config: EventDiscoveryConfig = .default) -> Result {
+    /// `skipHomeDetection` (SPRINT-NEXT § 3-4): when the caller already has a user-confirmed
+    /// `HomeAnchor`, there's no point computing a fresh guess only to discard it — set by
+    /// `EventDiscoveryEngine.discover` whenever `preferredHome?.source == .userConfirmed`.
+    static func analyze(
+        from assets: [IndexedAsset], config: EventDiscoveryConfig = .default, skipHomeDetection: Bool = false
+    ) -> Result {
         let located = assets.filter { $0.latitude != nil && $0.longitude != nil }
         guard !located.isEmpty else { return Result(clusters: [], home: nil, familiarPlaces: []) }
 
         let clusters = buildClusters(from: located, config: config)
-        let home = detectHome(clusters: clusters, config: config)
+        let home = skipHomeDetection ? nil : detectHome(clusters: clusters, config: config)
         let familiarPlaces = detectFamiliarPlaces(clusters: clusters, excluding: home?.clusterID, config: config)
 
         return Result(clusters: clusters, home: home, familiarPlaces: familiarPlaces)

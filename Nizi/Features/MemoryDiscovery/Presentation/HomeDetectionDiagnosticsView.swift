@@ -25,9 +25,16 @@ struct HomeDetectionDiagnosticsView: View {
     @State private var rows: [CandidateRow] = []
     @State private var isRunning = false
     @State private var errorMessage: String?
+    @State private var resolvedHomeSource: HomeAnchorSource?
 
     var body: some View {
         List {
+            DiagnosticsBanner(
+                title: "Resolved Home",
+                subtitle: "Source: \(resolvedHomeSourceLabel)",
+                tone: .production
+            )
+
             if let errorMessage {
                 Text(errorMessage)
                     .font(.footnote)
@@ -81,11 +88,20 @@ struct HomeDetectionDiagnosticsView: View {
         .task { await run() }
     }
 
+    private var resolvedHomeSourceLabel: String {
+        switch resolvedHomeSource {
+        case .userConfirmed: "User Confirmed"
+        case .inferred: "Inferred"
+        case nil: "No Home yet"
+        }
+    }
+
     private func run() async {
         isRunning = true
         errorMessage = nil
         do {
             let store = SwiftDataMemoryDiscoveryStore(modelContainer: modelContext.container)
+            resolvedHomeSource = try await store.fetchHome()?.source
             let assets = try await store.fetchClusterableAssets()
             let config = EventDiscoveryConfig.default
             let result = LocationIntelligenceEngine.analyze(from: assets, config: config)

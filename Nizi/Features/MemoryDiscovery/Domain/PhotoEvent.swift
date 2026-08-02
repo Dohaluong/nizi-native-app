@@ -34,6 +34,16 @@ struct PhotoEvent: Identifiable, Equatable {
     let algorithmVersion: Int
     let createdAt: Date
     var updatedAt: Date
+    /// Set once by `FastEventQualityService` right after Event Discovery — a distinct concern
+    /// from `score` above (which drives discovery confidence/sort order). See
+    /// docs/sprint/SPRINT-FAST-EVENT-QUALITY.md § 2.
+    var eventQualityScore: Double = 0
+    var eventVisibility: EventVisibility = .normal
+    /// Set once by `MemoryPotentialEvaluator` right after Trip classification — Nizi's own
+    /// judgment that this Event is special enough to proactively surface as a "Kỷ niệm" on Home,
+    /// independent of `isLoved`. See docs/sprint/SPRINT-NEXT.md § 10-14.
+    var isAutoMemory: Bool = false
+    var autoMemoryScore: Double = 0
 
     var assetCount: Int { assetIDs.count }
     var sessionCount: Int { sessionIDs.count }

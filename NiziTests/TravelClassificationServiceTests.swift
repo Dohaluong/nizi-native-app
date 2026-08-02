@@ -40,7 +40,9 @@ private actor MockPhotoPlaceCache: PhotoPlaceCaching {
 struct TravelClassificationServiceTests {
     private static let reference = ISO8601DateFormatter().date(from: "2024-06-08T08:00:00Z")!
 
-    private func makeTrip(overnightCount: Int, primaryLatitude: Double?, primaryLongitude: Double?) -> PhotoTrip {
+    private func makeTrip(
+        overnightCount: Int, primaryLatitude: Double?, primaryLongitude: Double?, eligibilityReasons: [String] = []
+    ) -> PhotoTrip {
         PhotoTrip(
             id: UUID(), startDate: Self.reference,
             endDate: Self.reference.addingTimeInterval(86400 * Double(max(overnightCount, 1))),
@@ -48,13 +50,16 @@ struct TravelClassificationServiceTests {
             primaryCountryCode: nil, primaryPlaceName: nil, classification: .unknown, confidence: 0.8,
             travelContext: TravelContext(
                 homeCountryCode: nil, maxDistanceFromHomeKm: 500, overnightCount: overnightCount,
-                countryCodes: [], hasDepartureFromHome: true, hasReturnToHome: true
+                countryCodes: [], hasDepartureFromHome: true, hasReturnToHome: true,
+                eligibilityReasons: eligibilityReasons
             )
         )
     }
 
-    /// SPEC § 29 — a Day Trip never needs geocoding at all.
-    @Test func zeroOvernightsClassifiesAsDayTripWithoutGeocoding() async {
+    /// A Day Trip whose geocode attempt fails still classifies as `.dayTrip` (not `.unknown`) —
+    /// classification falls back to the same label it would've had if geocoding were never
+    /// attempted at all.
+    @Test func zeroOvernightsWithFailedGeocodeStillClassifiesAsDayTrip() async {
         let service = TravelClassificationService(placeResolver: AlwaysThrowsResolver(), placeCache: MockPhotoPlaceCache())
         let home = HomeAnchor(clusterID: UUID(), centerLatitude: 21.0285, centerLongitude: 105.8542, homeScore: 0.9, confidence: .high)
         let trip = makeTrip(overnightCount: 0, primaryLatitude: 16.0544, primaryLongitude: 108.2022)
@@ -62,6 +67,23 @@ struct TravelClassificationServiceTests {
         let classified = await service.classify(trips: [trip], home: home)
 
         #expect(classified.first?.classification == .dayTrip)
+        #expect(classified.first?.primaryPlaceName == nil)
+    }
+
+    /// SPRINT-NEXT "always geocode" fix — a Day Trip that resolves a real place gets a real
+    /// `primaryPlaceName` while remaining classified `.dayTrip` (place name and trip-type
+    /// classification are decided independently; a day trip near home shouldn't stay nameless
+    /// just because Trip Eligibility didn't require an overnight stay).
+    @Test func zeroOvernightsWithSuccessfulGeocodeGetsRealPlaceNameButStaysDayTrip() async {
+        let resolver = MockPhotoPlaceResolving { _ in makePlace(countryCode: "VN", displayName: "Hội An") }
+        let service = TravelClassificationService(placeResolver: resolver, placeCache: MockPhotoPlaceCache())
+        let home = HomeAnchor(clusterID: UUID(), centerLatitude: 21.0285, centerLongitude: 105.8542, homeScore: 0.9, confidence: .high)
+        let trip = makeTrip(overnightCount: 0, primaryLatitude: 15.8801, primaryLongitude: 108.3380)
+
+        let classified = await service.classify(trips: [trip], home: home)
+
+        #expect(classified.first?.classification == .dayTrip)
+        #expect(classified.first?.primaryPlaceName == "Hội An")
     }
 
     @Test func sameCountryAsHomeClassifiesAsDomestic() async {
@@ -89,6 +111,25 @@ struct TravelClassificationServiceTests {
 
         #expect(classified.first?.classification == .internationalTrip)
         #expect(classified.first?.primaryCountryCode == "JP")
+    }
+
+    /// SPRINT-NEXT § 7 — a same-day trip that Trip Eligibility already flagged as a plausible
+    /// international candidate must still be geocoded, not short-circuited to `.dayTrip` just
+    /// because `overnightCount == 0`.
+    @Test func provisionalInternationalCandidateGetsGeocodedEvenWithZeroOvernights() async {
+        let resolver = MockPhotoPlaceResolving { coordinate in
+            coordinate.latitude > 30 ? makePlace(countryCode: "JP", displayName: "Tokyo") : makePlace(countryCode: "VN", displayName: "Hanoi")
+        }
+        let service = TravelClassificationService(placeResolver: resolver, placeCache: MockPhotoPlaceCache())
+        let home = HomeAnchor(clusterID: UUID(), centerLatitude: 21.0285, centerLongitude: 105.8542, homeScore: 0.9, confidence: .high)
+        let trip = makeTrip(
+            overnightCount: 0, primaryLatitude: 35.6762, primaryLongitude: 139.6503,
+            eligibilityReasons: [TripEligibilityReason.internationalCandidate.rawValue]
+        )
+
+        let classified = await service.classify(trips: [trip], home: home)
+
+        #expect(classified.first?.classification == .internationalTrip)
     }
 
     @Test func geocodingFailureClassifiesAsUnknownWithoutCrashing() async {

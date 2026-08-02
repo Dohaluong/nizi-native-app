@@ -28,6 +28,7 @@ enum EventDiscoveryEngine {
         config: EventDiscoveryConfig = .default,
         boundaryEvaluator: EventBoundaryEvaluating? = nil,
         tripDetector: TripDetecting = DefaultTripDiscoveryEngine(),
+        preferredHome: HomeAnchor? = nil,
         now: Date = Date()
     ) -> Result {
         let evaluator = boundaryEvaluator ?? DefaultEventBoundaryEvaluator(config: config)
@@ -39,13 +40,22 @@ enum EventDiscoveryEngine {
 
         let assetsByID = Dictionary(uniqueKeysWithValues: sorted.map { ($0.id, $0) })
 
-        let locationIntelligence = LocationIntelligenceEngine.analyze(from: sorted, config: config)
+        // Unify Home Source (SPRINT-NEXT § 1-4): a user-confirmed Home always wins and skips
+        // recomputation entirely; otherwise a freshly-inferred Home wins, falling back to a
+        // stale persisted-inferred one only if this pass finds nothing at all (e.g. a degraded
+        // rescan) — see `preferredHome`'s doc at the call site in `DiscoverEventsUseCase`.
+        let locationIntelligence = LocationIntelligenceEngine.analyze(
+            from: sorted, config: config, skipHomeDetection: preferredHome?.source == .userConfirmed
+        )
+        let resolvedHome: HomeAnchor? = (preferredHome?.source == .userConfirmed)
+            ? preferredHome
+            : (locationIntelligence.home ?? preferredHome)
 
         let temporalGroups = segmentByTime(sorted, config: config)
         let sessions = temporalGroups.map(buildSession)
         let sessionGroups = groupSessionsForMerging(
             sessions, config: config, evaluator: evaluator,
-            home: locationIntelligence.home, familiarPlaces: locationIntelligence.familiarPlaces
+            home: resolvedHome, familiarPlaces: locationIntelligence.familiarPlaces
         )
 
         let events = sessionGroups.compactMap { group -> PhotoEvent? in
@@ -54,13 +64,24 @@ enum EventDiscoveryEngine {
         }
 
         let trips = tripDetector.detectTrips(
-            events: events, sessions: sessions, home: locationIntelligence.home, config: config
+            events: events, sessions: sessions, home: resolvedHome,
+            familiarPlaces: locationIntelligence.familiarPlaces, config: config
         )
 
+        // Fast Event Quality (SPRINT-FAST-EVENT-QUALITY) — folded into this same pure pass,
+        // right after Trip Discovery, so it can use trip membership/`overnightCount` for free
+        // without waiting on trip country classification (which needs reverse-geocoding and
+        // therefore cannot live here — see `FastEventQualityService`'s own doc comment).
+        let qualityScoredEvents = FastEventQualityService.classify(
+            events: events, assetsByID: assetsByID, trips: trips,
+            home: resolvedHome, familiarPlaces: locationIntelligence.familiarPlaces,
+            config: config
+        ).map(\.event)
+
         return Result(
-            sessions: sessions, events: events,
+            sessions: sessions, events: qualityScoredEvents,
             locationClusters: locationIntelligence.clusters,
-            home: locationIntelligence.home,
+            home: resolvedHome,
             familiarPlaces: locationIntelligence.familiarPlaces,
             trips: trips
         )

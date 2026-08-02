@@ -13,6 +13,7 @@ protocol TripDetecting {
         events: [PhotoEvent],
         sessions: [PhotoSession],
         home: HomeAnchor?,
+        familiarPlaces: [FamiliarPlace],
         config: EventDiscoveryConfig
     ) -> [PhotoTrip]
 }
@@ -24,12 +25,21 @@ protocol TripDetecting {
 ///
 /// Pure and synchronous — country/place resolution (needs reverse-geocoding) happens afterward,
 /// at the Application layer, via `TravelClassificationService`. `classification` here is always
-/// `.unknown` until that pass runs.
+/// `.unknown` until that pass runs. Trip Eligibility (SPRINT-NEXT § 5-9) gates every candidate
+/// group before it becomes a real `PhotoTrip` — a maximal away-run is necessary but no longer
+/// sufficient on its own.
 struct DefaultTripDiscoveryEngine: TripDetecting {
+    let eligibilityEvaluator: TripEligibilityEvaluating
+
+    init(eligibilityEvaluator: TripEligibilityEvaluating = DefaultTripEligibilityEvaluator()) {
+        self.eligibilityEvaluator = eligibilityEvaluator
+    }
+
     func detectTrips(
         events: [PhotoEvent],
         sessions: [PhotoSession],
         home: HomeAnchor?,
+        familiarPlaces: [FamiliarPlace],
         config: EventDiscoveryConfig
     ) -> [PhotoTrip] {
         // Can't tell "away" from "home" without a Home anchor — no trips, engine keeps working.
@@ -42,7 +52,7 @@ struct DefaultTripDiscoveryEngine: TripDetecting {
             let coordinate = representativeCoordinate(for: event, sessionsByID: sessionsByID)
             let context = LocationContextResolver.resolve(
                 latitude: coordinate?.latitude, longitude: coordinate?.longitude,
-                home: home, familiarPlaces: [], config: config
+                home: home, familiarPlaces: familiarPlaces, config: config
             )
             return AnnotatedEvent(event: event, coordinate: coordinate, context: context)
         }
@@ -54,10 +64,10 @@ struct DefaultTripDiscoveryEngine: TripDetecting {
         for (index, annotatedEvent) in annotated.enumerated() {
             guard annotatedEvent.context == .away else {
                 if !currentGroup.isEmpty {
-                    trips.append(buildTrip(
-                        from: currentGroup, home: home,
-                        precededByHome: groupPrecededByHome, followedByHome: annotatedEvent.context == .home
-                    ))
+                    appendTripIfEligible(
+                        currentGroup, home: home, precededByHome: groupPrecededByHome,
+                        followedByHome: annotatedEvent.context == .home, config: config, into: &trips
+                    )
                     currentGroup = []
                 }
                 groupPrecededByHome = false
@@ -69,7 +79,10 @@ struct DefaultTripDiscoveryEngine: TripDetecting {
             } else if let previousEvent = currentGroup.last?.event {
                 let gapHours = annotatedEvent.event.startDate.timeIntervalSince(previousEvent.endDate) / 3600
                 if gapHours > config.minimumTripTerminationGapHours {
-                    trips.append(buildTrip(from: currentGroup, home: home, precededByHome: groupPrecededByHome, followedByHome: false))
+                    appendTripIfEligible(
+                        currentGroup, home: home, precededByHome: groupPrecededByHome,
+                        followedByHome: false, config: config, into: &trips
+                    )
                     currentGroup = []
                     groupPrecededByHome = false
                 }
@@ -78,10 +91,31 @@ struct DefaultTripDiscoveryEngine: TripDetecting {
         }
 
         if !currentGroup.isEmpty {
-            trips.append(buildTrip(from: currentGroup, home: home, precededByHome: groupPrecededByHome, followedByHome: false))
+            appendTripIfEligible(
+                currentGroup, home: home, precededByHome: groupPrecededByHome,
+                followedByHome: false, config: config, into: &trips
+            )
         }
 
         return trips
+    }
+
+    private func appendTripIfEligible(
+        _ group: [AnnotatedEvent], home: HomeAnchor, precededByHome: Bool, followedByHome: Bool,
+        config: EventDiscoveryConfig, into trips: inout [PhotoTrip]
+    ) {
+        var trip = buildTrip(from: group, home: home, precededByHome: precededByHome, followedByHome: followedByHome)
+        let candidate = TripCandidate(
+            events: group.map(\.event),
+            overnightCount: trip.travelContext.overnightCount,
+            maxDistanceFromHomeKm: trip.travelContext.maxDistanceFromHomeKm,
+            totalSessionCount: group.reduce(0) { $0 + $1.event.sessionCount },
+            durationHours: trip.endDate.timeIntervalSince(trip.startDate) / 3600
+        )
+        let decision = eligibilityEvaluator.evaluate(candidate: candidate, config: config)
+        guard decision.isEligible else { return }
+        trip.travelContext.eligibilityReasons = decision.reasons
+        trips.append(trip)
     }
 
     private struct AnnotatedEvent {

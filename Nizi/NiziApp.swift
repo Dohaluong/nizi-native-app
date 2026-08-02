@@ -14,6 +14,10 @@ struct NiziApp: App {
     @AppStorage(DebugLocaleOverride.storageKey) private var localeOverrideRawValue: String = DebugLocaleOverride.system.rawValue
     #endif
 
+    init() {
+        NewsreaderFontRegistrar.registerBundledFonts()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

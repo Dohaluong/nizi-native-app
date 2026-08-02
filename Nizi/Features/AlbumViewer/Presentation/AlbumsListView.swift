@@ -20,6 +20,9 @@ struct AlbumsListView: View {
     /// Drives the large-title collapse below — the vertical content offset of the `ScrollView`
     /// itself (`0` at rest, growing as the user scrolls up through the Albums).
     @State private var scrollOffset: CGFloat = 0
+    /// Home/Events/Trips/Photobook/Diagnostics act like tabs — see `HomeView.selectTab`'s doc
+    /// comment. Threaded down so this screen's own bottom bar jumps directly to another tab.
+    var onSelectTab: (NiziBottomTabBar.Tab) -> Void = { _ in }
 
     /// `0` at rest (title fully large, on the trailing edge) to `1` once scrolled past
     /// `collapseDistance` (title fully shrunk into the toolbar, level with the back button).
@@ -65,6 +68,7 @@ struct AlbumsListView: View {
         // renders a *left*-aligned title with no alignment option of its own.
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Text("album.list.title")
@@ -78,6 +82,16 @@ struct AlbumsListView: View {
             scrollOffset = newValue
         }
         .environment(\.albumPhotoProvider, ApplePhotosAlbumPhotoProvider())
+        .safeAreaInset(edge: .bottom) {
+            NiziBottomTabBar(
+                selected: .photobooks,
+                onHome: { onSelectTab(.home) },
+                onEvents: { onSelectTab(.events) },
+                onTrips: { onSelectTab(.trips) },
+                onPhotobooks: {},
+                onDiagnostics: { onSelectTab(.diagnostics) }
+            )
+        }
         .task { await loadAlbums() }
     }
 

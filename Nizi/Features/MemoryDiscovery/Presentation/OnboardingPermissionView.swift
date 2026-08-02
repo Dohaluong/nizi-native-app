@@ -7,15 +7,18 @@
 
 import SwiftUI
 
-/// Requests Photos access right after scope confirmation (never on first app launch) and
-/// shows the result — see docs/sprint/SPRINT-005-UI.md § 5.
+/// Shows a soft-ask screen before the real system permission dialog fires — matching design
+/// concept "2a"'s Permission frame in docs/design-system/Nizi Home Concepts.dc.html § t2. Only
+/// the soft-ask button's own tap calls `requestAccess()` (the real dialog trigger); on appear we
+/// only ever read `currentStatus()`, so returning users who already granted access never see this
+/// screen re-fire the system prompt. See docs/sprint/SPRINT-005-UI.md § 5.
 struct OnboardingPermissionView: View {
     private let authorizationService: PhotoLibraryAuthorizationService
     let onGranted: () -> Void
     let onDeferred: () -> Void
 
     @State private var status: PhotoAccessStatus = .notDetermined
-    @State private var isRequesting = true
+    @State private var isChecking = true
 
     init(
         authorizationService: PhotoLibraryAuthorizationService = PhotoKitAuthorizationService(),
@@ -28,25 +31,39 @@ struct OnboardingPermissionView: View {
     }
 
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            content
-            Spacer()
+        ZStack {
+            OnboardingSolidBackground()
+
+            VStack(spacing: 24) {
+                Spacer()
+                content
+                Spacer()
+            }
+            .padding(32)
         }
-        .padding(32)
-        .task { await refreshStatus(requestIfNotDetermined: true) }
+        .toolbar(.hidden, for: .navigationBar)
+        .task {
+            isChecking = true
+            let current = await authorizationService.currentStatus()
+            status = current
+            isChecking = false
+            if current == .full {
+                onGranted()
+            }
+        }
     }
 
     @ViewBuilder
     private var content: some View {
-        if isRequesting {
-            ProgressView()
+        if isChecking {
+            ProgressView().tint(OnboardingTheme.cream)
         } else {
             switch status {
-            case .full, .notDetermined:
-                // Full auto-advances via onGranted; notDetermined is transient while the
-                // system prompt is up. Either way there's nothing for the user to tap here.
-                ProgressView()
+            case .full:
+                // Auto-advances via onGranted above; nothing to show here.
+                ProgressView().tint(OnboardingTheme.cream)
+            case .notDetermined:
+                softAskContent
             case .limited:
                 limitedContent
             case .denied, .restricted:
@@ -55,21 +72,56 @@ struct OnboardingPermissionView: View {
         }
     }
 
+    private var softAskContent: some View {
+        VStack(spacing: 20) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(OnboardingTheme.accent.opacity(0.15))
+                    .frame(width: 60, height: 60)
+                Image(systemName: "photo.badge.checkmark")
+                    .font(.system(size: 26, weight: .medium))
+                    .foregroundStyle(OnboardingTheme.accent)
+            }
+
+            Text("onboarding.permission.softask.title")
+                .font(.onboardingSerif(size: 28, weight: .medium))
+                .foregroundStyle(OnboardingTheme.cream)
+                .multilineTextAlignment(.center)
+
+            Text("onboarding.permission.softask.message")
+                .font(.system(size: 15))
+                .foregroundStyle(OnboardingTheme.cream.opacity(0.7))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 16)
+
+            OnboardingPillButton(titleKey: "onboarding.permission.softask.action.allow") {
+                Task { await requestAndAdvance() }
+            }
+            .padding(.top, 8)
+
+            OnboardingTextLink(titleKey: "common.action.later", action: onDeferred)
+        }
+    }
+
     private var limitedContent: some View {
         VStack(spacing: 16) {
             Text("onboarding.permission.limited.title")
-                .font(.title3.bold())
+                .font(.onboardingSerif(size: 24, weight: .medium))
+                .foregroundStyle(OnboardingTheme.cream)
                 .multilineTextAlignment(.center)
             Text("onboarding.permission.limited.message")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 15))
+                .foregroundStyle(OnboardingTheme.cream.opacity(0.7))
                 .multilineTextAlignment(.center)
-            Button("common.action.continue", action: onGranted)
-                .buttonStyle(.borderedProminent)
-            Button("onboarding.permission.limited.action.choose_more") {
+
+            OnboardingPillButton(titleKey: "common.action.continue", action: onGranted)
+                .padding(.top, 8)
+
+            OnboardingTextLink(titleKey: "onboarding.permission.limited.action.choose_more") {
                 Task {
                     await authorizationService.presentLimitedLibraryPicker()
-                    await refreshStatus(requestIfNotDetermined: false)
+                    status = await authorizationService.currentStatus()
                 }
             }
         }
@@ -78,25 +130,32 @@ struct OnboardingPermissionView: View {
     private var deniedContent: some View {
         VStack(spacing: 16) {
             Text("onboarding.permission.denied.title")
-                .font(.title3.bold())
+                .font(.onboardingSerif(size: 24, weight: .medium))
+                .foregroundStyle(OnboardingTheme.cream)
                 .multilineTextAlignment(.center)
-            Button("common.action.open_settings") {
+
+            Text("onboarding.permission.denied.message")
+                .font(.system(size: 15))
+                .foregroundStyle(OnboardingTheme.cream.opacity(0.7))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 16)
+
+            OnboardingPillButton(titleKey: "common.action.open_settings") {
                 guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
                 UIApplication.shared.open(url)
             }
-            .buttonStyle(.borderedProminent)
-            Button("common.action.later", action: onDeferred)
+            .padding(.top, 8)
+
+            OnboardingTextLink(titleKey: "common.action.later", action: onDeferred)
         }
     }
 
-    private func refreshStatus(requestIfNotDetermined: Bool) async {
-        isRequesting = true
-        let current = await authorizationService.currentStatus()
-        let resolved = (requestIfNotDetermined && current == .notDetermined)
-            ? await authorizationService.requestAccess()
-            : current
+    private func requestAndAdvance() async {
+        isChecking = true
+        let resolved = await authorizationService.requestAccess()
         status = resolved
-        isRequesting = false
+        isChecking = false
         if resolved == .full {
             onGranted()
         }

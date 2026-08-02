@@ -43,6 +43,14 @@ final class MDEventCandidate {
     var algorithmVersion: Int
     var createdAt: Date
     var updatedAt: Date
+    /// Additive fields for SPRINT-FAST-EVENT-QUALITY — defaulted for lightweight migration, same
+    /// convention as `MDHomeAnchor.source`/`MDEventCurationResult.sourceAssetFingerprint`.
+    var qualityScore: Double = 0
+    var visibility: String = EventVisibility.normal.rawValue
+    /// Additive fields for SPRINT-NEXT (Memory Potential) — defaulted for lightweight migration,
+    /// same convention as `qualityScore`/`visibility` above.
+    var isAutoMemory: Bool = false
+    var autoMemoryScore: Double = 0
 
     init(event: PhotoEvent) {
         candidateID = event.id
@@ -73,6 +81,10 @@ final class MDEventCandidate {
         algorithmVersion = event.algorithmVersion
         createdAt = event.createdAt
         updatedAt = event.updatedAt
+        qualityScore = event.eventQualityScore
+        visibility = event.eventVisibility.rawValue
+        isAutoMemory = event.isAutoMemory
+        autoMemoryScore = event.autoMemoryScore
     }
 }
 
@@ -111,7 +123,11 @@ extension PhotoEvent {
             discoveryReasons: reasons,
             algorithmVersion: model.algorithmVersion,
             createdAt: model.createdAt,
-            updatedAt: model.updatedAt
+            updatedAt: model.updatedAt,
+            eventQualityScore: model.qualityScore,
+            eventVisibility: EventVisibility(rawValue: model.visibility) ?? .normal,
+            isAutoMemory: model.isAutoMemory,
+            autoMemoryScore: model.autoMemoryScore
         )
     }
 }

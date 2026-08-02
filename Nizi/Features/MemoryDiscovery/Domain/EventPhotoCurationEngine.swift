@@ -73,6 +73,13 @@ enum EventPhotoCurationEngine {
         /// moments more than intended.
         var momentAutoSelectRatio: Double = 0.5
 
+        /// Hard ceiling per moment (SPRINT-NEXT § 22-23), applied alongside `momentAutoSelectRatio`
+        /// via `min(...)` — the ratio alone still scales unboundedly with moment size (a 33-photo
+        /// moment → ratio cap ~17), which was the actual cause of a real ~500-photo Event landing
+        /// at ~400 selected instead of a few dozen. `userAdded` items stay exempt, same as the
+        /// ratio cap above — `applyPreservedUserOverrides` restores them unconditionally afterward.
+        var maxAutoSelectedPerMoment: Int = 2
+
         /// Off by default: there is no required final photo count for an Event — auto-selection
         /// is whatever survives the Quality Gate, near-duplicate clustering, Global Duplicate
         /// Suppression, and the per-moment cap above, however many or few that is. When `true`,
@@ -388,7 +395,7 @@ enum EventPhotoCurationEngine {
         // clusters contributed a winner above — see `Configuration.momentAutoSelectRatio`. Ranked
         // with the same Favorite-aware comparator duplicate resolution uses, so "N best" means the
         // same thing here as it does when resolving a duplicate cluster.
-        let momentCap = max(1, Int((Double(photos.count) * config.momentAutoSelectRatio).rounded()))
+        let momentCap = min(config.maxAutoSelectedPerMoment, max(1, Int((Double(photos.count) * config.momentAutoSelectRatio).rounded())))
         if selectedIDs.count > momentCap {
             let selectedPhotos = photos.filter { selectedIDs.contains($0.assetID) }
             let kept = Set(topCandidates(selectedPhotos, limit: momentCap, config: config).map(\.assetID))

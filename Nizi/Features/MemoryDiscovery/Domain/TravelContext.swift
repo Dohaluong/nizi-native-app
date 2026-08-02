@@ -18,4 +18,8 @@ struct TravelContext: Equatable {
     var countryCodes: Set<String>
     var hasDepartureFromHome: Bool
     var hasReturnToHome: Bool
+    /// Which `TripEligibilityEvaluating` gate(s) this Trip cleared (SPRINT-NEXT § 5-9) — raw
+    /// values of `TripEligibilityReason`. Diagnostics-only; never empty for a Trip that exists,
+    /// since `DefaultTripDiscoveryEngine` only ever creates one when at least one reason fires.
+    var eligibilityReasons: [String] = []
 }
