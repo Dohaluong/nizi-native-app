@@ -4,9 +4,6 @@
     "" : {
 
     },
-    "· $34" : {
-
-    },
     "[%@] %@: %@" : {
       "localizations" : {
         "en" : {
@@ -2229,6 +2226,32 @@
     "Curation Diagnostics" : {
 
     },
+    "Đã huỷ xuất PDF." : {
+
+    },
+    "Đang hoàn thiện PDF" : {
+
+    },
+    "Đang tải ảnh từ iCloud cho trang %lld/%lld…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Đang tải ảnh từ iCloud cho trang %1$lld/%2$lld…"
+          }
+        }
+      }
+    },
+    "Đang tạo trang %lld/%lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Đang tạo trang %1$lld/%2$lld"
+          }
+        }
+      }
+    },
     "Day Event" : {
 
     },
@@ -2435,6 +2458,9 @@
 
     },
     "Done" : {
+
+    },
+    "Đóng" : {
 
     },
     "Draft Planner" : {
@@ -3784,6 +3810,9 @@
     "HSL" : {
 
     },
+    "Huỷ" : {
+
+    },
     "Import JSON" : {
 
     },
@@ -3800,6 +3829,12 @@
 
     },
     "Không thể cập nhật sự kiện" : {
+
+    },
+    "Không thể tạo file PDF." : {
+
+    },
+    "Không thể tạo Photobook" : {
 
     },
     "Không thể xoá Event" : {
@@ -4144,9 +4179,6 @@
     "Open Settings" : {
 
     },
-    "Order Photobook" : {
-
-    },
     "Original" : {
 
     },
@@ -4192,6 +4224,213 @@
     },
     "PHOTOBOOK" : {
 
+    },
+    "Photobook chưa được tạo. Vui lòng thử lại." : {
+
+    },
+    "photobook.export.action.download_pdf" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download PDF"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tải PDF"
+          }
+        }
+      }
+    },
+    "photobook.export.action.share" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chia sẻ"
+          }
+        }
+      }
+    },
+    "photobook.export.cancelled.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export cancelled"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã huỷ xuất PDF"
+          }
+        }
+      }
+    },
+    "photobook.export.completed.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PDF ready"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PDF đã sẵn sàng"
+          }
+        }
+      }
+    },
+    "photobook.export.error.cancelled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export cancelled."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã huỷ xuất PDF."
+          }
+        }
+      }
+    },
+    "photobook.export.error.layout_missing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Page %lld: this page's layout couldn't be found."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trang %lld: không tìm thấy bố cục trang."
+          }
+        }
+      }
+    },
+    "photobook.export.error.photo_unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Page %lld: a photo hasn't finished downloading from iCloud. Check your connection and try again."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trang %lld: một ảnh chưa tải xong từ iCloud. Kiểm tra kết nối mạng rồi thử lại."
+          }
+        }
+      }
+    },
+    "photobook.export.error.write_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't create the PDF file."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không thể tạo file PDF."
+          }
+        }
+      }
+    },
+    "photobook.export.progress.cancelling" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelling…"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang huỷ…"
+          }
+        }
+      }
+    },
+    "photobook.export.progress.finalizing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finalizing PDF…"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang hoàn thiện PDF"
+          }
+        }
+      }
+    },
+    "photobook.export.progress.page" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rendering page %lld of %lld"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang tạo trang %lld/%lld"
+          }
+        }
+      }
+    },
+    "photobook.export.progress.preparing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing…"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang chuẩn bị…"
+          }
+        }
+      }
     },
     "photoEditor.adjust.contrast" : {
       "extractionState" : "manual",
@@ -5378,6 +5617,9 @@
     "Portrait" : {
 
     },
+    "Preparing…" : {
+
+    },
     "Preset" : {
 
     },
@@ -5821,10 +6063,16 @@
     "Tab" : {
 
     },
+    "Tạo Photobook" : {
+
+    },
     "Tháng %lld" : {
 
     },
     "This year" : {
+
+    },
+    "Thử lại" : {
 
     },
     "Tokyo · Kyoto · Osaka — 7 days" : {
@@ -5847,6 +6095,12 @@
 
     },
     "Trang %lld" : {
+
+    },
+    "Trang %lld: không tìm thấy bố cục trang." : {
+
+    },
+    "Trang %lld: một ảnh chưa tải xong từ iCloud. Kiểm tra kết nối mạng rồi thử lại." : {
 
     },
     "Trip" : {
@@ -6132,6 +6386,9 @@
       }
     },
     "Tuning" : {
+
+    },
+    "Tuỳ chọn chuyến đi" : {
 
     },
     "Usable photos" : {

@@ -8,6 +8,13 @@
 import SwiftUI
 import SwiftData
 
+private enum TripAlbumCreationState: Equatable {
+    case idle
+    case planning
+    case success
+    case failure
+}
+
 /// Trip Detail — a full-bleed Hero (cover photo + trip info overlay, not present in the design
 /// mock but explicitly requested) above a two-column waterfall gallery adapted from design
 /// concept "5a" in docs/design-system/Nizi Home Concepts.dc.html § t5. Gallery layout is scoped
@@ -23,6 +30,9 @@ struct TripDetailView: View {
     @State private var photoAssetIDs: [String] = []
     @State private var photoCreationDates: [String: Date] = [:]
     @State private var previewPresentation: TripPreviewPresentation?
+    @State private var albumCreationState: TripAlbumCreationState = .idle
+    @State private var createdAlbumDraft: AlbumDraft?
+    @State private var showsAlbumCreationFailure = false
     /// Seeded from whatever's already persisted; lazily re-resolved on open by
     /// `enrichPlaceIfNeeded()` when still missing — same "resolve when the user actually looks at
     /// it" idea `EventPlaceEnrichmentService` already uses for Events, reused directly here rather
@@ -93,6 +103,24 @@ struct TripDetailView: View {
                 }
             )
         }
+        .fullScreenCover(item: $createdAlbumDraft) { draft in
+            NavigationStack {
+                AlbumDetailView(draft: draft) { updated in
+                    await saveUpdatedAlbumDraft(updated)
+                }
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Đóng") { createdAlbumDraft = nil }
+                    }
+                }
+            }
+        }
+        .alert("Không thể tạo Photobook", isPresented: $showsAlbumCreationFailure) {
+            Button("Thử lại") { createPhotobook() }
+            Button("Huỷ", role: .cancel) {}
+        } message: {
+            Text("Photobook chưa được tạo. Vui lòng thử lại.")
+        }
     }
 
     // MARK: - Hero
@@ -118,9 +146,13 @@ struct TripDetailView: View {
                 Text(trip.dateRangeText)
                     .font(.system(size: 13.5, weight: .medium))
                     .foregroundStyle(.white.opacity(0.9))
-                Text(heroMetadataText)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.82))
+                HStack(spacing: 12) {
+                    Text(heroMetadataText)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white.opacity(0.82))
+                    Spacer(minLength: 0)
+                    heroOptionsMenu
+                }
             }
             .frame(width: heroTextWidth, alignment: .leading)
             .padding(.leading, Self.heroHorizontalPadding)
@@ -164,6 +196,30 @@ struct TripDetailView: View {
         let events = localizedString("trip.count.events", defaultValue: "\(trip.eventCount) events")
         let photos = localizedString("trip.count.photos", defaultValue: "\(trip.photoCount) photos")
         return "\(duration) · \(events) · \(photos)"
+    }
+
+    private var heroOptionsMenu: some View {
+        Menu {
+            Button(action: createPhotobook) {
+                Label("Tạo Photobook", systemImage: "book.closed")
+            }
+            .disabled(photoAssetIDs.isEmpty || albumCreationState == .planning)
+        } label: {
+            Group {
+                if albumCreationState == .planning {
+                    ProgressView()
+                        .tint(.white)
+                } else {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 17, weight: .semibold))
+                }
+            }
+            .foregroundStyle(.white)
+            .frame(width: 34, height: 30)
+            .background(.black.opacity(0.28), in: Capsule())
+        }
+        .disabled(photoAssetIDs.isEmpty || albumCreationState == .planning)
+        .accessibilityLabel("Tuỳ chọn chuyến đi")
     }
 
     // MARK: - All Photos
@@ -316,6 +372,64 @@ struct TripDetailView: View {
             )
         }
         previewPresentation = TripPreviewPresentation(items: items, openedAssetID: assetID)
+    }
+
+    /// Builds one Photobook from the Trip's complete chronological photo list. The planner runs
+    /// on a detached task because it reads PhotoKit metadata and chooses page layouts; only the
+    /// saved draft is brought back to the UI actor.
+    private func createPhotobook() {
+        guard !photoAssetIDs.isEmpty, albumCreationState != .planning else { return }
+
+        albumCreationState = .planning
+        let assetIDs = photoAssetIDs
+        let tripID = trip.id.uuidString
+        let title = heroTitle
+        let startDate = trip.startDate
+        let endDate = trip.endDate
+        let locationName = resolvedPlaceName ?? trip.primaryPlaceName
+        let container = modelContext.container
+
+        Task {
+            do {
+                let result = try await Task.detached(priority: .userInitiated) {
+                    let planningPhotos = PHAssetPlanningPhotoAdapter.planningPhotos(
+                        assetIDs: assetIDs,
+                        eventId: tripID
+                    )
+                    let planningEvent = AlbumPlanningEvent(
+                        id: tripID,
+                        title: title,
+                        startDate: startDate,
+                        endDate: endDate,
+                        locationName: locationName,
+                        latitude: nil,
+                        longitude: nil,
+                        selectedPhotos: planningPhotos
+                    )
+                    return try await DefaultAlbumDraftPlanner().createDraft(
+                        from: AlbumPlanningInput(albumTitle: title, events: [planningEvent])
+                    )
+                }.value
+
+                let store = SwiftDataAlbumDraftStore(modelContainer: container)
+                try await store.save(result.draft)
+                albumCreationState = .success
+                createdAlbumDraft = result.draft
+            } catch {
+                NiziLogger.discovery.error("trip_photobook_creation_failed")
+                albumCreationState = .failure
+                showsAlbumCreationFailure = true
+            }
+        }
+    }
+
+    private func saveUpdatedAlbumDraft(_ draft: AlbumDraft) async {
+        do {
+            let store = SwiftDataAlbumDraftStore(modelContainer: modelContext.container)
+            try await store.updateDraft(draft)
+        } catch {
+            NiziLogger.discovery.error("trip_photobook_update_failed")
+        }
     }
 
     private func loadPhotos() async {

@@ -107,7 +107,7 @@ struct AlbumPhotoView: View {
             // `Self.aspectFillSize`) sidesteps the whole transform-vs-hit-test-bounds mismatch:
             // an explicitly-sized, then `.clipped()`, view has no separate "hit-test size" to
             // ever disagree with its rendered size in the first place.
-            let baseFillSize = Self.aspectSize(imageSize: image.size, frameSize: proxy.size, fill: contentMode == .fill)
+            let baseFillSize = AlbumPhotoCropGeometry.aspectFitFillSize(imageSize: image.size, frameSize: proxy.size, fill: contentMode == .fill)
             let content = Image(uiImage: image)
                 .resizable()
                 .frame(width: baseFillSize.width * crop.scale, height: baseFillSize.height * crop.scale)
@@ -118,26 +118,6 @@ struct AlbumPhotoView: View {
             } else {
                 content
             }
-        }
-    }
-
-    /// The size an `.aspectRatio(contentMode:)` image would render at within `frameSize` — `fill`
-    /// covers `frameSize` entirely (one axis matches exactly, the other overflows); `!fill` (fit)
-    /// stays fully inside it (one axis matches exactly, the other has empty space). Computed
-    /// explicitly so `imageView` above can express `crop.scale` as a real `.frame()` size instead
-    /// of a `.scaleEffect()` transform (see that call site's own doc comment for why).
-    private static func aspectSize(imageSize: CGSize, frameSize: CGSize, fill: Bool) -> CGSize {
-        guard imageSize.width > 0, imageSize.height > 0, frameSize.width > 0, frameSize.height > 0 else {
-            return frameSize
-        }
-        let imageAspect = imageSize.width / imageSize.height
-        let frameAspect = frameSize.width / frameSize.height
-        let imageIsRelativelyWider = imageAspect > frameAspect
-        let widthMatchesFrame = fill ? !imageIsRelativelyWider : imageIsRelativelyWider
-        if widthMatchesFrame {
-            return CGSize(width: frameSize.width, height: frameSize.width / imageAspect)
-        } else {
-            return CGSize(width: frameSize.height * imageAspect, height: frameSize.height)
         }
     }
 

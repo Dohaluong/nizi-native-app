@@ -29,6 +29,8 @@ struct AlbumDetailView: View {
     @State private var isDeleting = false
     @State private var pagesScrollOffset: CGFloat = 0
     @State private var albumPhotoProvider = ApplePhotosAlbumPhotoProvider()
+    @State private var exportSession = PhotobookExportSession()
+    @State private var isShowingExportSheet = false
 
     private static let backToTopThreshold: CGFloat = 700
     private static let backSwipeEdgeWidth: CGFloat = 28
@@ -474,16 +476,13 @@ struct AlbumDetailView: View {
 
     private var orderPhotobookBar: some View {
         Button {
-            // Ordering is presentation-only until checkout is connected; do not create an
-            // external purchase or mutate the draft from this display affordance.
-            NiziLogger.discovery.notice("photobook_order_requested albumID=\(draft.id, privacy: .public)")
+            NiziLogger.discovery.notice("photobook_export_requested albumID=\(draft.id, privacy: .public)")
+            isShowingExportSheet = true
         } label: {
             HStack(spacing: 8) {
-                Text("Order Photobook")
+                Image(systemName: "square.and.arrow.down")
+                Text("photobook.export.action.download_pdf")
                     .font(.system(size: 15, weight: .semibold))
-                Text("· $34")
-                    .font(.system(size: 13))
-                    .foregroundStyle(AlbumDetailSurface.background.opacity(0.62))
             }
             .foregroundStyle(AlbumDetailSurface.background)
             .frame(maxWidth: .infinity)
@@ -502,6 +501,13 @@ struct AlbumDetailView: View {
             )
             .allowsHitTesting(false)
             .ignoresSafeArea(edges: .bottom)
+        }
+        .sheet(isPresented: $isShowingExportSheet) {
+            PhotobookExportProgressView(session: exportSession, draft: draft) {
+                isShowingExportSheet = false
+                exportSession.dismiss()
+            }
+            .presentationDetents([.medium])
         }
     }
 
