@@ -33,6 +33,7 @@ struct HomeView: View {
     @State private var memoryEvents: [PhotoEvent] = []
     @State private var tripSummaries: [TripSummary] = []
     @State private var navigationPath = NavigationPath()
+    @State private var isMoveImportPresented = false
     /// Album cover cache must survive Home's ordinary state updates. Constructing this provider
     /// inline in `body` created a fresh `AlbumImageCache` after every re-render, so the same
     /// Photobook card repeatedly re-requested its cover from PhotoKit.
@@ -63,6 +64,7 @@ struct HomeView: View {
         NavigationStack(path: $navigationPath) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
+                    moveImportEntry
                     if let displayedHeroMemory {
                         lovedMemoryHero(displayedHeroMemory)
                     }
@@ -122,6 +124,9 @@ struct HomeView: View {
                     }
                 }
             }
+            .sheet(isPresented: $isMoveImportPresented) {
+                NiziMoveImportView(modelContainer: modelContext.container)
+            }
             .environment(\.albumPhotoProvider, albumPhotoProvider)
             .preferredColorScheme(.dark)
             .task {
@@ -146,6 +151,28 @@ struct HomeView: View {
                 }
             }
         }
+    }
+
+    private var moveImportEntry: some View {
+        Button {
+            isMoveImportPresented = true
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "rectangle.on.rectangle.angled")
+                    .font(.title3)
+                    .foregroundStyle(HomeSurfaceStyle.accent)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Nhập ảnh từ máy tính").font(.headline)
+                    Text("Quét mã Nizi Move để chuyển ảnh vào Photos.").font(.subheadline).foregroundStyle(HomeSurfaceStyle.mutedText)
+                }
+                Spacer(); Image(systemName: "chevron.right").foregroundStyle(HomeSurfaceStyle.mutedText)
+            }
+            .padding(18)
+            .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 24)
+        .padding(.top, 28)
     }
 
     /// § user request — Home, Events, Trips, Photobook, and Diagnostics behave like tabs: no back
@@ -626,6 +653,10 @@ struct HomeView: View {
     private func loadMemoryEvents() async {
         do {
             let store = SwiftDataMemoryDiscoveryStore(modelContainer: modelContext.container)
+            // § user request — "các event mà auto-memory cũng tự động được thành loved memory":
+            // catches up any Event that already qualifies as Auto Memory but hasn't been through
+            // the seeding logic yet, before `fetchMemoryEvents` reads `isLoved` below.
+            try await store.backfillAutoMemorySeeding()
             // Fetch every loved/auto-memory Event, not just a top-N slice: `homeLovedMemories`
             // excludes anything already in a Trip, so truncating here first could leave it with
             // too few candidates to fill a 6-card rail even when plenty of non-Trip memories
@@ -650,29 +681,41 @@ struct HomeView: View {
         }
     }
 
+    /// § user report — "tab vào icon trái tim thấy phản ứng chậm, không nhạy": this used to
+    /// `await` the SwiftData write (actor hop + fetch + save) *before* touching any local state,
+    /// so the heart/card only updated once that round-trip finished. Optimistic-updates first —
+    /// see `EventListView.toggleLove`'s own doc comment for the same fix there. A removal
+    /// (unloving) can't be cleanly "un-removed" in place on failure, so the failure path just
+    /// resyncs from what's actually persisted instead of guessing.
     private func setLoved(_ event: PhotoEvent, isLoved: Bool) async {
+        // § user request — "Khi user đã uncheck thì điều kiện Automemory không tác dụng":
+        // Auto Memory only ever seeds `isLoved` once, the first time an Event qualifies (see
+        // `SwiftDataMemoryDiscoveryStore.replaceRebuildableEvents`'s own doc comment) — from
+        // then on `isLoved` alone decides "is this a Memory," including here, so un-hearting
+        // always drops the card (this replaces the previous SPRINT-NEXT § 17 behavior, which
+        // kept a pure Auto Memory around after an unlove; the user has since reversed that).
+        if !isLoved {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                memoryEvents.removeAll { $0.id == event.id }
+                if displayedHeroMemory?.id == event.id { displayedHeroMemory = nil }
+                displayedLovedMemories.removeAll { $0.id == event.id }
+            }
+        } else {
+            if let index = memoryEvents.firstIndex(where: { $0.id == event.id }) {
+                memoryEvents[index].isLoved = isLoved
+            }
+            if displayedHeroMemory?.id == event.id { displayedHeroMemory?.isLoved = isLoved }
+            if let index = displayedLovedMemories.firstIndex(where: { $0.id == event.id }) {
+                displayedLovedMemories[index].isLoved = isLoved
+            }
+        }
         do {
             let store = SwiftDataMemoryDiscoveryStore(modelContainer: modelContext.container)
             try await store.setEventLoved(eventID: event.id, isLoved: isLoved)
-            // Unloving a pure Auto Memory must not remove it from Home (SPRINT-NEXT § 17) — only
-            // drop the card once neither signal keeps it on the list.
-            if !isLoved && !event.isAutoMemory {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    memoryEvents.removeAll { $0.id == event.id }
-                    if displayedHeroMemory?.id == event.id { displayedHeroMemory = nil }
-                    displayedLovedMemories.removeAll { $0.id == event.id }
-                }
-            } else {
-                if let index = memoryEvents.firstIndex(where: { $0.id == event.id }) {
-                    memoryEvents[index].isLoved = isLoved
-                }
-                if displayedHeroMemory?.id == event.id { displayedHeroMemory?.isLoved = isLoved }
-                if let index = displayedLovedMemories.firstIndex(where: { $0.id == event.id }) {
-                    displayedLovedMemories[index].isLoved = isLoved
-                }
-            }
         } catch {
             NiziLogger.discovery.error("home_memory_event_update_failed")
+            await loadMemoryEvents()
+            refreshDisplayedMemories()
         }
     }
 

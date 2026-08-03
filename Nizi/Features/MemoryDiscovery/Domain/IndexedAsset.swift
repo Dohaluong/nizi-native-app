@@ -19,4 +19,32 @@ struct IndexedAsset: Identifiable, Equatable {
     let isScreenshot: Bool
     let burstIdentifier: String?
     let mediaType: PhotoMediaType
+    let pixelWidth: Int
+    let pixelHeight: Int
+
+    /// Explicit instead of relying on Swift's generated memberwise initializer: this keeps the
+    /// existing call sites source-compatible while exposing dimensions for pre-layout masonry.
+    init(
+        id: String,
+        creationDate: Date,
+        latitude: Double?,
+        longitude: Double?,
+        isFavorite: Bool,
+        isScreenshot: Bool,
+        burstIdentifier: String?,
+        mediaType: PhotoMediaType,
+        pixelWidth: Int = 0,
+        pixelHeight: Int = 0
+    ) {
+        self.id = id
+        self.creationDate = creationDate
+        self.latitude = latitude
+        self.longitude = longitude
+        self.isFavorite = isFavorite
+        self.isScreenshot = isScreenshot
+        self.burstIdentifier = burstIdentifier
+        self.mediaType = mediaType
+        self.pixelWidth = pixelWidth
+        self.pixelHeight = pixelHeight
+    }
 }

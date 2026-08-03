@@ -14,6 +14,14 @@ struct EventListView: View {
     @Environment(\.modelContext) private var modelContext
 
     @State private var allEvents: [PhotoEvent] = []
+    /// § user request — "kết hợp thể hiện cả Memory vào": one screen, one list, toggled between
+    /// two states by `lovedMemoriesToggle` (a single badge, not two separate tab chips — see its
+    /// own doc comment). `.events` is the full archive (unchanged); `.memory` narrows to `isLoved`
+    /// (see `isMemory(_:)`'s own doc comment for why `isAutoMemory` isn't part of this condition
+    /// anymore) — the same rule `SwiftDataMemoryDiscoveryStore.fetchMemoryEvents()` already uses
+    /// for Home's own "Kỷ niệm" rail, just computed from the list already in memory here rather
+    /// than a second fetch.
+    @State private var selectedTab: EventListTab = .events
     /// Events open on the current calendar year; the trailing "All" chip is an explicit opt-in
     /// to the complete history rather than the default.
     @State private var selectedYear: Int? = Calendar.current.component(.year, from: .now)
@@ -97,6 +105,7 @@ struct EventListView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
+                lovedMemoriesToggle
                 filterMenu
                 Button(isSelectionMode ? "Xong" : "Chọn") {
                     isSelectionMode.toggle()
@@ -163,13 +172,23 @@ struct EventListView: View {
                 }
             } else {
             ZStack(alignment: .topTrailing) {
+                // § user request — "Nếu 1 event là loved-memory thì khi tap vào bên trong phải là
+                // màn memory detail": a loved Event (`isMemory(_:)` — `isLoved`) opens the same
+                // `MemoryDetailView` Home's own Loved Memories rail already pushes, instead of the
+                // plain `EventDetailView`.
                 NavigationLink {
-                    EventDetailView(
-                        event: event, initialHeroImage: loadedCoverImages[event.id],
-                        onEventDeleted: { deletedID in
-                            await removeEventFromList(deletedID, scrollProxy: scrollProxy)
+                    if Self.isMemory(event) {
+                        MemoryDetailView(event: event) { updated in
+                            updateEventLocally(updated)
                         }
-                    )
+                    } else {
+                        EventDetailView(
+                            event: event, initialHeroImage: loadedCoverImages[event.id],
+                            onEventDeleted: { deletedID in
+                                await removeEventFromList(deletedID, scrollProxy: scrollProxy)
+                            }
+                        )
+                    }
                 } label: {
                     eventArchiveRow(event)
                 }
@@ -252,17 +271,36 @@ struct EventListView: View {
         }
     }
 
+    /// § user report — "tab vào icon trái tim thấy phản ứng chậm, không nhạy": this used to
+    /// `await` the SwiftData write (actor hop + fetch + save — genuinely I/O-bound) *before*
+    /// touching `allEvents`, so the heart only flipped once that round-trip finished. Updating
+    /// local state first makes the tap feel instant; the persistence call still happens right
+    /// after, and a failure rolls the optimistic change back instead of silently diverging from
+    /// what's actually saved.
     private func toggleLove(for event: PhotoEvent) async {
+        guard let index = allEvents.firstIndex(where: { $0.id == event.id }) else { return }
         let isLoved = !event.isLoved
+        allEvents[index].isLoved = isLoved
+        onEventUpdated(allEvents[index])
         do {
             let store = SwiftDataMemoryDiscoveryStore(modelContainer: modelContext.container)
             try await store.setEventLoved(eventID: event.id, isLoved: isLoved)
-            guard let index = allEvents.firstIndex(where: { $0.id == event.id }) else { return }
-            allEvents[index].isLoved = isLoved
-            onEventUpdated(allEvents[index])
         } catch {
+            if let revertIndex = allEvents.firstIndex(where: { $0.id == event.id }) {
+                allEvents[revertIndex].isLoved = !isLoved
+                onEventUpdated(allEvents[revertIndex])
+            }
             actionError = "Không thể cập nhật sự kiện yêu thích. Vui lòng thử lại."
         }
+    }
+
+    /// Mirrors `HomeView.updateMemoryEventLocally` — `MemoryDetailView` reports back a Place it
+    /// resolved or a photo it swapped, and both this list and Home (via the upward
+    /// `onEventUpdated`) need to reflect it without a full reload.
+    private func updateEventLocally(_ updated: PhotoEvent) {
+        guard let index = allEvents.firstIndex(where: { $0.id == updated.id }) else { return }
+        allEvents[index] = updated
+        onEventUpdated(updated)
     }
 
     private func resolvePlace(for event: PhotoEvent) async {
@@ -275,11 +313,19 @@ struct EventListView: View {
         }
     }
 
+    /// Visibility + tab narrowing only — year/type filters apply on top in `filteredEvents`, and
+    /// `availableYears` reads from this (not `allEvents`) so the year chips only ever offer years
+    /// that actually have something in the *currently selected* tab.
+    private var eventsInSelectedTab: [PhotoEvent] {
+        allEvents.filter { event in
+            Self.isVisibleInProductionList(event) && (selectedTab == .events || Self.isMemory(event))
+        }
+    }
+
     private var filteredEvents: [PhotoEvent] {
-        allEvents
+        eventsInSelectedTab
             .filter { event in
-                Self.isVisibleInProductionList(event)
-                    && (selectedYear == nil || Calendar.current.component(.year, from: event.startDate) == selectedYear)
+                (selectedYear == nil || Calendar.current.component(.year, from: event.startDate) == selectedYear)
                     && (selectedType == nil || event.eventType == selectedType)
             }
             .sorted { $0.startDate > $1.startDate }
@@ -292,8 +338,19 @@ struct EventListView: View {
         event.eventVisibility != .hiddenNoise
     }
 
+    /// Same rule `SwiftDataMemoryDiscoveryStore.fetchMemoryEvents()` uses for Home's own "Kỷ
+    /// niệm" rail — § user request "Automemory chỉ có tác dụng lúc đầu": `isAutoMemory` only ever
+    /// seeds `isLoved` once, the first time an Event qualifies (see
+    /// `replaceRebuildableEvents`'s own doc comment) — `isLoved` alone is the ongoing, fully
+    /// user-owned answer to "is this a Memory," so un-hearting one always removes it here even
+    /// though `isAutoMemory` itself keeps getting recomputed true on every rebuild. Not `private`
+    /// for the same directly-testable reason as `isVisibleInProductionList`.
+    static func isMemory(_ event: PhotoEvent) -> Bool {
+        event.isLoved
+    }
+
     private var availableYears: [Int] {
-        Array(Set(allEvents.map { Calendar.current.component(.year, from: $0.startDate) })).sorted(by: >)
+        Array(Set(eventsInSelectedTab.map { Calendar.current.component(.year, from: $0.startDate) })).sorted(by: >)
     }
 
     private var monthSections: [EventArchiveMonthSection] {
@@ -312,11 +369,45 @@ struct EventListView: View {
             .sorted { $0.month > $1.month }
     }
 
+    /// § user request — "Badge Memory chuyển lên ngang hàng với Tiêu đề sự kiện, nhưng nằm bên
+    /// phải... Badge sẽ dạng toggle. Ấn thì chuyển sang memory... ấn cái thì về all event. Bỏ
+    /// badge Event đi": one toggle badge (not two separate tab chips anymore) living in the nav
+    /// bar's own trailing toolbar group — level with the title, on the right — with a red heart
+    /// that fills solid once active. Tapping it flips `selectedTab` between showing every Event
+    /// (`.events`) and only loved ones (`.memory`, i.e. `isMemory(_:)`/`isLoved`); there is no
+    /// third state and no separate "Events" control to tap back to — this same badge does both.
+    private var lovedMemoriesToggle: some View {
+        let isActive = selectedTab == .memory
+        return Button {
+            withAnimation(.snappy(duration: 0.2)) {
+                selectedTab = isActive ? .events : .memory
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: isActive ? "heart.fill" : "heart")
+                    .foregroundStyle(Color.red)
+                Text("event.list.loved_toggle")
+            }
+            .font(.system(size: 13, weight: isActive ? .semibold : .regular))
+            .foregroundStyle(isActive ? EventArchiveStyle.background : EventArchiveStyle.primaryText)
+            .padding(.horizontal, 12)
+            .frame(height: 30)
+            .background(isActive ? EventArchiveStyle.accent : Color.white.opacity(0.09), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(
+            isActive
+                ? localizedString("event.list.loved_toggle.accessibility.on", defaultValue: "Đang lọc theo kỷ niệm yêu thích")
+                : localizedString("event.list.loved_toggle.accessibility.off", defaultValue: "Lọc theo kỷ niệm yêu thích")
+        )
+    }
+
     private var yearFilterHeader: some View {
         EventArchiveYearFilter(
             years: availableYears,
             selectedYear: $selectedYear,
-            eventCount: filteredEvents.count
+            eventCount: filteredEvents.count,
+            itemLabel: selectedTab.itemCountLabel
         )
         .background(EventArchiveStyle.background)
     }
@@ -349,11 +440,23 @@ struct EventListView: View {
 
     private var emptyFilteredState: some View {
         VStack(spacing: 8) {
-            Text("event.list.empty.title")
-                .font(.headline)
-            Text("event.list.empty.message")
-                .font(.subheadline)
-                .foregroundStyle(EventArchiveStyle.mutedText)
+            switch selectedTab {
+            case .events:
+                Text("event.list.empty.title")
+                    .font(.headline)
+                Text("event.list.empty.message")
+                    .font(.subheadline)
+                    .foregroundStyle(EventArchiveStyle.mutedText)
+            case .memory:
+                // § user request — the generic "no events yet" copy is misleading here: plenty of
+                // Events can exist while none have qualified as a Memory (`isAutoMemory`) or been
+                // loved yet, which is the far more common empty case for this tab.
+                Text("event.list.memory_tab.empty.title")
+                    .font(.headline)
+                Text("event.list.memory_tab.empty.message")
+                    .font(.subheadline)
+                    .foregroundStyle(EventArchiveStyle.mutedText)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 60)
@@ -378,6 +481,10 @@ struct EventListView: View {
         errorMessage = nil
         do {
             let store = SwiftDataMemoryDiscoveryStore(modelContainer: modelContext.container)
+            // § user request — "các event mà auto-memory cũng tự động được thành loved memory":
+            // catches up any Event that already qualifies as Auto Memory but hasn't been through
+            // the seeding logic yet, before this screen reads `isLoved` for the Memory toggle.
+            try await store.backfillAutoMemorySeeding()
             allEvents = try await store.fetchEvents(sortedBy: .scoreDescending)
             // Repair older one-level Vietnamese labels before/while the first viewport appears.
             // This bounded window deliberately avoids an app-wide reverse-geocoding pass.
@@ -462,6 +569,19 @@ struct EventListView: View {
     }
 }
 
+private enum EventListTab: CaseIterable {
+    case events
+    case memory
+
+    /// The noun `EventArchiveYearFilter`'s count label uses ("3 sự kiện" vs "3 kỷ niệm").
+    var itemCountLabel: String {
+        switch self {
+        case .events: return localizedString("event.list.tab.events.item_count_label", defaultValue: "sự kiện")
+        case .memory: return localizedString("event.list.tab.memory.item_count_label", defaultValue: "kỷ niệm")
+        }
+    }
+}
+
 private enum EventArchiveStyle {
     static let background = Color(red: 14 / 255, green: 13 / 255, blue: 16 / 255)
     static let primaryText = Color(red: 246 / 255, green: 241 / 255, blue: 234 / 255)
@@ -490,6 +610,7 @@ private struct EventArchiveYearFilter: View {
     let years: [Int]
     @Binding var selectedYear: Int?
     let eventCount: Int
+    let itemLabel: String
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -522,9 +643,9 @@ private struct EventArchiveYearFilter: View {
 
     private var eventCountLabel: String {
         if let selectedYear {
-            return "\(eventCount) sự kiện trong năm \(selectedYear)"
+            return "\(eventCount) \(itemLabel) trong năm \(selectedYear)"
         }
-        return "\(eventCount) sự kiện"
+        return "\(eventCount) \(itemLabel)"
     }
 
     private func select(_ year: Int?, proxy: ScrollViewProxy) {

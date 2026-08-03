@@ -51,6 +51,9 @@ final class MDEventCandidate {
     /// same convention as `qualityScore`/`visibility` above.
     var isAutoMemory: Bool = false
     var autoMemoryScore: Double = 0
+    /// Additive field — see `PhotoEvent.autoMemorySeeded`'s own doc comment for why this must be
+    /// tracked separately from `isAutoMemory` itself.
+    var autoMemorySeeded: Bool = false
 
     init(event: PhotoEvent) {
         candidateID = event.id
@@ -85,6 +88,7 @@ final class MDEventCandidate {
         visibility = event.eventVisibility.rawValue
         isAutoMemory = event.isAutoMemory
         autoMemoryScore = event.autoMemoryScore
+        autoMemorySeeded = event.autoMemorySeeded
     }
 }
 
@@ -127,7 +131,8 @@ extension PhotoEvent {
             eventQualityScore: model.qualityScore,
             eventVisibility: EventVisibility(rawValue: model.visibility) ?? .normal,
             isAutoMemory: model.isAutoMemory,
-            autoMemoryScore: model.autoMemoryScore
+            autoMemoryScore: model.autoMemoryScore,
+            autoMemorySeeded: model.autoMemorySeeded
         )
     }
 }

@@ -399,7 +399,8 @@
 				DEVELOPMENT_TEAM = F27SN4UL53;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Nizi analyzes your photos right on your iPhone to help you rediscover trips and memorable moments. Photos are only uploaded when you actively create an Album.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Nizi cần camera để quét mã chuyển ảnh từ máy tính.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Nizi cần quyền truy cập Photos để lưu, sắp xếp và tạo kỷ niệm từ ảnh bạn chuyển vào.";
 				INFOPLIST_KEY_UIAppFonts = "Newsreader-VariableFont_opsz,wght.ttf Newsreader-Italic-VariableFont_opsz,wght.ttf";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -429,7 +430,8 @@
 				DEVELOPMENT_TEAM = F27SN4UL53;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Nizi analyzes your photos right on your iPhone to help you rediscover trips and memorable moments. Photos are only uploaded when you actively create an Album.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Nizi cần camera để quét mã chuyển ảnh từ máy tính.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Nizi cần quyền truy cập Photos để lưu, sắp xếp và tạo kỷ niệm từ ảnh bạn chuyển vào.";
 				INFOPLIST_KEY_UIAppFonts = "Newsreader-VariableFont_opsz,wght.ttf Newsreader-Italic-VariableFont_opsz,wght.ttf";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

@@ -38,7 +38,8 @@ struct NiziApp: App {
             MDMemoryCandidate.self,
             MDLocationCluster.self, MDHomeAnchor.self, MDFamiliarPlace.self, MDPhotoTrip.self,
             MDAlbumDraft.self, MDPhotoEditRecipe.self, MDCollectionEditStyle.self,
-            MDPresetOverride.self, MDCustomPreset.self
+            MDPresetOverride.self, MDCustomPreset.self,
+            MDNiziMoveImportSession.self, MDNiziMoveImportAsset.self
         ])
     }
 }

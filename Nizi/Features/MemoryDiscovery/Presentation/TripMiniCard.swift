@@ -86,11 +86,19 @@ struct TripMiniCard: View {
 /// immediately available to the Home provider and every other viewer afterwards.
 actor PhotoThumbnailRequestLoader {
     static let shared = PhotoThumbnailRequestLoader()
+    /// Home card requests must never keep the first Memory Hero waiting.
+    static let memoryHero = PhotoThumbnailRequestLoader(maximumConcurrentRequests: 1)
+    /// A scrolling Memory gallery owns its own bounded lane rather than competing with Home.
+    static let memoryGallery = PhotoThumbnailRequestLoader(maximumConcurrentRequests: 2)
 
     private let provider: PhotoAssetProvider = PhotoKitAssetProvider()
-    private let maximumConcurrentRequests = 2
+    private let maximumConcurrentRequests: Int
     private var activeRequestCount = 0
     private var waitingContinuations: [CheckedContinuation<Void, Never>] = []
+
+    private init(maximumConcurrentRequests: Int = 2) {
+        self.maximumConcurrentRequests = maximumConcurrentRequests
+    }
 
     func thumbnail(
         assetID: String,

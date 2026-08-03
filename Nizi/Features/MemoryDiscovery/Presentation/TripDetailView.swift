@@ -25,7 +25,17 @@ struct TripDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @State private var assetProvider: PhotoAssetProvider = PhotoKitAssetProvider()
-    @State private var imageAspects: [String: CGFloat] = [:]
+    /// § user request — "đọc metadata ảnh đã được index từ trước dựng layout xong, rồi mới fill
+    /// ảnh": sourced from `IndexedAsset.pixelWidth`/`pixelHeight` (already scanned into the Local
+    /// Memory Index) in `loadPhotos()`, *before* any PhotoKit image fetch — not from the loaded
+    /// image's own reported size. That used to be circular: a square `targetSize` +
+    /// `contentMode: .fill` makes PhotoKit crop the result toward ~1:1 regardless of the photo's
+    /// real shape, so deriving the tile's aspect ratio from that fetched image made every tile
+    /// collapse to square once the sharp image replaced the initial guess (§ investigated: "Ảnh
+    /// masonry layout khi hiện ảnh nét đều là ảnh vuông"). Reading the true aspect ratio up front
+    /// means the masonry grid is laid out once, correctly, before any thumbnail/sharp image fills
+    /// its already-fixed slot — nothing about a tile's size changes as its image loads in.
+    @State private var photoAspects: [String: CGFloat] = [:]
     @State private var galleryWidth: CGFloat = 0
     @State private var photoAssetIDs: [String] = []
     @State private var photoCreationDates: [String: Date] = [:]
@@ -299,8 +309,7 @@ struct TripDetailView: View {
                         assetID: asset.assetID,
                         assetProvider: assetProvider,
                         targetSize: CGSize(width: 480, height: 480),
-                        contentMode: .fill,
-                        onAspectAvailable: { aspect in imageAspects[asset.assetID] = aspect }
+                        contentMode: .fill
                     )
                     .frame(width: columnWidth, height: tileHeight(for: asset.assetID))
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -320,7 +329,7 @@ struct TripDetailView: View {
     }
 
     private func tileHeight(for assetID: String) -> CGFloat {
-        let aspect = max(imageAspects[assetID, default: 0.82], 0.1)
+        let aspect = max(photoAspects[assetID, default: 0.82], 0.1)
         return min(max(columnWidth / aspect, 120), 280)
     }
 
@@ -440,6 +449,13 @@ struct TripDetailView: View {
         let sortedAssets = assets.sorted { $0.creationDate < $1.creationDate }
         photoAssetIDs = sortedAssets.map(\.id)
         photoCreationDates = Dictionary(uniqueKeysWithValues: sortedAssets.map { ($0.id, $0.creationDate) })
+        // § user request — build the masonry layout from indexed metadata before any image
+        // fetch starts. A handful of assets indexed before `pixelWidth`/`pixelHeight` existed can
+        // still read 0 here — the same 0.82 fallback `tileHeight(for:)` already used is kept for
+        // exactly those.
+        photoAspects = Dictionary(uniqueKeysWithValues: sortedAssets.map { asset in
+            (asset.id, asset.pixelHeight > 0 ? CGFloat(asset.pixelWidth) / CGFloat(asset.pixelHeight) : 0.82)
+        })
     }
 
     /// Lazy, on-open place resolution — only runs when nothing usable is already persisted, and
@@ -558,7 +574,6 @@ private struct TripPhotoImage: View {
     let targetSize: CGSize
     let contentMode: ThumbnailContentMode
     var fixedFrame: CGSize? = nil
-    var onAspectAvailable: ((CGFloat) -> Void)? = nil
 
     @State private var image: PlatformImage?
     /// `false` while `image` is only the fast local placeholder — same two-tier load as
@@ -589,7 +604,6 @@ private struct TripPhotoImage: View {
             if let cached = assetProvider.cachedThumbnail(assetID: assetID, targetSize: targetSize, contentMode: contentMode) {
                 image = cached
                 isSharp = true
-                onAspectAvailable?(cached.size.width / max(cached.size.height, 1))
                 return
             }
 
@@ -613,7 +627,6 @@ private struct TripPhotoImage: View {
                 )
                 image = loaded
                 isSharp = true
-                onAspectAvailable?(loaded.size.width / max(loaded.size.height, 1))
             } catch {
                 guard !(error is CancellationError) else { return }
                 NiziLogger.discovery.error("trip_detail_image_load_failed")

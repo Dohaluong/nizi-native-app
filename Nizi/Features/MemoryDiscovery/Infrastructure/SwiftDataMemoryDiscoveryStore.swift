@@ -93,7 +93,9 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
                 isFavorite: model.favorite,
                 isScreenshot: model.screenshot,
                 burstIdentifier: model.burstIdentifier,
-                mediaType: PhotoMediaType(rawValue: model.mediaType) ?? .unknown
+                mediaType: PhotoMediaType(rawValue: model.mediaType) ?? .unknown,
+                pixelWidth: model.pixelWidth,
+                pixelHeight: model.pixelHeight
             )
         }
     }
@@ -113,7 +115,9 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
                 isFavorite: model.favorite,
                 isScreenshot: model.screenshot,
                 burstIdentifier: model.burstIdentifier,
-                mediaType: PhotoMediaType(rawValue: model.mediaType) ?? .unknown
+                mediaType: PhotoMediaType(rawValue: model.mediaType) ?? .unknown,
+                pixelWidth: model.pixelWidth,
+                pixelHeight: model.pixelHeight
             )
         }
     }
@@ -198,15 +202,51 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
         // rebuildable rows are removed. This is intentionally a narrow bridge, not stable Event
         // identity: changed cluster membership will not match and needs a future identity sprint.
         let lovedAssetKeys = Set(existing.filter(\.isLoved).map { eventAssetKey($0.assetIdentifiers) })
+        // § user request — "Automemory chỉ có tác dụng lúc đầu": Auto Memory's only job is to
+        // pre-check the heart the *first* time an Event ever qualifies, so it reads as a Memory
+        // immediately without the user having to ♥ it themselves. Every rebuild after that first
+        // one re-evaluates `isAutoMemory` fresh (`MemoryPotentialEvaluator` is stateless), so
+        // without this, an Event the user explicitly un-hearted would keep coming back the moment
+        // it re-qualified. Matched via the dedicated `autoMemorySeeded` flag (not `isAutoMemory`
+        // itself, which would incorrectly treat an Event that was already Auto Memory *before*
+        // this field existed as "already handled" and permanently skip seeding it — see
+        // `PhotoEvent.autoMemorySeeded`'s own doc comment).
+        let previouslySeededAssetKeys = Set(existing.filter(\.autoMemorySeeded).map { eventAssetKey($0.assetIdentifiers) })
         for model in existing where !committedStatuses.contains(model.status) {
             modelContext.delete(model)
         }
 
         for var event in events {
-            if lovedAssetKeys.contains(eventAssetKey(event.assetIDs)) {
+            let assetKey = eventAssetKey(event.assetIDs)
+            if previouslySeededAssetKeys.contains(assetKey) {
+                event.autoMemorySeeded = true
+            } else if event.isAutoMemory {
+                event.isLoved = true
+                event.autoMemorySeeded = true
+            }
+            if lovedAssetKeys.contains(assetKey) {
                 event.isLoved = true
             }
             modelContext.insert(MDEventCandidate(event: event))
+        }
+        try modelContext.save()
+    }
+
+    /// § user request — "các event mà auto-memory cũng tự động được thành loved memory": catches
+    /// up any Event that already qualifies as Auto Memory but was persisted before the seeding
+    /// logic in `replaceRebuildableEvents` existed (or simply hasn't been through a rebuild since)
+    /// — without this, that gap would only close on the next full rescan. Idempotent and safe to
+    /// call on every screen load: an Event already marked `autoMemorySeeded` is left completely
+    /// alone regardless of its current `isLoved`, so an explicit uncheck still sticks.
+    func backfillAutoMemorySeeding() async throws {
+        let descriptor = FetchDescriptor<MDEventCandidate>(
+            predicate: #Predicate { $0.isAutoMemory && !$0.autoMemorySeeded }
+        )
+        let candidates = try modelContext.fetch(descriptor)
+        guard !candidates.isEmpty else { return }
+        for model in candidates {
+            model.isLoved = true
+            model.autoMemorySeeded = true
         }
         try modelContext.save()
     }
@@ -230,9 +270,13 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
         return try modelContext.fetch(descriptor).map(PhotoEvent.init)
     }
 
+    /// § user request — "Automemory chỉ có tác dụng lúc đầu": `isAutoMemory` only ever *seeds*
+    /// `isLoved` once, in `replaceRebuildableEvents`, the first time an Event qualifies — from then
+    /// on `isLoved` alone is the complete, user-owned answer to "is this a Memory," so an explicit
+    /// un-heart always sticks even though `isAutoMemory` itself keeps getting recomputed true.
     func fetchMemoryEvents() async throws -> [PhotoEvent] {
         let descriptor = FetchDescriptor<MDEventCandidate>(
-            predicate: #Predicate { $0.isLoved || $0.isAutoMemory },
+            predicate: #Predicate { $0.isLoved },
             sortBy: [SortDescriptor(\.startDate, order: .reverse)]
         )
         return try modelContext.fetch(descriptor).map(PhotoEvent.init)

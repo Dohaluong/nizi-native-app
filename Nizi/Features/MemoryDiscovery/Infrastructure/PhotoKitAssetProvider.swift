@@ -115,6 +115,17 @@ final class PhotoKitAssetProvider: PhotoAssetProvider {
         return assets.map(PhotoAssetRecord.init)
     }
 
+    /// Narrow PhotoKit read used by trusted import sources after Photos has returned their local
+    /// identifiers. This avoids a library-wide re-scan just to index newly created assets.
+    func fetchAssetRecords(localIdentifiers: [String]) -> [PhotoAssetRecord] {
+        let result = PHAsset.fetchAssets(withLocalIdentifiers: localIdentifiers, options: nil)
+        var records: [PhotoAssetRecord] = []
+        result.enumerateObjects { asset, _, _ in
+            records.append(PhotoAssetRecord(asset: asset))
+        }
+        return records
+    }
+
     func requestThumbnail(
         assetID: String,
         targetSize: CGSize,

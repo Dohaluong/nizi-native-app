@@ -24,8 +24,12 @@ protocol PhotoEventRepository {
     /// resolve a `PhotoTrip.eventIDs` list into real `PhotoEvent`s (for cover/photo/event counts)
     /// with one call across many trips, instead of a fetch-all-then-filter per trip.
     func fetchEvents(ids: [UUID]) async throws -> [PhotoEvent]
-    /// Events surfaced on Home's "Kỷ niệm" section — user-loved OR Nizi-selected Auto Memories
-    /// (SPRINT-NEXT § 18), sorted newest first.
+    /// Events surfaced on Home's "Kỷ niệm" section and the Event List's Memory toggle — every
+    /// loved Event, sorted newest first. Nizi-selected Auto Memories are included via `isLoved`
+    /// too: `isAutoMemory` seeds `isLoved` once, the first time an Event qualifies (see
+    /// `replaceRebuildableEvents`/`backfillAutoMemorySeeding`), so this stays a single, simple
+    /// `isLoved` read rather than an `isLoved || isAutoMemory` condition that an explicit uncheck
+    /// couldn't ever fully override.
     func fetchMemoryEvents() async throws -> [PhotoEvent]
     func setEventLoved(eventID: UUID, isLoved: Bool) async throws
     func setEventPlace(eventID: UUID, place: EventPlace?, state: EventPlaceResolutionState) async throws

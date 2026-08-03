@@ -21,6 +21,7 @@ struct MemoryDetailView: View {
     @State private var galleryWidth: CGFloat = 0
     @State private var selectedAssetIDs: Set<String>?
     @State private var chronologicalAssetIDs: [String] = []
+    @State private var hasLoadedGallerySource = false
     @State private var isShowingAllPhotos = false
     @State private var resolvedPlaceName: String?
     @State private var preview: MemoryPhotoPreview?
@@ -101,7 +102,8 @@ struct MemoryDetailView: View {
                 assetProvider: assetProvider,
                 targetSize: CGSize(width: 1_400, height: 2_100),
                 contentMode: .fill,
-                fixedFrame: CGSize(width: heroWidth, height: heroHeight)
+                fixedFrame: CGSize(width: heroWidth, height: heroHeight),
+                loadLane: .hero
             )
 
             LinearGradient(
@@ -113,12 +115,16 @@ struct MemoryDetailView: View {
 
             VStack(alignment: .leading, spacing: 7) {
                 Text(heroTitle)
-                    .font(.title.weight(.bold))
+                    .font(.system(size: 30, weight: .semibold, design: .serif))
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.leading)
-                Text(dateRangeText)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.88))
+                HStack(spacing: 12) {
+                    Text("\(dateRangeText) · \(event.assetCount) ảnh")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.88))
+                    Spacer(minLength: 0)
+                    heroOptionsMenu
+                }
             }
             .frame(width: heroTextWidth, alignment: .leading)
             .padding(.leading, Self.heroHorizontalPadding)
@@ -130,34 +136,27 @@ struct MemoryDetailView: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: 12) {
-            topBarButton(systemImage: "chevron.left") {
-                dismiss()
-            }
-            Spacer(minLength: 8)
-            Text(heroTitle)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-            Spacer(minLength: 8)
-            Menu {
-                Button(isShowingAllPhotos ? "Chỉ hiện ảnh đã chọn" : "Hiện tất cả ảnh") {
-                    isShowingAllPhotos.toggle()
-                }
-                .disabled(!hasHiddenPhotos)
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 42, height: 42)
-                    .background(.black.opacity(0.5), in: Circle())
-            }
+        topBarButton(systemImage: "chevron.left") {
+            dismiss()
         }
-        .padding(.horizontal, 18)
+        .padding(.leading, 18)
         .padding(.top, 52)
-        .padding(.bottom, 10)
-        .background(.ultraThinMaterial)
-        .frame(maxWidth: .infinity, alignment: .top)
+    }
+
+    private var heroOptionsMenu: some View {
+        Menu {
+            Button(isShowingAllPhotos ? "Chỉ hiện ảnh đã chọn" : "Hiện tất cả ảnh") {
+                isShowingAllPhotos.toggle()
+            }
+            .disabled(!hasHiddenPhotos)
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 36, height: 32)
+                .background(.black.opacity(0.35), in: Capsule())
+        }
+        .accessibilityLabel("Tuỳ chọn kỷ niệm")
     }
 
     private func topBarButton(systemImage: String, action: @escaping () -> Void) -> some View {
@@ -182,7 +181,13 @@ struct MemoryDetailView: View {
                             MemoryDetailImage(
                                 assetID: assetID, assetProvider: assetProvider,
                                 targetSize: Self.galleryThumbnailSize, contentMode: .fill,
-                                onAspectAvailable: { aspect in imageAspects[assetID] = aspect }
+                                loadLane: .gallery,
+                                onAspectAvailable: { aspect in
+                                    // Keep the first measured category stable so later quality
+                                    // upgrades do not repeatedly rebuild justified rows.
+                                    guard imageAspects[assetID] == nil else { return }
+                                    imageAspects[assetID] = Self.masonryAspect(for: aspect)
+                                }
                             )
                             .frame(width: row.width(for: assetID), height: row.height)
                             .clipped()
@@ -289,7 +294,20 @@ struct MemoryDetailView: View {
         Dictionary(uniqueKeysWithValues: assetIDs.map { ($0, imageAspects[$0, default: 1]) })
     }
 
+    /// The visual language intentionally has only three card proportions. Masonry should feel
+    /// editorial and calm, rather than exposing every arbitrary camera aspect ratio.
+    private static func masonryAspect(for aspect: CGFloat) -> CGFloat {
+        let safeAspect = max(aspect, 0.01)
+        // Treat small metadata/rounding differences around a square as square too.
+        if abs(safeAspect - 1) <= 0.06 { return 1 }
+        return safeAspect > 1 ? 3.0 / 2.0 : 2.0 / 3.0
+    }
+
     private var displayedAssetIDs: [String] {
+        // Don't briefly materialise every Event photo while the curated selection is still being
+        // read from SwiftData. That initial transient gallery was starting PhotoKit work for
+        // images the user never sees in the default Memory view.
+        guard hasLoadedGallerySource else { return [] }
         let ordered = chronologicalAssetIDs.isEmpty ? event.assetIDs : chronologicalAssetIDs
         guard !isShowingAllPhotos, let selectedAssetIDs else { return ordered }
         return ordered.filter { selectedAssetIDs.contains($0) }
@@ -301,9 +319,17 @@ struct MemoryDetailView: View {
     }
 
     private func loadSelectedPhotos() async {
+        defer { hasLoadedGallerySource = true }
         let store = SwiftDataMemoryDiscoveryStore(modelContainer: modelContext.container)
         if let assets = try? await store.fetchAssets(ids: event.assetIDs) {
             chronologicalAssetIDs = assets.sorted { $0.creationDate < $1.creationDate }.map(\.id)
+            imageAspects = Dictionary(uniqueKeysWithValues: assets.compactMap { asset in
+                guard asset.pixelWidth > 0, asset.pixelHeight > 0 else { return nil }
+                return (
+                    asset.id,
+                    Self.masonryAspect(for: CGFloat(asset.pixelWidth) / CGFloat(asset.pixelHeight))
+                )
+            })
         }
         guard let curation = try? await store.result(for: event.id) else { return }
         selectedAssetIDs = Set(curation.orderedSelectedAssetIdentifiers)
@@ -386,12 +412,25 @@ private struct MemoryPhotoPreview: Identifiable {
     }
 }
 
+private enum MemoryDetailImageLoadLane: Equatable {
+    case hero
+    case gallery
+
+    var loader: PhotoThumbnailRequestLoader {
+        switch self {
+        case .hero: PhotoThumbnailRequestLoader.memoryHero
+        case .gallery: PhotoThumbnailRequestLoader.memoryGallery
+        }
+    }
+}
+
 private struct MemoryDetailImage: View {
     let assetID: String?
     let assetProvider: PhotoAssetProvider
     let targetSize: CGSize
     let contentMode: ThumbnailContentMode
     var fixedFrame: CGSize? = nil
+    var loadLane: MemoryDetailImageLoadLane = .gallery
     var onAspectAvailable: ((CGFloat) -> Void)? = nil
 
     @State private var image: PlatformImage?
@@ -427,19 +466,23 @@ private struct MemoryDetailImage: View {
             }
 
             // Fill the slot immediately with a tiny, local-only preview — near-instant even when
-            // the full-quality version below still needs a real iCloud download.
-            if let placeholder = try? await PhotoThumbnailRequestLoader.shared.thumbnail(
+            // the full-quality version below still needs a real iCloud download. Gallery uses
+            // `.fit` for this tiny request solely to retain the asset's real aspect ratio, so the
+            // justified row settles while blurred previews are visible — never after sharp images.
+            let placeholderContentMode: ThumbnailContentMode = loadLane == .gallery ? .fit : contentMode
+            if let placeholder = try? await loadLane.loader.thumbnail(
                 assetID: assetID,
                 targetSize: Self.placeholderSize,
-                contentMode: contentMode,
+                contentMode: placeholderContentMode,
                 networkAccessAllowed: false,
                 deliveryMode: .fast
             ) {
                 image = placeholder
+                onAspectAvailable?(placeholder.size.width / max(placeholder.size.height, 1))
             }
 
             do {
-                let loaded = try await PhotoThumbnailRequestLoader.shared.thumbnail(
+                let loaded = try await loadLane.loader.thumbnail(
                     assetID: assetID,
                     targetSize: targetSize,
                     contentMode: contentMode,

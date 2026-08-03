@@ -43,4 +43,21 @@ struct EventListVisibilityFilterTests {
     @Test func hiddenNoiseIsNotVisible() {
         #expect(!EventListView.isVisibleInProductionList(makeEvent(visibility: .hiddenNoise)))
     }
+
+    /// § user request — "Automemory chỉ có tác dụng lúc đầu": the Memory tab predicate reads
+    /// `isLoved` only — `isAutoMemory` (which the evaluator recomputes on every rebuild,
+    /// independent of any user decision) plays no ongoing part in it.
+    @Test func isMemoryReadsOnlyIsLovedNotIsAutoMemory() {
+        var loved = makeEvent(visibility: .normal)
+        loved.isLoved = true
+        #expect(EventListView.isMemory(loved))
+
+        var autoMemoryButUnloved = makeEvent(visibility: .normal)
+        autoMemoryButUnloved.isAutoMemory = true
+        autoMemoryButUnloved.isLoved = false
+        #expect(!EventListView.isMemory(autoMemoryButUnloved))
+
+        let neither = makeEvent(visibility: .normal)
+        #expect(!EventListView.isMemory(neither))
+    }
 }

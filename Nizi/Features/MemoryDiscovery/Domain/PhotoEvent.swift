@@ -44,6 +44,14 @@ struct PhotoEvent: Identifiable, Equatable {
     /// independent of `isLoved`. See docs/sprint/SPRINT-NEXT.md § 10-14.
     var isAutoMemory: Bool = false
     var autoMemoryScore: Double = 0
+    /// § user request — "các event mà auto-memory cũng tự động được thành loved memory": tracks
+    /// whether this Event (by asset-cluster identity — see
+    /// `SwiftDataMemoryDiscoveryStore.replaceRebuildableEvents`) has ever had `isLoved` seeded
+    /// true because of `isAutoMemory`. Deliberately separate from `isAutoMemory` itself, which
+    /// `MemoryPotentialEvaluator` recomputes from scratch on every rebuild — using it directly as
+    /// "already seeded" would forever skip Events that were already Auto Memory before this field
+    /// existed. Once true, stays true forever; only gates the one-time seed, never re-applied.
+    var autoMemorySeeded: Bool = false
 
     var assetCount: Int { assetIDs.count }
     var sessionCount: Int { sessionIDs.count }

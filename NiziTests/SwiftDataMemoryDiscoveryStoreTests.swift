@@ -185,8 +185,11 @@ struct SwiftDataMemoryDiscoveryStoreTests {
         #expect(loved.allSatisfy { $0.isLoved })
     }
 
-    /// SPRINT-NEXT § 18 — `fetchMemoryEvents` surfaces `isLoved OR isAutoMemory`, not just loved.
-    @Test func fetchMemoryEventsIncludesAutoMemoriesNotJustLoved() async throws {
+    /// § user request — "Automemory chỉ có tác dụng lúc đầu": the first time an Event ever
+    /// qualifies as Auto Memory, `replaceRebuildableEvents` seeds `isLoved = true` for it
+    /// automatically — so `fetchMemoryEvents` (which now only reads `isLoved`) still includes it
+    /// immediately, without the user ever tapping the heart themselves.
+    @Test func fetchMemoryEventsIncludesAutoMemoriesSeededAsLoved() async throws {
         let store = try makeStore()
         let loved = PhotoEvent.fixture(status: .new, startDate: Date(timeIntervalSince1970: 1_700_000_000))
         let autoMemory = PhotoEvent.fixture(status: .new, startDate: Date(timeIntervalSince1970: 1_710_000_000), isAutoMemory: true)
@@ -197,6 +200,66 @@ struct SwiftDataMemoryDiscoveryStoreTests {
         let memoryEvents = try await store.fetchMemoryEvents()
 
         #expect(Set(memoryEvents.map(\.id)) == [loved.id, autoMemory.id])
+        #expect(memoryEvents.allSatisfy { $0.isLoved })
+    }
+
+    /// § user request — "Khi user đã uncheck thì điều kiện Automemory không tác dụng": once the
+    /// user explicitly un-hearts a Memory that started as an Auto Memory, a later rebuild that
+    /// re-marks the same asset cluster `isAutoMemory` again (it still qualifies — the evaluator is
+    /// stateless) must NOT bring it back. Auto Memory only ever gets one seed, ever, per cluster.
+    @Test func explicitUnloveSticksAcrossRebuildEvenWhenStillAutoMemory() async throws {
+        let store = try makeStore()
+        let original = PhotoEvent.fixture(status: .new, assetIDs: ["asset-a", "asset-b"], isAutoMemory: true)
+        try await store.replaceRebuildableEvents([original])
+
+        let seeded = try await store.fetchMemoryEvents()
+        #expect(seeded.count == 1)
+        #expect(seeded.first?.isLoved == true)
+        let seededID = try #require(seeded.first?.id)
+
+        try await store.setEventLoved(eventID: seededID, isLoved: false)
+        let afterUnlove = try await store.fetchMemoryEvents()
+        #expect(afterUnlove.isEmpty)
+
+        let rebuilt = PhotoEvent.fixture(status: .new, assetIDs: ["asset-a", "asset-b"], isAutoMemory: true)
+        try await store.replaceRebuildableEvents([rebuilt])
+
+        let afterSecondRebuild = try await store.fetchMemoryEvents()
+        #expect(afterSecondRebuild.isEmpty)
+    }
+
+    /// § user request — "các event mà auto-memory cũng tự động được thành loved memory": an Event
+    /// inserted directly (bypassing `replaceRebuildableEvents`'s own seeding — simulating data
+    /// persisted before `autoMemorySeeded` existed) must still get caught up by
+    /// `backfillAutoMemorySeeding`, without waiting for a full rescan.
+    @Test func backfillSeedsLovedForPreExistingAutoMemoryEvents() async throws {
+        let store = try makeStore()
+        let legacyEvent = PhotoEvent.fixture(status: .new, isAutoMemory: true)
+        let legacyContext = ModelContext(store.modelContainer)
+        legacyContext.insert(MDEventCandidate(event: legacyEvent))
+        try legacyContext.save()
+
+        try await store.backfillAutoMemorySeeding()
+
+        let memoryEvents = try await store.fetchMemoryEvents()
+        #expect(memoryEvents.map(\.id) == [legacyEvent.id])
+        #expect(memoryEvents.first?.isLoved == true)
+    }
+
+    /// The backfill must never re-seed an Event whose one-time seed already happened — otherwise
+    /// it would silently undo an explicit uncheck every time this runs.
+    @Test func backfillLeavesAlreadySeededEventsAlone() async throws {
+        let store = try makeStore()
+        var alreadySeeded = PhotoEvent.fixture(status: .new, isAutoMemory: true)
+        alreadySeeded.autoMemorySeeded = true
+        let context = ModelContext(store.modelContainer)
+        context.insert(MDEventCandidate(event: alreadySeeded))
+        try context.save()
+
+        try await store.backfillAutoMemorySeeding()
+
+        let memoryEvents = try await store.fetchMemoryEvents()
+        #expect(memoryEvents.isEmpty)
     }
 
     @Test func rebuildPreservesLoveForAnEventWithTheSameAssets() async throws {
