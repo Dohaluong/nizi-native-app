@@ -105,8 +105,11 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
         let descriptor = FetchDescriptor<MDLocalAsset>(
             predicate: #Predicate { idSet.contains($0.assetLocalIdentifier) }
         )
-        return try modelContext.fetch(descriptor).compactMap { model in
-            guard let creationDate = model.creationDate else { return nil }
+        // Imported legacy files can have neither an EXIF date nor a Photos creation date. They
+        // are still valid event members and must remain visible when opening their Trip; use the
+        // index timestamps only as a stable chronological fallback for presentation.
+        return try modelContext.fetch(descriptor).map { model in
+            let creationDate = model.creationDate ?? model.modificationDate ?? model.createdAt
             return IndexedAsset(
                 id: model.assetLocalIdentifier,
                 creationDate: creationDate,
@@ -280,6 +283,40 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
             sortBy: [SortDescriptor(\.startDate, order: .reverse)]
         )
         return try modelContext.fetch(descriptor).map(PhotoEvent.init)
+    }
+
+    /// Persists the just-imported assets as a user-owned Event/Memory. This is accepted so a
+    /// future automatic discovery rebuild cannot remove it.
+    func createImportedMemoryEvent(assetIDs: [String]) async throws -> PhotoEvent {
+        let uniqueAssetIDs = orderedUnique(assetIDs)
+        guard !uniqueAssetIDs.isEmpty else { throw NiziMoveError.invalidManifest }
+
+        let idSet = Set(uniqueAssetIDs)
+        let assets = try modelContext.fetch(
+            FetchDescriptor<MDLocalAsset>(predicate: #Predicate { idSet.contains($0.assetLocalIdentifier) })
+        )
+        let dates = assets.compactMap(\.creationDate)
+        let now = Date()
+        let event = PhotoEvent(
+            id: UUID(),
+            titleSuggestion: "Ảnh mới nhập",
+            startDate: dates.min() ?? now,
+            endDate: dates.max() ?? now,
+            eventType: .dayEvent,
+            score: 1,
+            status: .accepted,
+            isLoved: true,
+            sessionIDs: [],
+            assetIDs: uniqueAssetIDs,
+            coverAssetID: uniqueAssetIDs.first,
+            discoveryReasons: [DiscoveryReason(kind: .assetCountOverDuration, text: "Ảnh được nhập từ Nizi Move")],
+            algorithmVersion: 1,
+            createdAt: now,
+            updatedAt: now
+        )
+        modelContext.insert(MDEventCandidate(event: event))
+        try modelContext.save()
+        return event
     }
 
     func setEventLoved(eventID: UUID, isLoved: Bool) async throws {
@@ -602,11 +639,51 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
     // MARK: PhotoTripRepository
 
     func replaceRebuildableTrips(_ trips: [PhotoTrip]) async throws {
-        try modelContext.delete(model: MDPhotoTrip.self)
+        let existingTrips = try modelContext.fetch(FetchDescriptor<MDPhotoTrip>())
+        for trip in existingTrips where !trip.isUserCreated {
+            modelContext.delete(trip)
+        }
         for trip in trips {
             modelContext.insert(MDPhotoTrip(trip: trip))
         }
         try modelContext.save()
+    }
+
+    func createTrip(fromImportedEventID eventID: UUID) async throws -> PhotoTrip {
+        var eventDescriptor = FetchDescriptor<MDEventCandidate>(predicate: #Predicate { $0.candidateID == eventID })
+        eventDescriptor.fetchLimit = 1
+        guard let model = try modelContext.fetch(eventDescriptor).first else { throw NiziMoveError.invalidManifest }
+        let event = PhotoEvent(model: model)
+
+        let existing = try modelContext.fetch(FetchDescriptor<MDPhotoTrip>())
+        if let trip = existing.first(where: { $0.isUserCreated && $0.eventIdentifiers == [eventID] }) {
+            return PhotoTrip(model: trip)
+        }
+
+        let trip = PhotoTrip(
+            id: UUID(),
+            startDate: event.startDate,
+            endDate: event.endDate,
+            eventIDs: [event.id],
+            primaryLatitude: nil,
+            primaryLongitude: nil,
+            primaryCountryCode: nil,
+            primaryPlaceName: nil,
+            classification: .unknown,
+            confidence: 1,
+            travelContext: TravelContext(
+                homeCountryCode: nil,
+                maxDistanceFromHomeKm: nil,
+                overnightCount: 0,
+                countryCodes: [],
+                hasDepartureFromHome: false,
+                hasReturnToHome: false
+            ),
+            isUserCreated: true
+        )
+        modelContext.insert(MDPhotoTrip(trip: trip))
+        try modelContext.save()
+        return trip
     }
 
     func fetchTrips() async throws -> [PhotoTrip] {

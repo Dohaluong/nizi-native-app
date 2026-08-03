@@ -22,6 +22,7 @@ final class MDPhotoTrip {
     var primaryPlaceName: String?
     var classification: String
     var confidence: Double
+    var isUserCreated: Bool = false
 
     var travelHomeCountryCode: String?
     var travelMaxDistanceFromHomeKm: Double?
@@ -41,6 +42,7 @@ final class MDPhotoTrip {
         primaryPlaceName = trip.primaryPlaceName
         classification = trip.classification.rawValue
         confidence = trip.confidence
+        isUserCreated = trip.isUserCreated
 
         travelHomeCountryCode = trip.travelContext.homeCountryCode
         travelMaxDistanceFromHomeKm = trip.travelContext.maxDistanceFromHomeKm
@@ -72,7 +74,8 @@ extension PhotoTrip {
             primaryPlaceName: model.primaryPlaceName,
             classification: TravelClassification(rawValue: model.classification) ?? .unknown,
             confidence: model.confidence,
-            travelContext: travelContext
+            travelContext: travelContext,
+            isUserCreated: model.isUserCreated
         )
     }
 }

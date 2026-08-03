@@ -58,23 +58,23 @@ struct HomeView: View {
     /// like a place-name resolve), which is what made Home's initial load and return-from-Memory
     /// feel like a freeze once the library had more than a handful of Memories.
     @State private var displayedHeroMemory: PhotoEvent?
+    /// Chosen only once for this Home lifetime. A fresh app launch gives the same Hero Memory a
+    /// different visual cover, while ordinary state refreshes never make the Hero flicker.
+    @State private var displayedHeroCoverAssetID: String?
     @State private var displayedLovedMemories: [PhotoEvent] = []
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    moveImportEntry
                     if let displayedHeroMemory {
                         lovedMemoryHero(displayedHeroMemory)
                     }
 
                     lovedMemoriesSection
                     backgroundScanNudgeSection
-                    // § user request — a single big square "your latest memory" card takes the
-                    // spot the Event-count summary card used to occupy; the Event entry itself
-                    // moved below the Trips rail.
                     latestMemorySection
+                    moveImportEntry
                     tripsPreviewSection
                     eventDiscoveryLink
 
@@ -251,40 +251,52 @@ struct HomeView: View {
         .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    /// Direct entry into the Events archive, displayed below the Loved Memories rail.
-    /// § user request — a single big square card for whichever Memory was *created* most
-    /// recently (`createdAt`, not `startDate`) — today that's just "whatever Nizi discovered
-    /// last," but the spot is meant for a future auto-detected "you just got back from a trip"
-    /// signal, so it's kept as its own section rather than folded into the Loved Memories rail.
+    /// The newest Memories by their photo/Event date, while still surfacing a newly imported
+    /// Memory whose original photos were taken long ago.
     @ViewBuilder
     private var latestMemorySection: some View {
-        if let event = latestCreatedMemory {
+        if !recentCreatedMemories.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 Text("home.latest_memory.eyebrow")
                     .font(.system(size: 11.5, weight: .semibold))
                     .tracking(0.9)
                     .foregroundStyle(HomeSurfaceStyle.mutedText)
+                    .padding(.horizontal, 24)
 
-                NavigationLink {
-                    MemoryDetailView(event: event) { updated in
-                        updateMemoryEventLocally(updated)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 12) {
+                        ForEach(recentCreatedMemories) { event in
+                            NavigationLink {
+                                MemoryDetailView(event: event) { updated in
+                                    updateMemoryEventLocally(updated)
+                                }
+                            } label: {
+                                RecentMemoryCard(event: event, assetProvider: homeThumbnailProvider)
+                                    .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
-                } label: {
-                    LatestMemoryCard(event: event, assetProvider: homeThumbnailProvider)
-                        .contentShape(Rectangle())
+                    .scrollTargetLayout()
                 }
-                .buttonStyle(.plain)
+                .contentMargins(.horizontal, 24, for: .scrollContent)
+                .scrollClipDisabled()
+                .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
             }
-            .padding(.horizontal, 24)
             .padding(.top, 30)
             .padding(.bottom, 36)
         }
     }
 
-    /// Not `tripEventIDs`-excluded like `homeLovedMemories` — this card answers "what's new,"
-    /// independent of whether it happens to also belong to a Trip.
-    private var latestCreatedMemory: PhotoEvent? {
-        memoryEvents.max { $0.createdAt < $1.createdAt }
+    private var recentCreatedMemories: [PhotoEvent] {
+        Array(memoryEvents.sorted { recentRank(for: $0) > recentRank(for: $1) }.prefix(5))
+    }
+
+    /// Normal Events retain their date-based place in “Gần đây”. An imported Event receives its
+    /// creation timestamp as an additional recency signal, so old EXIF dates never hide a Memory
+    /// the user has just brought into Nizi.
+    private func recentRank(for event: PhotoEvent) -> Date {
+        max(event.startDate, event.createdAt)
     }
 
     private var eventDiscoveryLink: some View {
@@ -386,6 +398,9 @@ struct HomeView: View {
     /// computed property.
     private func refreshDisplayedMemories() {
         let hero = computeHeroMemory()
+        if displayedHeroMemory?.id != hero?.id || displayedHeroCoverAssetID == nil {
+            displayedHeroCoverAssetID = hero?.assetIDs.randomElement() ?? hero?.coverAssetID
+        }
         displayedHeroMemory = hero
         displayedLovedMemories = computeHomeLovedMemories(excludingHeroID: hero?.id)
     }
@@ -443,7 +458,12 @@ struct HomeView: View {
                     updateMemoryEventLocally(updated)
                 }
             } label: {
-                LovedMemoryCard(event: event, isHero: true, assetProvider: homeThumbnailProvider)
+                LovedMemoryCard(
+                    event: event,
+                    isHero: true,
+                    assetProvider: homeThumbnailProvider,
+                    coverAssetID: displayedHeroCoverAssetID
+                )
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -913,33 +933,33 @@ private struct PhotobookThumbnail: View {
     }
 }
 
-/// The big square card for `HomeView.latestMemorySection` — full-bleed square cover, same
-/// two-tier placeholder-then-sharp image load every other Home card uses.
-private struct LatestMemoryCard: View {
+/// A vertically framed, snap-aligned card for Home's five-item Recent Memories rail.
+private struct RecentMemoryCard: View {
     let event: PhotoEvent
     let assetProvider: PhotoAssetProvider
     @State private var coverImage: PlatformImage?
     @State private var isCoverSharp = false
     private static let placeholderSize = CGSize(width: 40, height: 40)
-    private var size: CGFloat { UIScreen.main.bounds.width - 48 }
-    private var targetSize: CGSize { CGSize(width: size * 2, height: size * 2) }
+    private var cardHeight: CGFloat { UIScreen.main.bounds.width - 48 }
+    private var cardWidth: CGFloat { cardHeight * 2 / 3 }
+    private var targetSize: CGSize { CGSize(width: cardWidth * 2, height: cardHeight * 2) }
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             Rectangle()
                 .fill(Color.secondary.opacity(0.15))
-                .frame(width: size, height: size)
+                .frame(width: cardWidth, height: cardHeight)
             if let coverImage {
                 Image(uiImage: coverImage)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: size, height: size)
+                    .frame(width: cardWidth, height: cardHeight)
                     .clipped()
                     .blur(radius: isCoverSharp ? 0 : 14)
                     .animation(.easeInOut(duration: 0.35), value: isCoverSharp)
             }
             LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
-                .frame(width: size, height: size)
+                .frame(width: cardWidth, height: cardHeight)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
@@ -952,7 +972,7 @@ private struct LatestMemoryCard: View {
             }
             .padding(20)
         }
-        .frame(width: size, height: size)
+        .frame(width: cardWidth, height: cardHeight)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .task(id: event.coverAssetID) {
             isCoverSharp = false
@@ -1010,6 +1030,9 @@ private struct LovedMemoryCard: View {
     var isHero = false
 
     let assetProvider: PhotoAssetProvider
+    /// The Hero supplies a per-app-launch choice from this Event's assets. Other cards use the
+    /// Event's normal persisted cover.
+    var coverAssetID: String? = nil
     @State private var coverImage: PlatformImage?
     /// `false` while `coverImage` is only the fast local placeholder (so the slot never sits
     /// empty during a slow iCloud download) — `true` once the real, right-sized image has loaded.
@@ -1095,9 +1118,9 @@ private struct LovedMemoryCard: View {
         .frame(width: cardWidth, height: cardHeight, alignment: .bottomLeading)
         .clipped()
         .clipShape(RoundedRectangle(cornerRadius: isHero ? 0 : 14, style: .continuous))
-        .task(id: event.coverAssetID) {
+        .task(id: coverAssetID ?? event.coverAssetID) {
             isCoverSharp = false
-            guard let coverAssetID = event.coverAssetID else { return }
+            guard let coverAssetID = coverAssetID ?? event.coverAssetID else { return }
             if let cached = assetProvider.cachedThumbnail(
                 assetID: coverAssetID, targetSize: targetSize, contentMode: .fill
             ) {

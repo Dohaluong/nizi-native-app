@@ -19,6 +19,8 @@ final class NiziMoveImportCoordinator {
     var totalBytes: Int64 = 0
     var savedBytes: Int64 = 0
     var isPaused = false
+    var importedEventID: UUID?
+    var didCreateTrip = false
 
     init(modelContainer: ModelContainer) { self.modelContainer = modelContainer }
 
@@ -70,6 +72,17 @@ final class NiziMoveImportCoordinator {
     func pause() { isPaused = true; task?.cancel(); Task { [modelContainer, sessionID] in if let sessionID { try? await NiziMoveImportStore(modelContainer: modelContainer).updateSession(sessionID, status: .paused) } } }
     func cancel() { pause(); screen = .introduction }
 
+    func createTripFromImportedEvent() async {
+        guard let importedEventID else { return }
+        do {
+            _ = try await SwiftDataMemoryDiscoveryStore(modelContainer: modelContainer)
+                .createTrip(fromImportedEventID: importedEventID)
+            didCreateTrip = true
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     private func run(sessionID: String) async {
         let store = NiziMoveImportStore(modelContainer: modelContainer)
         do {
@@ -85,6 +98,13 @@ final class NiziMoveImportCoordinator {
                 try await api.complete(sessionID: sessionID, accessToken: token)
                 NiziMoveKeychain.delete(sessionID: sessionID)
                 try await store.updateSession(sessionID, status: final.contains(where: { $0.status == .failed }) ? .partiallyCompleted : .completed)
+                let importedAssetIDs = final
+                    .filter { $0.status == .serverAcknowledged }
+                    .compactMap(\.phAssetLocalIdentifier)
+                let event = try await SwiftDataMemoryDiscoveryStore(modelContainer: modelContainer)
+                    .createImportedMemoryEvent(assetIDs: importedAssetIDs)
+                importedEventID = event.id
+                didCreateTrip = false
                 screen = .result
             }
         } catch { errorMessage = error.localizedDescription; try? await store.updateSession(sessionID, status: .partiallyCompleted); screen = .progress }
@@ -111,6 +131,7 @@ final class NiziMoveImportCoordinator {
         let asset = manifest?.assets.first(where: { $0.assetID == record.assetID }) ?? record.manifestAsset
         try await store.updateSession(sessionID, status: .importing, currentAssetID: record.assetID)
         var localIdentifier = record.phAssetLocalIdentifier
+        var fallbackCreationDate = asset.capturedAt
         if localIdentifier == nil {
             try await store.updateAsset(record.assetID, status: .downloading)
             let source = try await api.download(asset, accessToken: token)
@@ -124,11 +145,20 @@ final class NiziMoveImportCoordinator {
             }
             try await store.updateAsset(record.assetID, status: .verified)
             try await store.updateAsset(record.assetID, status: .savingToPhotos)
-            localIdentifier = try await NiziMovePhotoSaver.save(fileURL: file, metadata: asset)
+            // Prefer the server's normalized date, but repair manifests from older bridges by
+            // reading the original EXIF before the temporary file is deleted.
+            if fallbackCreationDate == nil {
+                fallbackCreationDate = NiziMovePhotoSaver.embeddedCaptureDate(in: file)
+            }
+            localIdentifier = try await NiziMovePhotoSaver.save(
+                fileURL: file,
+                metadata: asset,
+                preferredCreationDate: fallbackCreationDate
+            )
             try await store.updateAsset(record.assetID, status: .savedToPhotos, localIdentifier: localIdentifier)
         }
         guard let localIdentifier else { return }
-        try await index(localIdentifier: localIdentifier)
+        try await index(localIdentifier: localIdentifier, fallbackCreationDate: fallbackCreationDate)
         try await store.updateAsset(record.assetID, status: .indexed)
         try await api.acknowledge(assetID: record.assetID, accessToken: token)
         try await store.updateAsset(record.assetID, status: .serverAcknowledged)
@@ -142,11 +172,13 @@ final class NiziMoveImportCoordinator {
         failedCount += 1
     }
 
-    private func index(localIdentifier: String) async throws {
+    private func index(localIdentifier: String, fallbackCreationDate: Date?) async throws {
         let provider = PhotoKitAssetProvider()
         let records = provider.fetchAssetRecords(localIdentifiers: [localIdentifier])
         guard records.count == 1 else { throw NiziMoveError.photosPermission }
-        try await SwiftDataMemoryDiscoveryStore(modelContainer: modelContainer).upsert(records)
+        try await SwiftDataMemoryDiscoveryStore(modelContainer: modelContainer).upsert(
+            records.map { $0.withCreationDateFallback(fallbackCreationDate) }
+        )
     }
 
     private func temporaryURL(assetID: String, filename: String) throws -> URL {

@@ -64,6 +64,9 @@
         }
       }
     },
+    "%lld" : {
+
+    },
     "%lld / %lld" : {
       "localizations" : {
         "en" : {
@@ -192,9 +195,6 @@
 
     },
     "🏠 HOME" : {
-
-    },
-    "1. Mở move.nizi.vn trên máy tính.\n2. Chọn và chuẩn bị ảnh.\n3. Quét mã QR để chuyển vào Nizi." : {
 
     },
     "8 YEARS AGO" : {
@@ -2058,6 +2058,9 @@
     "Bỏ yêu thích sự kiện" : {
 
     },
+    "Các ảnh bạn vừa nhập đã được tự động tạo thành một Memory." : {
+
+    },
     "Cancel" : {
 
     },
@@ -2284,6 +2287,9 @@
     "Đã lưu vào Photos: %lld ảnh" : {
 
     },
+    "Đã tạo Trip" : {
+
+    },
     "Đang chuyển ảnh từ máy tính" : {
 
     },
@@ -2291,6 +2297,9 @@
 
     },
     "Đang lọc theo kỷ niệm yêu thích" : {
+
+    },
+    "Đang mở Event Memory…" : {
 
     },
     "Đang tạo trang %@/%lld" : {
@@ -2302,6 +2311,9 @@
           }
         }
       }
+    },
+    "Đây có phải là một chuyến đi không? Hãy lưu lại nhé." : {
+
     },
     "Day Event" : {
 
@@ -4007,6 +4019,9 @@
     "Không thể cập nhật sự kiện" : {
 
     },
+    "Không thể mở Event Memory" : {
+
+    },
     "Không thể tạo file PDF." : {
 
     },
@@ -4020,6 +4035,9 @@
 
     },
     "kỷ niệm" : {
+
+    },
+    "Làm theo các bước sau để đưa ảnh vào Nizi trên iPhone." : {
 
     },
     "Landscape" : {
@@ -4090,6 +4108,9 @@
 
     },
     "Manage Selected Photos" : {
+
+    },
+    "Memory mới" : {
 
     },
     "Memory Potential" : {
@@ -5854,6 +5875,9 @@
     "Quét mã QR" : {
 
     },
+    "Quét mã QR trên máy tính tại trang move.nizi.vn để chuyển ảnh về iPhone." : {
+
+    },
     "Re-run with these settings" : {
 
     },
@@ -5897,6 +5921,9 @@
 
     },
     "Sẵn sàng chuyển ảnh" : {
+
+    },
+    "Sao chép nội dung" : {
 
     },
     "Save as New Preset" : {
@@ -6281,6 +6308,9 @@
     "Tạo Photobook" : {
 
     },
+    "Tạo Trip" : {
+
+    },
     "Tháng %lld" : {
 
     },
@@ -6322,6 +6352,9 @@
 
     },
     "Trip" : {
+
+    },
+    "Trip từ Memory này đã được lưu." : {
 
     },
     "trip.classification.day_trip" : {
@@ -6633,6 +6666,9 @@
           }
         }
       }
+    },
+    "Xem" : {
+
     },
     "Xóa dữ liệu khám phá trên thiết bị?" : {
 

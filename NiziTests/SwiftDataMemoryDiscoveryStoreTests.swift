@@ -116,6 +116,25 @@ struct SwiftDataMemoryDiscoveryStoreTests {
         #expect(clusterable.map(\.id) == ["asset-dated"])
     }
 
+    @Test func fetchAssetsKeepsUndatedAssetsForExistingEventPresentation() async throws {
+        let store = try makeStore()
+        let fallbackDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let context = ModelContext(store.modelContainer)
+        let undated = PhotoAssetRecord(
+            id: "imported-undated", creationDate: nil, modificationDate: nil, mediaType: .image,
+            pixelWidth: 100, pixelHeight: 100, duration: 0, latitude: nil, longitude: nil,
+            isFavorite: false, isHidden: false, isScreenshot: false, burstIdentifier: nil,
+            sourceType: .userLibrary
+        )
+        let model = MDLocalAsset(record: undated, now: fallbackDate)
+        context.insert(model)
+        try context.save()
+
+        let assets = try await store.fetchAssets(ids: ["imported-undated"])
+        #expect(assets.map(\.id) == ["imported-undated"])
+        #expect(assets.first?.creationDate == fallbackDate)
+    }
+
     @Test func persistedEventRoundTripsQualityScoreAndVisibility() async throws {
         let store = try makeStore()
         let event = PhotoEvent.fixture(status: .new, eventQualityScore: 0.72, eventVisibility: .lowValue)

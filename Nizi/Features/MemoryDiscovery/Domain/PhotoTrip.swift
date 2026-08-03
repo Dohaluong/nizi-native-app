@@ -25,4 +25,5 @@ struct PhotoTrip: Identifiable, Equatable {
     var classification: TravelClassification
     let confidence: Double
     var travelContext: TravelContext
+    var isUserCreated: Bool = false
 }

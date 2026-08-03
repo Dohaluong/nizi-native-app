@@ -4,7 +4,31 @@ actor NiziMoveAPI {
     private let baseURL = URL(string: "https://move.nizi.vn")!
     private let allowedDownloadHosts: Set<String> = ["move.nizi.vn"]
     private let decoder: JSONDecoder = {
-        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601; return decoder
+        let decoder = JSONDecoder()
+        // The bridge uses ISO-8601 timestamps with milliseconds (for example
+        // `2026-08-04T06:57:35.018Z`); JSONDecoder.iso8601 does not accept that form.
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let value = try container.decode(String.self)
+
+            let fractionalFormatter = ISO8601DateFormatter()
+            fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = fractionalFormatter.date(from: value) {
+                return date
+            }
+
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime]
+            if let date = formatter.date(from: value) {
+                return date
+            }
+
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Expected an ISO-8601 date, received \(value)"
+            )
+        }
+        return decoder
     }()
 
     func claim(_ qr: NiziMoveQR) async throws -> String {
@@ -13,7 +37,7 @@ actor NiziMoveAPI {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(["token": qr.pairingToken])
         let (data, response) = try await URLSession.shared.data(for: request)
-        let envelope = try decoder.decode(Envelope<ClaimData>.self, from: data)
+        let envelope = try decodeResponse(Envelope<ClaimData>.self, from: data, endpoint: "POST /claim", response: response)
         guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode), envelope.success else {
             if (response as? HTTPURLResponse)?.statusCode == 401, envelope.code == "INVALID_PAIRING_TOKEN" { throw NiziMoveError.pairingTokenInvalid }
             throw NiziMoveError.server(envelope.code ?? "CLAIM_FAILED")
@@ -24,8 +48,16 @@ actor NiziMoveAPI {
 
     func manifest(sessionID: String, accessToken: String) async throws -> NiziMoveManifest {
         let data = try await request(path: "/api/import-sessions/\(sessionID)/manifest", token: accessToken)
-        let envelope = try decoder.decode(Envelope<ManifestPayload>.self, from: data)
-        guard envelope.success, let payload = envelope.data else { throw NiziMoveError.server(envelope.code ?? "MANIFEST_FAILED") }
+        // Production returns the manifest itself at the response root. Keep accepting the
+        // envelope variant as well so native remains compatible with either v1 deployment.
+        let payload: ManifestPayload
+        if let envelope = try? decoder.decode(Envelope<ManifestPayload>.self, from: data),
+           envelope.success,
+           let envelopedPayload = envelope.data {
+            payload = envelopedPayload
+        } else {
+            payload = try decodeResponse(ManifestPayload.self, from: data, endpoint: "GET /manifest")
+        }
         let manifest = try payload.domain()
         try validate(manifest, expectedSessionID: sessionID)
         return manifest
@@ -66,6 +98,42 @@ actor NiziMoveAPI {
         for asset in manifest.assets {
             guard !asset.assetID.isEmpty, asset.byteSize >= 0, asset.sha256.range(of: "^[A-Fa-f0-9]{64}$", options: .regularExpression) != nil else { throw NiziMoveError.invalidManifest }
         }
+    }
+
+    private func decodeResponse<T: Decodable>(
+        _ type: T.Type,
+        from data: Data,
+        endpoint: String,
+        response: URLResponse? = nil
+    ) throws -> T {
+        do {
+            return try decoder.decode(type, from: data)
+        } catch {
+            throw NiziMoveResponseDecodingError(
+                endpoint: endpoint,
+                statusCode: (response as? HTTPURLResponse)?.statusCode,
+                body: String(data: data, encoding: .utf8) ?? "<Phản hồi không phải văn bản UTF-8>",
+                underlyingError: error
+            )
+        }
+    }
+}
+
+private struct NiziMoveResponseDecodingError: LocalizedError {
+    let endpoint: String
+    let statusCode: Int?
+    let body: String
+    let underlyingError: Error
+
+    var errorDescription: String? {
+        """
+        Không đọc được phản hồi từ \(endpoint)\(statusCode.map { " (HTTP \($0))" } ?? "").
+
+        Server trả về:
+        \(body)
+
+        Chi tiết: \(underlyingError.localizedDescription)
+        """
     }
 }
 

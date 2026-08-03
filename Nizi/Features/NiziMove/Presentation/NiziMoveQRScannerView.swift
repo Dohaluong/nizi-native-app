@@ -8,6 +8,20 @@ struct NiziMoveQRScannerView: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: ScannerController, context: Context) {}
 
     final class ScannerController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
+        private struct InvalidPayloadError: LocalizedError {
+            let rawValue: String
+            let parsingError: Error
+
+            var errorDescription: String? {
+                """
+                Camera đọc được nội dung sau:
+                \(rawValue)
+
+                Lý do không thể dùng mã này: \(parsingError.localizedDescription)
+                """
+            }
+        }
+
         private let captureSession = AVCaptureSession()
         private let onResult: (Result<NiziMoveQR, Error>) -> Void
         private var previewLayer: AVCaptureVideoPreviewLayer?
@@ -40,7 +54,10 @@ struct NiziMoveQRScannerView: UIViewControllerRepresentable {
             guard !isDelivering, let raw = (metadataObjects.first as? AVMetadataMachineReadableCodeObject)?.stringValue else { return }
             switch Result { try parseNiziMoveQR(raw) } {
             case .success(let qr): isDelivering = true; stop(); onResult(.success(qr))
-            case .failure(let error): onResult(.failure(error)); DispatchQueue.global(qos: .userInitiated).async { [captureSession] in if !captureSession.isRunning { captureSession.startRunning() } }
+            case .failure(let error):
+                // Show the exact scanner payload to the user for troubleshooting, but never log it.
+                onResult(.failure(InvalidPayloadError(rawValue: raw, parsingError: error)))
+                DispatchQueue.global(qos: .userInitiated).async { [captureSession] in if !captureSession.isRunning { captureSession.startRunning() } }
             }
         }
         private func stop() { DispatchQueue.global(qos: .userInitiated).async { [captureSession] in if captureSession.isRunning { captureSession.stopRunning() } } }

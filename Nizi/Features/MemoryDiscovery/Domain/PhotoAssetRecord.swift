@@ -33,4 +33,27 @@ struct PhotoAssetRecord: Identifiable, Equatable {
     let isScreenshot: Bool
     let burstIdentifier: String?
     let sourceType: PhotoAssetSourceType
+
+    /// PhotoKit occasionally reports a newly-created import before its `creationDate` has been
+    /// materialized. Keep the trusted import date in the local index instead of losing the asset
+    /// from chronological event/detail views.
+    func withCreationDateFallback(_ fallback: Date?) -> PhotoAssetRecord {
+        guard creationDate == nil, let fallback else { return self }
+        return PhotoAssetRecord(
+            id: id,
+            creationDate: fallback,
+            modificationDate: modificationDate,
+            mediaType: mediaType,
+            pixelWidth: pixelWidth,
+            pixelHeight: pixelHeight,
+            duration: duration,
+            latitude: latitude,
+            longitude: longitude,
+            isFavorite: isFavorite,
+            isHidden: isHidden,
+            isScreenshot: isScreenshot,
+            burstIdentifier: burstIdentifier,
+            sourceType: sourceType
+        )
+    }
 }
