@@ -63,13 +63,46 @@ actor NiziMoveAPI {
         return manifest
     }
 
-    func download(_ asset: NiziMoveManifestAsset, accessToken: String) async throws -> URL {
+    /// Streams directly to a stable temporary file. If a previous attempt left bytes in that
+    /// file, the next request uses HTTP Range and appends only the missing suffix.
+    func download(_ asset: NiziMoveManifestAsset, accessToken: String, to destination: URL) async throws {
         guard asset.downloadURL.scheme?.lowercased() == "https", let host = asset.downloadURL.host?.lowercased(), allowedDownloadHosts.contains(host) else { throw NiziMoveError.invalidManifest }
+        let existingBytes = try fileSize(at: destination)
+        guard existingBytes <= asset.byteSize else { throw NiziMoveError.invalidManifest }
+
         var request = URLRequest(url: asset.downloadURL)
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        let (url, response) = try await URLSession.shared.download(for: request)
-        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else { throw NiziMoveError.server("DOWNLOAD_FAILED") }
-        return url
+        if existingBytes > 0 { request.setValue("bytes=\(existingBytes)-", forHTTPHeaderField: "Range") }
+
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+        guard let http = response as? HTTPURLResponse else { throw NiziMoveError.server("DOWNLOAD_FAILED") }
+        if existingBytes > 0 {
+            guard http.statusCode == 206, isValidContentRange(http.value(forHTTPHeaderField: "Content-Range"), offset: existingBytes, expectedSize: asset.byteSize) else {
+                throw NiziMoveError.server("RANGE_NOT_SUPPORTED")
+            }
+        } else {
+            guard (200...299).contains(http.statusCode) else { throw NiziMoveError.server("DOWNLOAD_FAILED") }
+        }
+
+        if existingBytes == 0 {
+            try? FileManager.default.removeItem(at: destination)
+            guard FileManager.default.createFile(atPath: destination.path, contents: nil) else { throw NiziMoveError.server("DOWNLOAD_FILE_CREATE_FAILED") }
+        }
+        let handle = try FileHandle(forWritingTo: destination)
+        defer { try? handle.close() }
+        try handle.seekToEnd()
+        var buffer = Data()
+        buffer.reserveCapacity(64 * 1_024)
+        for try await byte in bytes {
+            buffer.append(byte)
+            if buffer.count == 64 * 1_024 {
+                try handle.write(contentsOf: buffer)
+                buffer.removeAll(keepingCapacity: true)
+            }
+        }
+        if !buffer.isEmpty { try handle.write(contentsOf: buffer) }
+        try handle.synchronize()
+        guard try fileSize(at: destination) == asset.byteSize else { throw NiziMoveError.server("DOWNLOAD_SIZE_MISMATCH") }
     }
 
     func acknowledge(assetID: String, accessToken: String, failedReason: String? = nil) async throws {
@@ -98,6 +131,16 @@ actor NiziMoveAPI {
         for asset in manifest.assets {
             guard !asset.assetID.isEmpty, asset.byteSize >= 0, asset.sha256.range(of: "^[A-Fa-f0-9]{64}$", options: .regularExpression) != nil else { throw NiziMoveError.invalidManifest }
         }
+    }
+
+    private func fileSize(at url: URL) throws -> Int64 {
+        guard FileManager.default.fileExists(atPath: url.path) else { return 0 }
+        return (try url.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
+    }
+
+    private func isValidContentRange(_ value: String?, offset: Int64, expectedSize: Int64) -> Bool {
+        guard let value else { return false }
+        return value.range(of: "^bytes \\(offset)-[0-9]+/\\(expectedSize)$", options: .regularExpression) != nil
     }
 
     private func decodeResponse<T: Decodable>(
@@ -140,14 +183,14 @@ private struct NiziMoveResponseDecodingError: LocalizedError {
 private struct Envelope<T: Decodable>: Decodable { let success: Bool; let data: T?; let code: String?; let message: String? }
 private struct ClaimData: Decodable { let accessToken: String? }
 private struct EmptyPayload: Decodable {}
-private struct ManifestPayload: Decodable {
-    let protocolVersion: Int; let sessionId: String; let status: String; let expiresAt: Date; let assets: [Asset]
+struct ManifestPayload: Decodable {
+    let protocolVersion: Int; let sessionId: String; let status: String; let sourceType: String?; let expiresAt: Date; let assets: [Asset]
     struct Asset: Decodable {
         let assetId: String; let filename: String; let mimeType: String; let byteSize: Int64; let sha256: String; let downloadUrl: URL
         let capturedAt: Date?; let creationDate: Date?; let latitude: Double?; let longitude: Double?; let relativePath: String?
     }
     func domain() throws -> NiziMoveManifest {
-        NiziMoveManifest(protocolVersion: protocolVersion, sessionID: sessionId, status: status, expiresAt: expiresAt, assets: assets.map {
+        NiziMoveManifest(protocolVersion: protocolVersion, sessionID: sessionId, status: status, sourceType: sourceType, expiresAt: expiresAt, assets: assets.map {
             NiziMoveManifestAsset(assetID: $0.assetId, filename: $0.filename, mimeType: $0.mimeType, byteSize: $0.byteSize, sha256: $0.sha256, downloadURL: $0.downloadUrl, capturedAt: $0.capturedAt ?? $0.creationDate, latitude: $0.latitude, longitude: $0.longitude, relativePath: $0.relativePath)
         })
     }

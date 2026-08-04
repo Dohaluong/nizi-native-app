@@ -8,6 +8,7 @@ struct NiziMoveImportView: View {
     @State private var coordinator: NiziMoveImportCoordinator
     @State private var manualCode = ""
     @State private var showManual = false
+    @State private var showGoogleDriveImport = false
     @State private var showImportedMemory = false
 
     init(modelContainer: ModelContainer) {
@@ -44,6 +45,16 @@ struct NiziMoveImportView: View {
                 NiziMoveImportedMemoryView(modelContainer: modelContainer, eventID: eventID)
             }
         }
+        .sheet(isPresented: $showGoogleDriveImport) {
+            GoogleDriveLinkImportView(modelContainer: modelContainer) { sessionID, token in
+                do {
+                    try await coordinator.receive(sessionID: sessionID, accessToken: token)
+                    showGoogleDriveImport = false
+                } catch {
+                    coordinator.errorMessage = error.localizedDescription
+                }
+            }
+        }
     }
 
     private var introduction: some View {
@@ -52,9 +63,9 @@ struct NiziMoveImportView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.tint)
                 .padding(.top, 12)
-            Text("Chuyển ảnh từ máy tính")
+            Text("Nhận ảnh vào Nizi")
                 .font(.title.bold())
-            Text("Làm theo các bước sau để đưa ảnh vào Nizi trên iPhone.")
+            Text("Chọn cách bạn muốn đưa ảnh vào iPhone.")
                 .foregroundStyle(.secondary)
 
             instructionCard(
@@ -77,11 +88,19 @@ struct NiziMoveImportView: View {
             )
 
             Spacer(minLength: 4)
-            Button("Quét mã QR") { coordinator.screen = .scanner }
+            Button("Quét mã QR từ máy tính") { coordinator.screen = .scanner }
                 .buttonStyle(.borderedProminent)
                 .frame(maxWidth: .infinity)
             Button("Nhập mã thủ công") { showManual = true }
                 .frame(maxWidth: .infinity)
+            Divider().padding(.vertical, 4)
+            Button {
+                showGoogleDriveImport = true
+            } label: {
+                Label("Nhập từ Google Drive Link", systemImage: "link")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
         }
         .sheet(isPresented: $showManual) {
             NavigationStack {

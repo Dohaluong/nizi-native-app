@@ -162,8 +162,8 @@ struct HomeView: View {
                     .font(.title3)
                     .foregroundStyle(HomeSurfaceStyle.accent)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Nhập ảnh từ máy tính").font(.headline)
-                    Text("Quét mã Nizi Move để chuyển ảnh vào Photos.").font(.subheadline).foregroundStyle(HomeSurfaceStyle.mutedText)
+                    Text("Nhập ảnh").font(.headline)
+                    Text("Quét mã Nizi Move hoặc dán liên kết Google Drive.").font(.subheadline).foregroundStyle(HomeSurfaceStyle.mutedText)
                 }
                 Spacer(); Image(systemName: "chevron.right").foregroundStyle(HomeSurfaceStyle.mutedText)
             }

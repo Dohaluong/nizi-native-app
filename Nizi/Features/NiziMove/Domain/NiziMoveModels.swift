@@ -55,6 +55,10 @@ struct NiziMoveManifest: Sendable, Equatable {
     let protocolVersion: Int
     let sessionID: String
     let status: String
+    /// An optional diagnostic value supplied by newer bridge deployments.  Import processing is
+    /// deliberately source-agnostic: both browser uploads and Google Drive shares use the same
+    /// claim → manifest → download pipeline.
+    let sourceType: String?
     let expiresAt: Date
     let assets: [NiziMoveManifestAsset]
 }

@@ -39,7 +39,7 @@ struct NiziApp: App {
             MDLocationCluster.self, MDHomeAnchor.self, MDFamiliarPlace.self, MDPhotoTrip.self,
             MDAlbumDraft.self, MDPhotoEditRecipe.self, MDCollectionEditStyle.self,
             MDPresetOverride.self, MDCustomPreset.self,
-            MDNiziMoveImportSession.self, MDNiziMoveImportAsset.self
+            MDNiziMoveImportSession.self, MDNiziMoveImportAsset.self, MDGoogleDrivePreparation.self
         ])
     }
 }

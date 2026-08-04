@@ -49,12 +49,19 @@ final class NiziMoveImportCoordinator {
         do {
             let token: String
             if let existing = try NiziMoveKeychain.accessToken(sessionID: qr.sessionID) { token = existing }
-            else { token = try await api.claim(qr); try NiziMoveKeychain.save(accessToken: token, sessionID: qr.sessionID) }
-            let fetched = try await api.manifest(sessionID: qr.sessionID, accessToken: token)
-            try await NiziMoveImportStore(modelContainer: modelContainer).saveManifest(fetched)
-            manifest = fetched; sessionID = qr.sessionID; totalCount = fetched.assets.count; totalBytes = fetched.assets.reduce(0) { $0 + $1.byteSize }
-            screen = .confirmation
+            else { token = try await api.claim(qr) }
+            try await receive(sessionID: qr.sessionID, accessToken: token)
         } catch { errorMessage = error.localizedDescription; screen = .introduction }
+    }
+
+    /// Both QR claims and native-created sources converge here once they hold a session-scoped
+    /// access token. No source-specific download, Photos, or indexing path is introduced.
+    func receive(sessionID: String, accessToken: String) async throws {
+        try NiziMoveKeychain.save(accessToken: accessToken, sessionID: sessionID)
+        let fetched = try await api.manifest(sessionID: sessionID, accessToken: accessToken)
+        try await NiziMoveImportStore(modelContainer: modelContainer).saveManifest(fetched)
+        manifest = fetched; self.sessionID = sessionID; totalCount = fetched.assets.count; totalBytes = fetched.assets.reduce(0) { $0 + $1.byteSize }
+        screen = .confirmation
     }
 
     func start() async {
@@ -132,12 +139,16 @@ final class NiziMoveImportCoordinator {
         try await store.updateSession(sessionID, status: .importing, currentAssetID: record.assetID)
         var localIdentifier = record.phAssetLocalIdentifier
         var fallbackCreationDate = asset.capturedAt
+        var temporaryFilePath = record.temporaryFilePath
         if localIdentifier == nil {
-            try await store.updateAsset(record.assetID, status: .downloading)
-            let source = try await api.download(asset, accessToken: token)
             let file = try temporaryURL(assetID: record.assetID, filename: record.filename)
-            try? FileManager.default.removeItem(at: file)
-            try FileManager.default.moveItem(at: source, to: file)
+            temporaryFilePath = file.path
+            if fileSize(at: file) != asset.byteSize {
+                try await store.updateAsset(record.assetID, status: .downloading)
+                // Keep an interrupted partial file in place. NiziMoveAPI detects its length and
+                // resumes it with a Range request; this remains identical for every manifest source.
+                try await api.download(asset, accessToken: token, to: file)
+            }
             try await store.updateAsset(record.assetID, status: .downloaded, temporaryFilePath: file.path)
             guard try NiziMovePhotoSaver.sha256(of: file).caseInsensitiveCompare(record.sha256) == .orderedSame else {
                 try? FileManager.default.removeItem(at: file)
@@ -162,7 +173,7 @@ final class NiziMoveImportCoordinator {
         try await store.updateAsset(record.assetID, status: .indexed)
         try await api.acknowledge(assetID: record.assetID, accessToken: token)
         try await store.updateAsset(record.assetID, status: .serverAcknowledged)
-        if let path = record.temporaryFilePath { try? FileManager.default.removeItem(atPath: path) }
+        if let temporaryFilePath { try? FileManager.default.removeItem(atPath: temporaryFilePath) }
         completedCount += 1; savedBytes += record.byteSize
     }
 
@@ -185,6 +196,11 @@ final class NiziMoveImportCoordinator {
         guard assetID.range(of: "^[A-Za-z0-9_-]+$", options: .regularExpression) != nil else { throw NiziMoveError.invalidManifest }
         let ext = URL(fileURLWithPath: filename).pathExtension.filter { $0.isLetter || $0.isNumber }
         return FileManager.default.temporaryDirectory.appendingPathComponent(assetID).appendingPathExtension(ext.isEmpty ? "img" : ext)
+    }
+
+    private func fileSize(at url: URL) -> Int64 {
+        guard FileManager.default.fileExists(atPath: url.path) else { return 0 }
+        return Int64((try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
     }
 
     private func availableStorage() -> Int64 {
