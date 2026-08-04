@@ -26,7 +26,7 @@ enum NiziMovePhotoSaver {
         preferredCreationDate: Date? = nil
     ) async throws -> String {
         let creationDate = preferredCreationDate ?? metadata.capturedAt ?? embeddedCaptureDate(in: fileURL)
-        try await withCheckedThrowingContinuation { continuation in
+        return try await withCheckedThrowingContinuation { continuation in
             var identifier: String?
             PHPhotoLibrary.shared().performChanges {
                 guard let request = PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: fileURL) else { return }
