@@ -10,6 +10,7 @@ import SwiftData
 
 @main
 struct NiziApp: App {
+    @AppStorage(NiziAppLanguage.storageKey) private var appLanguageRawValue: String = NiziAppLanguage.system.rawValue
     #if DEBUG
     @AppStorage(DebugLocaleOverride.storageKey) private var localeOverrideRawValue: String = DebugLocaleOverride.system.rawValue
     #endif
@@ -21,25 +22,31 @@ struct NiziApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                // DESIGN-pinterest.md specifies a warm, light canvas as the product chrome.
+                // Individual photo/crop viewers may still select a deliberate viewing surface.
+                .preferredColorScheme(.light)
+                .tint(NiziPinterestTheme.primary)
+                .environment(\.locale, effectiveLocale)
                 #if DEBUG
-                .environment(\.locale, (DebugLocaleOverride(rawValue: localeOverrideRawValue) ?? .system).locale)
                 // Forces SwiftUI to tear down and rebuild the entire view tree on a language
                 // change. Needed because `localizedString(_:defaultValue:)` resolves to a plain
                 // `String` via `Foundation.String(localized:locale:)` (not a `Text`-resolved
                 // `LocalizedStringKey`), so views built from it have no environment dependency
                 // SwiftUI can see — without `.id()` here, `.environment(\.locale, ...)` alone
                 // doesn't invalidate them, and they keep showing whatever they last computed.
-                .id(localeOverrideRawValue)
+                .id("\(appLanguageRawValue)-\(localeOverrideRawValue)")
+                #else
+                .id(appLanguageRawValue)
                 #endif
         }
-        .modelContainer(for: [
-            MDLocalAsset.self, MDScanCheckpoint.self, MDPhotoSession.self, MDEventCandidate.self,
-            MDEventCurationResult.self, MDPhotoCurationGroup.self, MDPhotoCurationItem.self,
-            MDMemoryCandidate.self,
-            MDLocationCluster.self, MDHomeAnchor.self, MDFamiliarPlace.self, MDPhotoTrip.self,
-            MDAlbumDraft.self, MDPhotoEditRecipe.self, MDCollectionEditStyle.self,
-            MDPresetOverride.self, MDCustomPreset.self,
-            MDNiziMoveImportSession.self, MDNiziMoveImportAsset.self, MDGoogleDrivePreparation.self
-        ])
+        .modelContainer(for: NiziPersistentModels.app)
+    }
+
+    private var effectiveLocale: Locale {
+        #if DEBUG
+        let debugOverride = DebugLocaleOverride(rawValue: localeOverrideRawValue) ?? .system
+        if debugOverride != .system { return debugOverride.locale }
+        #endif
+        return (NiziAppLanguage(rawValue: appLanguageRawValue) ?? .system).locale
     }
 }

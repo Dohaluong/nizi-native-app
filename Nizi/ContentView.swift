@@ -102,13 +102,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(
-            for: [
-                MDLocalAsset.self, MDScanCheckpoint.self, MDPhotoSession.self, MDEventCandidate.self,
-                MDEventCurationResult.self, MDPhotoCurationGroup.self, MDPhotoCurationItem.self,
-                MDMemoryCandidate.self,
-                MDLocationCluster.self, MDHomeAnchor.self, MDFamiliarPlace.self, MDPhotoTrip.self
-            ],
-            inMemory: true
-        )
+        .modelContainer(for: NiziPersistentModels.memoryDiscovery, inMemory: true)
 }

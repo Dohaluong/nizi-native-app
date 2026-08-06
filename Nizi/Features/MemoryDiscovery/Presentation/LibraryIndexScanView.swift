@@ -161,5 +161,5 @@ struct LibraryIndexScanView: View {
     NavigationStack {
         LibraryIndexScanView()
     }
-    .modelContainer(for: [MDLocalAsset.self, MDScanCheckpoint.self], inMemory: true)
+    .modelContainer(for: NiziPersistentModels.memoryDiscovery, inMemory: true)
 }
