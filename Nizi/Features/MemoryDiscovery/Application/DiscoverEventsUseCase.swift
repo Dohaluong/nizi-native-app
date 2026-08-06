@@ -49,7 +49,7 @@ final class DiscoverEventsUseCase {
         // 100k+ assets). `FirstExperienceCoordinator` is MainActor-bound for UI state, so doing
         // it inline made the app appear frozen immediately after index reached 100%.
         let result = await Task.detached(priority: .userInitiated) {
-            EventDiscoveryEngine.discover(from: assets, config: config, preferredHome: persistedHome)
+            EventDiscoveryEngine.discover(from: assets, config: self.config, preferredHome: persistedHome)
         }.value
 
         try await sessionRepository.replaceRebuildableSessions(result.sessions)
