@@ -624,10 +624,25 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
     }
 
     func confirmUserHome(_ home: HomeAnchor) async throws {
-        try modelContext.delete(model: MDHomeAnchor.self)
-        var confirmed = home
-        confirmed.source = .userConfirmed
-        modelContext.insert(MDHomeAnchor(home: confirmed))
+        // Updating the existing row avoids delete/insert contention with the scan's concurrent
+        // location-intelligence write.
+        let existing = try modelContext.fetch(FetchDescriptor<MDHomeAnchor>())
+        if let anchor = existing.first {
+            anchor.clusterID = home.clusterID
+            anchor.centerLatitude = home.centerLatitude
+            anchor.centerLongitude = home.centerLongitude
+            anchor.homeScore = home.homeScore
+            anchor.confidence = home.confidence.rawValue
+            anchor.source = HomeAnchorSource.userConfirmed.rawValue
+            anchor.placeName = home.placeName
+            for duplicate in existing.dropFirst() {
+                modelContext.delete(duplicate)
+            }
+        } else {
+            var confirmed = home
+            confirmed.source = .userConfirmed
+            modelContext.insert(MDHomeAnchor(home: confirmed))
+        }
         try modelContext.save()
     }
 

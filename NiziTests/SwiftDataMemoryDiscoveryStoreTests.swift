@@ -16,6 +16,7 @@ struct SwiftDataMemoryDiscoveryStoreTests {
         let container = try ModelContainer(
             for: MDLocalAsset.self, MDScanCheckpoint.self, MDPhotoSession.self, MDEventCandidate.self,
             MDEventCurationResult.self, MDPhotoCurationGroup.self, MDPhotoCurationItem.self,
+            MDHomeAnchor.self,
             configurations: configuration
         )
         return SwiftDataMemoryDiscoveryStore(modelContainer: container)
@@ -57,6 +58,26 @@ struct SwiftDataMemoryDiscoveryStoreTests {
         #expect(loaded?.processedCount == 42)
         #expect(loaded?.cursorOffset == 42)
         #expect(loaded?.status == .running)
+    }
+
+    @Test func confirmUserHomeUpdatesExistingAnchor() async throws {
+        let store = try makeStore()
+        let first = HomeAnchor(
+            clusterID: UUID(), centerLatitude: 21.03, centerLongitude: 105.83,
+            homeScore: 0.8, confidence: .high, source: .userConfirmed, placeName: "First"
+        )
+        let replacement = HomeAnchor(
+            clusterID: UUID(), centerLatitude: 21.04, centerLongitude: 105.84,
+            homeScore: 1, confidence: .high, source: .userConfirmed, placeName: "Replacement"
+        )
+
+        try await store.confirmUserHome(first)
+        try await store.confirmUserHome(replacement)
+
+        let loaded = try await store.fetchHome()
+        #expect(loaded?.centerLatitude == replacement.centerLatitude)
+        #expect(loaded?.placeName == "Replacement")
+        #expect(loaded?.source == .userConfirmed)
     }
 
     @Test func completedYearlyScanDoesNotMaskFullLibraryCheckpoint() async throws {

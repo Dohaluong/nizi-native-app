@@ -26,6 +26,7 @@ struct UserScanProgressView: View {
     @Environment(BackgroundScanCoordinator.self) private var coordinator
     @State private var isHomeCardDismissed = false
     @State private var isMapPickerPresented = false
+    @State private var isPersistingHome = false
     @State private var previousYear: Int?
 
     var body: some View {
@@ -231,6 +232,8 @@ struct UserScanProgressView: View {
     }
 
     private func confirmHome(_ candidate: HomeCandidate) async {
+        guard !isPersistingHome else { return }
+        isPersistingHome = true
         NiziLogger.discovery.info("home_candidate_selected")
         let anchor = HomeAnchor(
             clusterID: UUID(),
@@ -245,6 +248,8 @@ struct UserScanProgressView: View {
     }
 
     private func confirmHomeFromMap(latitude: Double, longitude: Double) async {
+        guard !isPersistingHome else { return }
+        isPersistingHome = true
         var placeName: String?
         if let coordinate = PhotoCoordinate(latitude: latitude, longitude: longitude),
            let place = try? await ApplePhotoPlaceResolver().resolvePlace(for: coordinate) {
@@ -263,13 +268,17 @@ struct UserScanProgressView: View {
     }
 
     private func persist(_ anchor: HomeAnchor) async {
+        // Never leave the progress screen looking blocked while the model actor is flushing a
+        // scan batch. If persistence fails, surface the card again for a retry.
+        withAnimation { isHomeCardDismissed = true }
         do {
             let store = SwiftDataMemoryDiscoveryStore(modelContainer: modelContext.container)
             try await store.confirmUserHome(anchor)
         } catch {
             NiziLogger.discovery.error("home_confirmation_persist_failed error=\(String(describing: error), privacy: .public)")
+            withAnimation { isHomeCardDismissed = false }
         }
-        withAnimation { isHomeCardDismissed = true }
+        isPersistingHome = false
     }
 }
 
