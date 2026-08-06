@@ -43,7 +43,7 @@ final class ScanPhotoLibraryUseCase {
         let scopeKey = ScanCheckpoint.scopeKey(for: dateRanges)
         let libraryVersion = try await libraryVersion(total: total, dateRanges: dateRanges)
         var checkpoint = try await matchingCheckpoint(
-            scopeKey: scopeKey, libraryVersion: libraryVersion
+            scopeKey: scopeKey, libraryVersion: libraryVersion, total: total
         ) ?? ScanCheckpoint.newInitial()
 
         checkpoint.scopeKey = scopeKey
@@ -51,6 +51,9 @@ final class ScanPhotoLibraryUseCase {
         checkpoint.algorithmVersion = ScanCheckpoint.algorithmVersion
 
         if checkpoint.status == .completed {
+            // Persist a legacy checkpoint under its v2 identity before returning, otherwise every
+            // launch would have to adopt it again.
+            try await checkpointRepository.save(checkpoint)
             onProgress(checkpoint)
             return
         }
@@ -94,11 +97,30 @@ final class ScanPhotoLibraryUseCase {
         NiziLogger.discovery.info("scan_completed processed=\(checkpoint.processedCount, privacy: .public) failed=\(checkpoint.failedCount, privacy: .public)")
     }
 
-    private func matchingCheckpoint(scopeKey: String, libraryVersion: String) async throws -> ScanCheckpoint? {
-        try await checkpointRepository.checkpoint(
+    private func matchingCheckpoint(
+        scopeKey: String, libraryVersion: String, total: Int
+    ) async throws -> ScanCheckpoint? {
+        if let exact = try await checkpointRepository.checkpoint(
             for: .initial, scopeKey: scopeKey, libraryVersion: libraryVersion,
             algorithmVersion: ScanCheckpoint.algorithmVersion
-        )
+        ) {
+            return exact
+        }
+
+        // One-time migration path from the original single checkpoint. It only applies to a
+        // completed full-library scan whose processed count covers the current library, so a
+        // historical scoped scan can never suppress a full scan.
+        guard scopeKey == "full-library",
+              let legacy = try await checkpointRepository.checkpoint(for: .initial, scopeKey: "legacy"),
+              legacy.status == .completed || legacy.status == .partiallyCompleted,
+              legacy.processedCount >= total
+        else { return nil }
+
+        var adopted = legacy
+        adopted.scopeKey = scopeKey
+        adopted.libraryVersion = libraryVersion
+        adopted.algorithmVersion = ScanCheckpoint.algorithmVersion
+        return adopted
     }
 
     private func libraryVersion(total: Int, dateRanges: [DateRangeFilter]) async throws -> String {
