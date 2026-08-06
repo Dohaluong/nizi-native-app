@@ -9,6 +9,7 @@ import Foundation
 
 protocol ScanCheckpointRepository {
     func checkpoint(for scanType: ScanType) async throws -> ScanCheckpoint?
+    func checkpoint(for scanType: ScanType, scopeKey: String) async throws -> ScanCheckpoint?
     func checkpoint(
         for scanType: ScanType, scopeKey: String, libraryVersion: String, algorithmVersion: Int
     ) async throws -> ScanCheckpoint?

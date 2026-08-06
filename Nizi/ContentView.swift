@@ -72,7 +72,7 @@ struct ContentView: View {
     private func determineInitialStage() async {
         do {
             let store = SwiftDataMemoryDiscoveryStore(modelContainer: modelContext.container)
-            if let checkpoint = try await store.checkpoint(for: .initial) {
+            if let checkpoint = try await store.checkpoint(for: .initial, scopeKey: "full-library") {
                 if checkpoint.status == .completed || checkpoint.status == .partiallyCompleted {
                     if try await store.fetchLatest() != nil {
                         stage = .home
