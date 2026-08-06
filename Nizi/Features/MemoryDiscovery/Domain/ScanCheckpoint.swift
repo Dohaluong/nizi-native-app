@@ -30,7 +30,17 @@ enum ScanStatus: String, Equatable {
 /// Resumable progress marker for a batch scan. Persisted so a scan can survive
 /// pause, app relaunch, or termination mid-batch — see ADR-MD-009.
 struct ScanCheckpoint: Equatable {
+    /// Bumped whenever the scan interpretation changes. A completed checkpoint from an older
+    /// scanner must never suppress a new scan.
+    static let algorithmVersion = 2
+
     var scanType: ScanType
+    /// Stable description of the requested range(s). `full-library` is intentionally different
+    /// from every year/month selection.
+    var scopeKey: String
+    /// Snapshot of the PhotoKit result set at the moment this scan began.
+    var libraryVersion: String
+    var algorithmVersion: Int
     var status: ScanStatus
     var startedAt: Date
     var completedAt: Date?
@@ -47,6 +57,9 @@ struct ScanCheckpoint: Equatable {
     static func newInitial(now: Date = Date()) -> ScanCheckpoint {
         ScanCheckpoint(
             scanType: .initial,
+            scopeKey: "full-library",
+            libraryVersion: "unknown",
+            algorithmVersion: Self.algorithmVersion,
             status: .idle,
             startedAt: now,
             completedAt: nil,
@@ -58,5 +71,17 @@ struct ScanCheckpoint: Equatable {
             errorMessage: nil,
             updatedAt: now
         )
+    }
+
+    static func scopeKey(for dateRanges: [DateRangeFilter]) -> String {
+        guard !dateRanges.isEmpty else { return "full-library" }
+        return dateRanges
+            .map { "\($0.start.timeIntervalSince1970)-\($0.end.timeIntervalSince1970)" }
+            .sorted()
+            .joined(separator: "|")
+    }
+
+    var identityKey: String {
+        "\(scanType.rawValue)#\(scopeKey)#\(libraryVersion)#\(algorithmVersion)"
     }
 }

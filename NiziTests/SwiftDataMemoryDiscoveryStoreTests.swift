@@ -59,6 +59,35 @@ struct SwiftDataMemoryDiscoveryStoreTests {
         #expect(loaded?.status == .running)
     }
 
+    @Test func completedYearlyScanDoesNotMaskFullLibraryCheckpoint() async throws {
+        let store = try makeStore()
+        var yearly = ScanCheckpoint.newInitial()
+        yearly.scopeKey = "1704067200.0-1735689599.0"
+        yearly.libraryVersion = "120#latest-2024#1735689599.0"
+        yearly.status = .completed
+
+        var fullLibrary = ScanCheckpoint.newInitial()
+        fullLibrary.scopeKey = "full-library"
+        fullLibrary.libraryVersion = "480#latest-2025#1767225599.0"
+        fullLibrary.status = .completed
+
+        try await store.save(yearly)
+        try await store.save(fullLibrary)
+
+        let yearlyLoaded = try await store.checkpoint(
+            for: .initial, scopeKey: yearly.scopeKey, libraryVersion: yearly.libraryVersion,
+            algorithmVersion: ScanCheckpoint.algorithmVersion
+        )
+        let fullLoaded = try await store.checkpoint(
+            for: .initial, scopeKey: fullLibrary.scopeKey, libraryVersion: fullLibrary.libraryVersion,
+            algorithmVersion: ScanCheckpoint.algorithmVersion
+        )
+
+        #expect(yearlyLoaded?.scopeKey == yearly.scopeKey)
+        #expect(fullLoaded?.scopeKey == "full-library")
+        #expect(yearlyLoaded?.identityKey != fullLoaded?.identityKey)
+    }
+
     @Test func clearAllRemovesAssetsAndCheckpoint() async throws {
         let store = try makeStore()
         _ = try await store.upsert([.fixture(id: "asset-1")])
