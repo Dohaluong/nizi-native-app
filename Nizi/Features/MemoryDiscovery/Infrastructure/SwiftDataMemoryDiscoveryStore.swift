@@ -152,21 +152,10 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
         return try modelContext.fetch(descriptor).first.map(ScanCheckpoint.init)
     }
 
-    func checkpoint(
-        for scanType: ScanType, scopeKey: String, libraryVersion: String, algorithmVersion: Int
-    ) async throws -> ScanCheckpoint? {
-        let identityKey = "\(scanType.rawValue)#\(scopeKey)#\(libraryVersion)#\(algorithmVersion)"
-        var descriptor = FetchDescriptor<MDScanCheckpoint>(
-            predicate: #Predicate { $0.identityKey == identityKey }
-        )
-        descriptor.fetchLimit = 1
-        return try modelContext.fetch(descriptor).first.map(ScanCheckpoint.init)
-    }
-
     func save(_ checkpoint: ScanCheckpoint) async throws {
-        let identityKey = checkpoint.identityKey
+        let rawType = checkpoint.scanType.rawValue
         var descriptor = FetchDescriptor<MDScanCheckpoint>(
-            predicate: #Predicate { $0.identityKey == identityKey }
+            predicate: #Predicate { $0.scanType == rawType }
         )
         descriptor.fetchLimit = 1
 
@@ -679,8 +668,7 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
         try await createTripIfNeeded(forEventID: eventID)
     }
 
-    /// Creates the one-event user Trip only when this Event does not already belong to any Trip.
-    /// Returning the existing Trip makes this safe to invoke from more than one entry point.
+    /// Creates a one-event user Trip only when this Event is not already in any Trip.
     func createTripIfNeeded(forEventID eventID: UUID) async throws -> PhotoTrip {
         var eventDescriptor = FetchDescriptor<MDEventCandidate>(predicate: #Predicate { $0.candidateID == eventID })
         eventDescriptor.fetchLimit = 1

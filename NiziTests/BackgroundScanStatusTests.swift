@@ -14,8 +14,7 @@ struct BackgroundScanStatusTests {
         status: ScanStatus, totalAssetsEstimated: Int?, processedCount: Int
     ) -> ScanCheckpoint {
         ScanCheckpoint(
-            scanType: .initial, scopeKey: "full-library", libraryVersion: "test", algorithmVersion: ScanCheckpoint.algorithmVersion,
-            status: status, startedAt: Date(), completedAt: nil,
+            scanType: .initial, status: status, startedAt: Date(), completedAt: nil,
             totalAssetsEstimated: totalAssetsEstimated, processedCount: processedCount, failedCount: 0,
             cursorOffset: processedCount, lastAssetCreationDate: nil, errorMessage: nil, updatedAt: Date()
         )

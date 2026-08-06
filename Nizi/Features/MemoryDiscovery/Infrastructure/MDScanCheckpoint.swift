@@ -9,15 +9,11 @@ import Foundation
 import SwiftData
 
 /// SwiftData schema v1 — see docs/database/memory-discovery.md § 5.
-/// Checkpoints are scoped by scan request, Photo library snapshot and scanner algorithm. A
-/// completed yearly scan therefore cannot suppress a later full-library scan.
+/// Scoped down from the doc: one row per `scanType` (unique), since Sprint 3 only
+/// ever tracks a single running `.initial` scan — see docs/modules/memory-discovery/SPEC.md MVP scope.
 @Model
 final class MDScanCheckpoint {
-    @Attribute(.unique) var identityKey: String
-    var scanType: String
-    var scopeKey: String
-    var libraryVersion: String
-    var algorithmVersion: Int
+    @Attribute(.unique) var scanType: String
     var status: String
     var startedAt: Date
     var completedAt: Date?
@@ -30,11 +26,7 @@ final class MDScanCheckpoint {
     var updatedAt: Date
 
     init(checkpoint: ScanCheckpoint) {
-        identityKey = checkpoint.identityKey
         scanType = checkpoint.scanType.rawValue
-        scopeKey = checkpoint.scopeKey
-        libraryVersion = checkpoint.libraryVersion
-        algorithmVersion = checkpoint.algorithmVersion
         status = checkpoint.status.rawValue
         startedAt = checkpoint.startedAt
         completedAt = checkpoint.completedAt
@@ -64,9 +56,6 @@ extension ScanCheckpoint {
     init(model: MDScanCheckpoint) {
         self.init(
             scanType: ScanType(rawValue: model.scanType) ?? .initial,
-            scopeKey: model.scopeKey,
-            libraryVersion: model.libraryVersion,
-            algorithmVersion: model.algorithmVersion,
             status: ScanStatus(rawValue: model.status) ?? .idle,
             startedAt: model.startedAt,
             completedAt: model.completedAt,

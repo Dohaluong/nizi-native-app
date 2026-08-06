@@ -39,22 +39,14 @@ final class ScanPhotoLibraryUseCase {
         onProgress: @escaping (ScanCheckpoint) -> Void,
         onBatch: (([PhotoAssetRecord]) -> Void)? = nil
     ) async throws {
-        let total = try await assetProvider.totalAssetCount(dateRanges: dateRanges)
-        let scopeKey = ScanCheckpoint.scopeKey(for: dateRanges)
-        let libraryVersion = try await libraryVersion(total: total, dateRanges: dateRanges)
-        var checkpoint = try await matchingCheckpoint(
-            scopeKey: scopeKey, libraryVersion: libraryVersion
-        ) ?? ScanCheckpoint.newInitial()
-
-        checkpoint.scopeKey = scopeKey
-        checkpoint.libraryVersion = libraryVersion
-        checkpoint.algorithmVersion = ScanCheckpoint.algorithmVersion
+        var checkpoint = try await checkpointRepository.checkpoint(for: .initial) ?? .newInitial()
 
         if checkpoint.status == .completed {
             onProgress(checkpoint)
             return
         }
 
+        let total = try await assetProvider.totalAssetCount(dateRanges: dateRanges)
         checkpoint.status = .running
         checkpoint.totalAssetsEstimated = total
         checkpoint.updatedAt = Date()
@@ -92,21 +84,5 @@ final class ScanPhotoLibraryUseCase {
         onProgress(checkpoint)
 
         NiziLogger.discovery.info("scan_completed processed=\(checkpoint.processedCount, privacy: .public) failed=\(checkpoint.failedCount, privacy: .public)")
-    }
-
-    private func matchingCheckpoint(scopeKey: String, libraryVersion: String) async throws -> ScanCheckpoint? {
-        try await checkpointRepository.checkpoint(
-            for: .initial, scopeKey: scopeKey, libraryVersion: libraryVersion,
-            algorithmVersion: ScanCheckpoint.algorithmVersion
-        )
-    }
-
-    private func libraryVersion(total: Int, dateRanges: [DateRangeFilter]) async throws -> String {
-        guard total > 0 else { return "0" }
-        let latest = try await assetProvider.fetchAssetRecords(
-            offset: total - 1, limit: 1, dateRanges: dateRanges
-        ).first
-        let timestamp = latest?.creationDate?.timeIntervalSince1970 ?? -1
-        return "\(total)#\(latest?.id ?? "missing")#\(timestamp)"
     }
 }
