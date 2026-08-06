@@ -73,60 +73,12 @@ struct TripDiscoveryEngineTests {
         #expect(trips.first?.eventIDs.count == 2)
     }
 
-    @Test func noHomeStillProducesLowConfidenceSessionCandidate() {
+    @Test func noHomeProducesNoTrips() {
         let (event1, session1) = makeEventWithSession(startOffsetDays: 10, durationHours: 6, latitude: 16.0544, longitude: 108.2022)
 
         let trips = DefaultTripDiscoveryEngine().detectTrips(events: [event1], sessions: [session1], home: nil, familiarPlaces: [], config: .default)
 
-        #expect(trips.count == 1)
-        #expect(trips[0].confidence < 0.6)
-    }
-
-    @Test func multiDaySessionsCreateTripWithoutAnyAcceptedEvent() {
-        let (_, first) = makeEventWithSession(startOffsetDays: 10, durationHours: 2, latitude: 16.0544, longitude: 108.2022)
-        let (_, second) = makeEventWithSession(startOffsetDays: 11, durationHours: 2, latitude: 16.0544, longitude: 108.2022)
-
-        let trips = DefaultTripDiscoveryEngine().detectTrips(
-            events: [], sessions: [first, second], home: Self.home, familiarPlaces: [], config: .default
-        )
-
-        #expect(trips.count == 1)
-        #expect(trips[0].eventIDs.isEmpty)
-        #expect(trips[0].travelContext.overnightCount == 1)
-    }
-
-    @Test func gpsLessSessionBridgesAwaySessions() {
-        let (_, first) = makeEventWithSession(startOffsetDays: 10, durationHours: 2, latitude: 16.0544, longitude: 108.2022)
-        let (_, last) = makeEventWithSession(startOffsetDays: 10.25, durationHours: 2, latitude: 16.0544, longitude: 108.2022)
-        let missingGPS = PhotoSession(
-            id: UUID(), startDate: Self.reference.addingTimeInterval(0.125 * 86400),
-            endDate: Self.reference.addingTimeInterval(0.14 * 86400), centerLatitude: nil,
-            centerLongitude: nil, geoCell: nil, assetIDs: ["missing-gps"], densityScore: 1
-        )
-
-        let trips = DefaultTripDiscoveryEngine().detectTrips(
-            events: [], sessions: [first, missingGPS, last], home: Self.home,
-            familiarPlaces: [], config: .default
-        )
-
-        #expect(trips.count == 1)
-        #expect(trips[0].travelContext.eligibilityReasons.contains("bridgedUnknownGPS"))
-    }
-
-    @Test func consecutiveDaysAtFamiliarForeignDestinationRemainOneTrip() {
-        let sessions = (0..<7).map { day in
-            makeEventWithSession(startOffsetDays: 20 + Double(day), durationHours: 2, latitude: 35.6762, longitude: 139.6503).session
-        }
-        let familiar = FamiliarPlace(
-            id: UUID(), clusterID: UUID(), centerLatitude: 35.6762, centerLongitude: 139.6503, confidence: 0.9
-        )
-
-        let trips = DefaultTripDiscoveryEngine().detectTrips(
-            events: [], sessions: sessions, home: Self.home, familiarPlaces: [familiar], config: .default
-        )
-
-        #expect(trips.count == 1)
-        #expect(trips[0].travelContext.overnightCount == 6)
+        #expect(trips.isEmpty)
     }
 
     // MARK: - Trip Eligibility V1 (SPRINT-NEXT § 5-9)

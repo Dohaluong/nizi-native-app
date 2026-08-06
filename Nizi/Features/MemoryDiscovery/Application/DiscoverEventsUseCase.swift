@@ -45,12 +45,7 @@ final class DiscoverEventsUseCase {
         // Unify Home Source (SPRINT-NEXT § 1-4): read back whatever Home is already persisted
         // (confirmed or previously-inferred) so `discover` can prefer it over a brand-new guess.
         let persistedHome = try await locationIntelligenceRepository.fetchHome()
-        // This is CPU-bound work over the entire library (location clustering alone can visit
-        // 100k+ assets). `FirstExperienceCoordinator` is MainActor-bound for UI state, so doing
-        // it inline made the app appear frozen immediately after index reached 100%.
-        let result = await Task.detached(priority: .userInitiated) {
-            EventDiscoveryEngine.discover(from: assets, config: self.config, preferredHome: persistedHome)
-        }.value
+        let result = EventDiscoveryEngine.discover(from: assets, config: config, preferredHome: persistedHome)
 
         try await sessionRepository.replaceRebuildableSessions(result.sessions)
         try await locationIntelligenceRepository.replaceLocationIntelligence(

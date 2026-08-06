@@ -73,9 +73,6 @@ struct EventDiscoveryConfig: Equatable {
     // `TravelClassificationService`'s reverse-geocoding; this only keeps a candidate from being
     // dropped before that async pass gets a chance to look.
     var internationalTripCandidateMinimumDistanceKm: Double = 150
-    /// Candidate-based discovery deliberately accepts low-confidence, evidence-backed journeys
-    /// for diagnostics and later country verification instead of requiring every old hard gate.
-    var tripCandidateMinimumConfidence: Double = 0.40
 
     // Fast Event Quality (SPRINT-FAST-EVENT-QUALITY § 10-14) — weighted scoring, no single
     // hard-reject rule. Every value here is a starting point pending real-library tuning.

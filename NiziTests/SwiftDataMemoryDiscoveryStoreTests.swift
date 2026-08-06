@@ -107,7 +107,6 @@ struct SwiftDataMemoryDiscoveryStoreTests {
         #expect(yearlyLoaded?.scopeKey == yearly.scopeKey)
         #expect(fullLoaded?.scopeKey == "full-library")
         #expect(yearlyLoaded?.identityKey != fullLoaded?.identityKey)
-        #expect(try await store.checkpoint(for: .initial, scopeKey: "full-library")?.identityKey == fullLibrary.identityKey)
     }
 
     @Test func clearAllRemovesAssetsAndCheckpoint() async throws {

@@ -125,7 +125,7 @@ final class BackgroundScanCoordinator {
         guard continuationTask == nil, let modelContainer else { return }
         Task { [weak self] in
             let store = SwiftDataMemoryDiscoveryStore(modelContainer: modelContainer)
-            guard let checkpoint = try? await store.checkpoint(for: .initial, scopeKey: ScanCheckpoint.scopeKey(for: scope.dateRanges())),
+            guard let checkpoint = try? await store.checkpoint(for: .initial),
                   checkpoint.status == .running || checkpoint.status == .paused,
                   BackgroundScanStatus.hasIncompleteWork(checkpoint: checkpoint)
             else { return }

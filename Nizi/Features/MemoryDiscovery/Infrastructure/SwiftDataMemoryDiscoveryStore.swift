@@ -146,18 +146,7 @@ actor SwiftDataMemoryDiscoveryStore: LocalAssetRepository, ScanCheckpointReposit
     func checkpoint(for scanType: ScanType) async throws -> ScanCheckpoint? {
         let rawType = scanType.rawValue
         var descriptor = FetchDescriptor<MDScanCheckpoint>(
-            predicate: #Predicate { $0.scanType == rawType },
-            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
-        )
-        descriptor.fetchLimit = 1
-        return try modelContext.fetch(descriptor).first.map(ScanCheckpoint.init)
-    }
-
-    func checkpoint(for scanType: ScanType, scopeKey: String) async throws -> ScanCheckpoint? {
-        let rawType = scanType.rawValue
-        var descriptor = FetchDescriptor<MDScanCheckpoint>(
-            predicate: #Predicate { $0.scanType == rawType && $0.scopeKey == scopeKey },
-            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
+            predicate: #Predicate { $0.scanType == rawType }
         )
         descriptor.fetchLimit = 1
         return try modelContext.fetch(descriptor).first.map(ScanCheckpoint.init)

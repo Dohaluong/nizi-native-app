@@ -13,14 +13,11 @@ import SwiftData
 /// completed yearly scan therefore cannot suppress a later full-library scan.
 @Model
 final class MDScanCheckpoint {
-    // Defaults are required for lightweight migration from the original one-row-per-scan-type
-    // schema. Legacy rows intentionally cannot match a v2 identity, so the scanner creates a
-    // fresh scoped checkpoint instead of treating them as a completed full-library scan.
-    var identityKey: String = ""
-    var scanType: String = ScanType.initial.rawValue
-    var scopeKey: String = "legacy"
-    var libraryVersion: String = "legacy"
-    var algorithmVersion: Int = 1
+    @Attribute(.unique) var identityKey: String
+    var scanType: String
+    var scopeKey: String
+    var libraryVersion: String
+    var algorithmVersion: Int
     var status: String
     var startedAt: Date
     var completedAt: Date?

@@ -72,7 +72,7 @@ struct ContentView: View {
     private func determineInitialStage() async {
         do {
             let store = SwiftDataMemoryDiscoveryStore(modelContainer: modelContext.container)
-            if let checkpoint = try await store.checkpoint(for: .initial, scopeKey: "full-library") {
+            if let checkpoint = try await store.checkpoint(for: .initial) {
                 if checkpoint.status == .completed || checkpoint.status == .partiallyCompleted {
                     if try await store.fetchLatest() != nil {
                         stage = .home
@@ -102,5 +102,13 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: NiziPersistentModels.memoryDiscovery, inMemory: true)
+        .modelContainer(
+            for: [
+                MDLocalAsset.self, MDScanCheckpoint.self, MDPhotoSession.self, MDEventCandidate.self,
+                MDEventCurationResult.self, MDPhotoCurationGroup.self, MDPhotoCurationItem.self,
+                MDMemoryCandidate.self,
+                MDLocationCluster.self, MDHomeAnchor.self, MDFamiliarPlace.self, MDPhotoTrip.self
+            ],
+            inMemory: true
+        )
 }

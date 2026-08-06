@@ -10,7 +10,6 @@ import SwiftData
 
 @main
 struct NiziApp: App {
-    private let persistentContainer: ModelContainer
     @AppStorage(NiziAppLanguage.storageKey) private var appLanguageRawValue: String = NiziAppLanguage.system.rawValue
     #if DEBUG
     @AppStorage(DebugLocaleOverride.storageKey) private var localeOverrideRawValue: String = DebugLocaleOverride.system.rawValue
@@ -18,29 +17,11 @@ struct NiziApp: App {
 
     init() {
         NewsreaderFontRegistrar.registerBundledFonts()
-        do {
-            // Build the production container once, before any view can request a ModelContext.
-            // Passing the concrete model types here keeps SwiftData's entity registration explicit
-            // and prevents discovery from receiving a lightweight/index-only container.
-            persistentContainer = try ModelContainer(
-                for:
-                    MDLocalAsset.self, MDScanCheckpoint.self, MDPhotoSession.self, MDEventCandidate.self,
-                    MDEventCurationResult.self, MDPhotoCurationGroup.self, MDPhotoCurationItem.self,
-                    MDMemoryCandidate.self, MDLocationCluster.self, MDHomeAnchor.self, MDFamiliarPlace.self,
-                    MDPhotoTrip.self, MDAlbumDraft.self, MDPhotoEditRecipe.self, MDCollectionEditStyle.self,
-                    MDPresetOverride.self, MDCustomPreset.self, MDNiziMoveImportSession.self,
-                    MDNiziMoveImportAsset.self, MDGoogleDrivePreparation.self
-            )
-        } catch {
-            fatalError("Không thể khởi tạo kho dữ liệu Nizi: \(error.localizedDescription)")
-        }
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-                // DESIGN-pinterest.md specifies a warm, light canvas as the product chrome.
-                // Individual photo/crop viewers may still select a deliberate viewing surface.
                 .preferredColorScheme(.light)
                 .tint(NiziPinterestTheme.primary)
                 .environment(\.locale, effectiveLocale)
@@ -56,7 +37,15 @@ struct NiziApp: App {
                 .id(appLanguageRawValue)
                 #endif
         }
-        .modelContainer(persistentContainer)
+        .modelContainer(for: [
+            MDLocalAsset.self, MDScanCheckpoint.self, MDPhotoSession.self, MDEventCandidate.self,
+            MDEventCurationResult.self, MDPhotoCurationGroup.self, MDPhotoCurationItem.self,
+            MDMemoryCandidate.self,
+            MDLocationCluster.self, MDHomeAnchor.self, MDFamiliarPlace.self, MDPhotoTrip.self,
+            MDAlbumDraft.self, MDPhotoEditRecipe.self, MDCollectionEditStyle.self,
+            MDPresetOverride.self, MDCustomPreset.self,
+            MDNiziMoveImportSession.self, MDNiziMoveImportAsset.self, MDGoogleDrivePreparation.self
+        ])
     }
 
     private var effectiveLocale: Locale {
