@@ -23,7 +23,7 @@ struct PhotoTrip: Identifiable, Equatable {
     var primaryCountryCode: String?
     var primaryPlaceName: String?
     var classification: TravelClassification
-    let confidence: Double
+    var confidence: Double
     var travelContext: TravelContext
     var isUserCreated: Bool = false
 }
