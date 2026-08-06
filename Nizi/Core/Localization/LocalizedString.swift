@@ -19,9 +19,11 @@ import Foundation
 /// literal-key strings would visibly change when testing the override.
 func localizedString(_ key: StaticString, defaultValue: String.LocalizationValue) -> String {
     #if DEBUG
-    String(localized: key, defaultValue: defaultValue, locale: DebugLocaleOverride.current.locale)
+    let debugOverride = DebugLocaleOverride.current
+    let locale = debugOverride == .system ? NiziAppLanguage.current.locale : debugOverride.locale
+    return String(localized: key, defaultValue: defaultValue, locale: locale)
     #else
-    String(localized: key, defaultValue: defaultValue)
+    String(localized: key, defaultValue: defaultValue, locale: NiziAppLanguage.current.locale)
     #endif
 }
 
@@ -31,9 +33,10 @@ func localizedString(_ key: StaticString, defaultValue: String.LocalizationValue
 /// dynamic key needs to go through the catalog. See docs/ALBUM_LAYOUT_SYSTEM.md § Localization.
 func localizedString(dynamicKey key: String, defaultValue: String? = nil) -> String {
     #if DEBUG
-    let locale = DebugLocaleOverride.current.locale
+    let debugOverride = DebugLocaleOverride.current
+    let locale = debugOverride == .system ? NiziAppLanguage.current.locale : debugOverride.locale
     #else
-    let locale = Locale.current
+    let locale = NiziAppLanguage.current.locale
     #endif
     let resolved = String(localized: String.LocalizationValue(key), locale: locale)
     // `String(localized:)` falls back to the key itself when no catalog entry matches — if the

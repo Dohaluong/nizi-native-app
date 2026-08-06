@@ -88,8 +88,7 @@ struct AlbumsListView: View {
                 onHome: { onSelectTab(.home) },
                 onEvents: { onSelectTab(.events) },
                 onTrips: { onSelectTab(.trips) },
-                onPhotobooks: {},
-                onDiagnostics: { onSelectTab(.diagnostics) }
+                onPhotobooks: {}
             )
         }
         .task { await loadAlbums() }

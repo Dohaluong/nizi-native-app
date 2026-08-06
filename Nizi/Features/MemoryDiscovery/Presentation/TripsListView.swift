@@ -61,7 +61,7 @@ struct TripsListView: View {
         .navigationTitle("trips.list.title")
         .navigationBarTitleDisplayMode(.large)
         .navigationBarBackButtonHidden(true)
-        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbarColorScheme(.light, for: .navigationBar)
         .toolbarBackground(TripsListStyle.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .safeAreaInset(edge: .bottom) {
@@ -70,8 +70,7 @@ struct TripsListView: View {
                 onHome: { onSelectTab(.home) },
                 onEvents: { onSelectTab(.events) },
                 onTrips: {},
-                onPhotobooks: { onSelectTab(.photobooks) },
-                onDiagnostics: { onSelectTab(.diagnostics) }
+                onPhotobooks: { onSelectTab(.photobooks) }
             )
         }
         .task { await loadTrips() }
@@ -151,9 +150,9 @@ struct TripsListView: View {
 }
 
 private enum TripsListStyle {
-    static let background = Color(red: 14 / 255, green: 13 / 255, blue: 16 / 255)
-    static let primaryText = Color(red: 246 / 255, green: 241 / 255, blue: 234 / 255)
-    static let mutedText = primaryText.opacity(0.45)
+    static let background = NiziPinterestTheme.surfaceSoft
+    static let primaryText = NiziPinterestTheme.ink
+    static let mutedText = NiziPinterestTheme.mutedText
 }
 
 /// One row per Trip — a fixed 60×60 cover thumbnail + place/metadata text, resolving from an
@@ -167,13 +166,13 @@ private struct TripListRow: View {
     var body: some View {
         HStack(spacing: 12) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.09))
+                RoundedRectangle(cornerRadius: NiziPinterestTheme.cornerRadius).fill(NiziPinterestTheme.surfaceCard)
                 if let coverImage {
                     Image(uiImage: coverImage).resizable().scaledToFill()
                 }
             }
             .frame(width: 60, height: 60)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .clipShape(RoundedRectangle(cornerRadius: NiziPinterestTheme.cornerRadius))
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(placeText)

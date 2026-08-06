@@ -118,10 +118,18 @@ actor NiziMoveAPI {
         _ = try await request(path: "/api/import-sessions/\(sessionID)/completed", method: "POST", token: accessToken)
     }
 
+    func cancel(sessionID: String, accessToken: String) async throws {
+        _ = try await request(path: "/api/import-sessions/\(sessionID)", method: "DELETE", token: accessToken)
+    }
+
     private func request(path: String, method: String = "GET", token: String) async throws -> Data {
         var request = URLRequest(url: baseURL.appending(path: path)); request.httpMethod = method; request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else { throw NiziMoveError.server("HTTP_\((response as? HTTPURLResponse)?.statusCode ?? 0)") }
+        guard let http = response as? HTTPURLResponse else { throw NiziMoveError.server("HTTP_0") }
+        guard (200...299).contains(http.statusCode) else {
+            let code = (try? decoder.decode(ServerErrorPayload.self, from: data))?.code
+            throw NiziMoveError.server(code ?? "HTTP_\(http.statusCode)")
+        }
         return data
     }
 
@@ -183,6 +191,7 @@ private struct NiziMoveResponseDecodingError: LocalizedError {
 private struct Envelope<T: Decodable>: Decodable { let success: Bool; let data: T?; let code: String?; let message: String? }
 private struct ClaimData: Decodable { let accessToken: String? }
 private struct EmptyPayload: Decodable {}
+private struct ServerErrorPayload: Decodable { let code: String? }
 struct ManifestPayload: Decodable {
     let protocolVersion: Int; let sessionId: String; let status: String; let sourceType: String?; let expiresAt: Date; let assets: [Asset]
     struct Asset: Decodable {

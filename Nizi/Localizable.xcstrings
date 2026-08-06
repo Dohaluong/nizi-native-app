@@ -77,6 +77,16 @@
         }
       }
     },
+    "%lld / %lld ảnh đã sẵn sàng" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld / %2$lld ảnh đã sẵn sàng"
+          }
+        }
+      }
+    },
     "%lld ảnh\n%@\nDữ liệu sẽ được lưu vào Photos và sắp xếp trong Nizi." : {
       "localizations" : {
         "en" : {
@@ -87,6 +97,9 @@
         }
       }
     },
+    "%lld ảnh đã chọn" : {
+
+    },
     "%lld ảnh đã được lưu\n%lld ảnh không thể chuyển" : {
       "localizations" : {
         "en" : {
@@ -96,6 +109,9 @@
           }
         }
       }
+    },
+    "%lld ảnh không thể chuẩn bị." : {
+
     },
     "%lld days" : {
 
@@ -2052,7 +2068,13 @@
     "AUTO MEMORY: YES" : {
 
     },
+    "Bao gồm thư mục con" : {
+
+    },
     "Bắt đầu nhập ảnh" : {
+
+    },
+    "Bỏ chọn tất cả" : {
 
     },
     "Bỏ yêu thích sự kiện" : {
@@ -2061,10 +2083,16 @@
     "Các ảnh bạn vừa nhập đã được tự động tạo thành một Memory." : {
 
     },
+    "Cài đặt" : {
+
+    },
     "Cancel" : {
 
     },
     "Candidate" : {
+
+    },
+    "Chế độ nhập" : {
 
     },
     "Chỉ hiện ảnh đã chọn" : {
@@ -2076,7 +2104,13 @@
     "Chọn" : {
 
     },
+    "Chọn cách bạn muốn đưa ảnh vào iPhone." : {
+
+    },
     "Chọn lại" : {
+
+    },
+    "Chọn tất cả đã tải" : {
 
     },
     "Choose Photo…" : {
@@ -2103,7 +2137,7 @@
     "Chưa có trip nào. Bấm Run để chạy lại toàn bộ discovery pipeline." : {
 
     },
-    "Chuyển ảnh từ máy tính" : {
+    "Chuẩn bị %lld ảnh" : {
 
     },
     "Clear" : {
@@ -2290,16 +2324,31 @@
     "Đã tạo Trip" : {
 
     },
+    "Dán đường dẫn thư mục hoặc ảnh được chia sẻ." : {
+
+    },
+    "Đang chuẩn bị %@" : {
+
+    },
+    "Đang chuẩn bị ảnh trên Nizi Move" : {
+
+    },
     "Đang chuyển ảnh từ máy tính" : {
 
     },
     "Đang hoàn thiện PDF" : {
 
     },
+    "Đang kết nối với Nizi Move…" : {
+
+    },
     "Đang lọc theo kỷ niệm yêu thích" : {
 
     },
     "Đang mở Event Memory…" : {
+
+    },
+    "Đang tạo Photobook…" : {
 
     },
     "Đang tạo trang %@/%lld" : {
@@ -2311,6 +2360,9 @@
           }
         }
       }
+    },
+    "Đang tạo Trip…" : {
+
     },
     "Đây có phải là một chuyến đi không? Hãy lưu lại nhé." : {
 
@@ -2343,6 +2395,9 @@
 
     },
     "Detected Trips" : {
+
+    },
+    "Diagnostics" : {
 
     },
     "discovering.eyebrow.traveling_to" : {
@@ -2561,6 +2616,9 @@
 
     },
     "Event Discovery Debug" : {
+
+    },
+    "Event sẽ bị xoá khỏi Nizi. Ảnh trong Photos không bị xoá." : {
 
     },
     "event.action.create_album" : {
@@ -3539,6 +3597,9 @@
     "HARD BOUNDARY: YES" : {
 
     },
+    "Hãy thử lại sau." : {
+
+    },
     "Hãy xem và lưu lại những kỷ niệm đáng nhớ." : {
 
     },
@@ -3992,6 +4053,9 @@
     "HSL" : {
 
     },
+    "https://drive.google.com/..." : {
+
+    },
     "Huỷ" : {
 
     },
@@ -4028,16 +4092,19 @@
     "Không thể tạo Photobook" : {
 
     },
+    "Không thể tạo Trip" : {
+
+    },
     "Không thể tiếp tục" : {
 
     },
     "Không thể xoá Event" : {
 
     },
-    "kỷ niệm" : {
+    "Kiểm tra liên kết" : {
 
     },
-    "Làm theo các bước sau để đưa ảnh vào Nizi trên iPhone." : {
+    "kỷ niệm" : {
 
     },
     "Landscape" : {
@@ -4065,6 +4132,9 @@
     "Last weekend" : {
 
     },
+    "Latest Memories" : {
+
+    },
     "Layout Gallery" : {
 
     },
@@ -4072,6 +4142,9 @@
 
     },
     "Likely cache hit" : {
+
+    },
+    "Link cần có quyền xem phù hợp. Nizi không lưu tài khoản hoặc mật khẩu Google của bạn." : {
 
     },
     "Load 10 Recent Photos (twice, to show cache hits)" : {
@@ -4093,9 +4166,6 @@
 
     },
     "Localization" : {
-
-    },
-    "LOVED MEMORIES" : {
 
     },
     "LUT" : {
@@ -4188,6 +4258,9 @@
     "Next Sample" : {
 
     },
+    "Nhận ảnh vào Nizi" : {
+
+    },
     "Nhập ảnh từ máy tính" : {
 
     },
@@ -4195,6 +4268,9 @@
 
     },
     "Nhập mã thủ công" : {
+
+    },
+    "Nhập từ Google Drive Link" : {
 
     },
     "Những kỷ niệm" : {
@@ -4443,7 +4519,7 @@
     "Photo Location Diagnostics" : {
 
     },
-    "PHOTOBOOK" : {
+    "Photo Memories" : {
 
     },
     "Photobook chưa được tạo. Vui lòng thử lại." : {
@@ -5869,7 +5945,7 @@
         }
       }
     },
-    "Quét mã Nizi Move để chuyển ảnh vào Photos." : {
+    "Quét mã Nizi Move hoặc dán liên kết Google Drive." : {
 
     },
     "Quét mã QR" : {
@@ -5878,13 +5954,13 @@
     "Quét mã QR trên máy tính tại trang move.nizi.vn để chuyển ảnh về iPhone." : {
 
     },
+    "Quét mã QR từ máy tính" : {
+
+    },
     "Re-run with these settings" : {
 
     },
     "Real Album Photo Diagnostics" : {
-
-    },
-    "RECENT" : {
 
     },
     "Refresh Stats" : {
@@ -5921,6 +5997,9 @@
 
     },
     "Sẵn sàng chuyển ảnh" : {
+
+    },
+    "Sáng" : {
 
     },
     "Sao chép nội dung" : {
@@ -6302,6 +6381,9 @@
     "Tab" : {
 
     },
+    "Tài khoản — sắp có" : {
+
+    },
     "Tạm dừng" : {
 
     },
@@ -6314,6 +6396,9 @@
     "Tháng %lld" : {
 
     },
+    "Theme" : {
+
+    },
     "This year" : {
 
     },
@@ -6321,6 +6406,9 @@
 
     },
     "Tiếp tục" : {
+
+    },
+    "Tối sẽ sớm có" : {
 
     },
     "Tokyo · Kyoto · Osaka — 7 days" : {
@@ -6534,6 +6622,9 @@
         }
       }
     },
+    "Trips" : {
+
+    },
     "trips.list.empty.message" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6674,6 +6765,12 @@
 
     },
     "Xoá event" : {
+
+    },
+    "Xoá Event" : {
+
+    },
+    "Xoá Event này?" : {
 
     },
     "Xoá events" : {

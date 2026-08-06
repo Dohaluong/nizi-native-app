@@ -13,8 +13,8 @@ struct TripMiniCard: View {
     let trip: TripSummary
     let assetProvider: PhotoAssetProvider
     @State private var coverImage: PlatformImage?
-    static let cardWidth: CGFloat = 240
-    static let cardHeight: CGFloat = 360
+    static let cardWidth: CGFloat = 180
+    static let cardHeight: CGFloat = 270
     private var cardHeight: CGFloat { Self.cardHeight }
     private var targetSize: CGSize { CGSize(width: Self.cardWidth * 2, height: cardHeight * 2) }
 
@@ -54,7 +54,7 @@ struct TripMiniCard: View {
         // Explicitly bind the label's hit region to the visible card bounds.
         .contentShape(Rectangle())
         .clipped()
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .task(id: trip.coverAssetID) { await loadCover() }
     }
 

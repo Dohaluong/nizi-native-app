@@ -67,6 +67,8 @@ struct HomeView: View {
         NavigationStack(path: $navigationPath) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
+                    NiziHomeHeader { selectTab(.diagnostics) }
+
                     if let displayedHeroMemory {
                         lovedMemoryHero(displayedHeroMemory)
                     }
@@ -86,15 +88,13 @@ struct HomeView: View {
                 }
             }
             .background(HomeSurfaceStyle.background)
-            .ignoresSafeArea(edges: .top)
             .safeAreaInset(edge: .bottom) {
                 NiziBottomTabBar(
                     selected: .home,
                     onHome: { selectTab(.home) },
                     onEvents: { selectTab(.events) },
                     onTrips: { selectTab(.trips) },
-                    onPhotobooks: { selectTab(.photobooks) },
-                    onDiagnostics: { selectTab(.diagnostics) }
+                    onPhotobooks: { selectTab(.photobooks) }
                 )
             }
             .toolbar(.hidden, for: .navigationBar)
@@ -128,7 +128,6 @@ struct HomeView: View {
                 NiziMoveImportView(modelContainer: modelContext.container)
             }
             .environment(\.albumPhotoProvider, albumPhotoProvider)
-            .preferredColorScheme(.dark)
             .task {
                 backgroundScanCoordinator.resumeBackgroundScanIfNeeded(scope: .fullLibrary)
                 await loadStats()
@@ -154,25 +153,35 @@ struct HomeView: View {
     }
 
     private var moveImportEntry: some View {
-        Button {
-            isMoveImportPresented = true
-        } label: {
-            HStack(spacing: 14) {
-                Image(systemName: "rectangle.on.rectangle.angled")
-                    .font(.title3)
-                    .foregroundStyle(HomeSurfaceStyle.accent)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Nhập ảnh").font(.headline)
-                    Text("Quét mã Nizi Move hoặc dán liên kết Google Drive.").font(.subheadline).foregroundStyle(HomeSurfaceStyle.mutedText)
+        VStack(alignment: .leading, spacing: 12) {
+            HomeRailHeading("Nhập ảnh")
+                .padding(.horizontal, 24)
+
+            Button {
+                isMoveImportPresented = true
+            } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: "rectangle.on.rectangle.angled")
+                        .font(.title3)
+                        .foregroundStyle(HomeSurfaceStyle.accent)
+                    Text("Quét mã Nizi Move hoặc dán liên kết Google Drive.")
+                        .font(.subheadline)
+                        .foregroundStyle(HomeSurfaceStyle.mutedText)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(HomeSurfaceStyle.mutedText)
                 }
-                Spacer(); Image(systemName: "chevron.right").foregroundStyle(HomeSurfaceStyle.mutedText)
+                .padding(18)
+                .background(NiziPinterestTheme.surfaceCard, in: RoundedRectangle(cornerRadius: NiziPinterestTheme.cornerRadius, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: NiziPinterestTheme.cornerRadius, style: .continuous)
+                        .stroke(NiziPinterestTheme.hairline, lineWidth: 1)
+                }
             }
-            .padding(18)
-            .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .buttonStyle(.plain)
+            .padding(.horizontal, 24)
         }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 24)
-        .padding(.top, 28)
+        .padding(.top, HomeRailLayout.sectionSpacing)
     }
 
     /// § user request — Home, Events, Trips, Photobook, and Diagnostics behave like tabs: no back
@@ -223,8 +232,7 @@ struct HomeView: View {
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, 24)
-            .padding(.top, 30)
-            .padding(.bottom, 8)
+            .padding(.top, HomeRailLayout.sectionSpacing)
         }
     }
 
@@ -243,12 +251,12 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
-        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(NiziPinterestTheme.surfaceCard, in: RoundedRectangle(cornerRadius: NiziPinterestTheme.cornerRadius, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: NiziPinterestTheme.cornerRadius, style: .continuous)
+                .stroke(NiziPinterestTheme.hairline, lineWidth: 1)
         }
-        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: NiziPinterestTheme.cornerRadius, style: .continuous))
     }
 
     /// The newest Memories by their photo/Event date, while still surfacing a newly imported
@@ -257,22 +265,21 @@ struct HomeView: View {
     private var latestMemorySection: some View {
         if !recentCreatedMemories.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
-                Text("home.latest_memory.eyebrow")
-                    .font(.system(size: 11.5, weight: .semibold))
-                    .tracking(0.9)
-                    .foregroundStyle(HomeSurfaceStyle.mutedText)
+                HomeRailHeading(localizedString("home.latest_memory.eyebrow", defaultValue: "Latest Memories"))
                     .padding(.horizontal, 24)
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 12) {
+                    LazyHStack(spacing: HomeRailLayout.cardSpacing) {
                         ForEach(recentCreatedMemories) { event in
                             NavigationLink {
-                                MemoryDetailView(event: event) { updated in
-                                    updateMemoryEventLocally(updated)
-                                }
+                                MemoryDetailView(
+                                    event: event,
+                                    onEventUpdated: { updated in updateMemoryEventLocally(updated) },
+                                    onEventDeleted: { deletedID in removeMemoryEventLocally(deletedID) }
+                                )
                             } label: {
                                 RecentMemoryCard(event: event, assetProvider: homeThumbnailProvider)
-                                    .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                                    .contentShape(RoundedRectangle(cornerRadius: HomeRailLayout.recentCornerRadius, style: .continuous))
                             }
                             .buttonStyle(.plain)
                         }
@@ -283,8 +290,7 @@ struct HomeView: View {
                 .scrollClipDisabled()
                 .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
             }
-            .padding(.top, 30)
-            .padding(.bottom, 36)
+            .padding(.top, HomeRailLayout.sectionSpacing)
         }
     }
 
@@ -301,10 +307,7 @@ struct HomeView: View {
 
     private var eventDiscoveryLink: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("RECENT")
-                .font(.system(size: 11.5, weight: .semibold))
-                .tracking(0.9)
-                .foregroundStyle(HomeSurfaceStyle.mutedText)
+            HomeRailHeading("Recent")
 
             NavigationLink(value: HomeRoute.events) {
                 eventDiscoveryCard
@@ -312,8 +315,7 @@ struct HomeView: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 24)
-        .padding(.top, 30)
-        .padding(.bottom, 36)
+        .padding(.top, HomeRailLayout.sectionSpacing)
     }
 
     private var eventDiscoveryCard: some View {
@@ -333,35 +335,34 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
-        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(NiziPinterestTheme.surfaceCard, in: RoundedRectangle(cornerRadius: NiziPinterestTheme.cornerRadius, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: NiziPinterestTheme.cornerRadius, style: .continuous)
+                .stroke(NiziPinterestTheme.hairline, lineWidth: 1)
         }
-        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: NiziPinterestTheme.cornerRadius, style: .continuous))
     }
 
     @ViewBuilder
     private var lovedMemoriesSection: some View {
         if !displayedLovedMemories.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
-                Text("LOVED MEMORIES")
-                    .font(.system(size: 12, weight: .semibold))
-                    .tracking(0.9)
-                    .foregroundStyle(HomeSurfaceStyle.mutedText)
+                HomeRailHeading("Loved Memories")
                     .padding(.horizontal, 24)
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
+                    HStack(spacing: HomeRailLayout.cardSpacing) {
                         ForEach(displayedLovedMemories) { event in
                             ZStack(alignment: .topTrailing) {
                                 NavigationLink {
-                                    MemoryDetailView(event: event) { updated in
-                                        updateMemoryEventLocally(updated)
-                                    }
+                                    MemoryDetailView(
+                                        event: event,
+                                        onEventUpdated: { updated in updateMemoryEventLocally(updated) },
+                                        onEventDeleted: { deletedID in removeMemoryEventLocally(deletedID) }
+                                    )
                                 } label: {
                                     LovedMemoryCard(event: event, assetProvider: homeThumbnailProvider)
-                                        .contentShape(Rectangle())
+                                        .contentShape(RoundedRectangle(cornerRadius: HomeRailLayout.lovedCornerRadius, style: .continuous))
                                 }
                                 .buttonStyle(.plain)
 
@@ -389,7 +390,7 @@ struct HomeView: View {
                 .scrollClipDisabled()
                 .scrollTargetBehavior(.viewAligned)
             }
-            .padding(.top, 36)
+            .padding(.top, HomeRailLayout.sectionSpacing)
         }
     }
 
@@ -454,9 +455,11 @@ struct HomeView: View {
     private func lovedMemoryHero(_ event: PhotoEvent) -> some View {
         ZStack(alignment: .topTrailing) {
             NavigationLink {
-                MemoryDetailView(event: event) { updated in
-                    updateMemoryEventLocally(updated)
-                }
+                MemoryDetailView(
+                    event: event,
+                    onEventUpdated: { updated in updateMemoryEventLocally(updated) },
+                    onEventDeleted: { deletedID in removeMemoryEventLocally(deletedID) }
+                )
             } label: {
                 LovedMemoryCard(
                     event: event,
@@ -464,7 +467,7 @@ struct HomeView: View {
                     assetProvider: homeThumbnailProvider,
                     coverAssetID: displayedHeroCoverAssetID
                 )
-                    .contentShape(Rectangle())
+                    .contentShape(RoundedRectangle(cornerRadius: NiziPinterestTheme.largeCornerRadius, style: .continuous))
             }
             .buttonStyle(.plain)
 
@@ -479,9 +482,11 @@ struct HomeView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(event.isLoved ? "Bỏ yêu thích sự kiện" : "Yêu thích sự kiện")
-            .padding(.top, 58)
-            .padding(.trailing, 20)
+            .padding(.top, 18)
+            .padding(.trailing, 18)
         }
+        .padding(.horizontal, 24)
+        .padding(.top, 12)
     }
 
     /// Home only ever shows a taste of the Trips — the 5 newest (`fetchTrips()` already sorts
@@ -491,15 +496,12 @@ struct HomeView: View {
     private var tripsPreviewSection: some View {
         if !tripSummaries.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
-                Text("home.trips_preview.title")
-                    .font(.system(size: 11.5, weight: .semibold))
-                    .tracking(0.9)
-                    .foregroundStyle(HomeSurfaceStyle.mutedText)
+                HomeRailHeading(localizedString("home.trips_preview.title", defaultValue: "Trips"))
                     .padding(.horizontal, 24)
 
                 // Intentionally a plain horizontal scroll while tap behavior is being verified.
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(alignment: .top, spacing: 20) {
+                    LazyHStack(alignment: .top, spacing: HomeRailLayout.cardSpacing) {
                         ForEach(tripSummaries) { trip in
                             NavigationLink {
                                 TripDetailView(trip: trip) { placeName in
@@ -530,7 +532,7 @@ struct HomeView: View {
                 .scrollClipDisabled()
                 .scrollTargetBehavior(.viewAligned)
             }
-            .padding(.bottom, 44)
+            .padding(.top, HomeRailLayout.sectionSpacing)
         }
     }
 
@@ -560,14 +562,11 @@ struct HomeView: View {
     /// compact `AlbumMiniCard`s and one trailing entry to the full Photobook archive.
     private var albumPreviewSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("PHOTOBOOK")
-                .font(.system(size: 11.5, weight: .semibold))
-                .tracking(0.9)
-                .foregroundStyle(HomeSurfaceStyle.mutedText)
+            HomeRailHeading("Photobook")
                 .padding(.horizontal, 24)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 14) {
+                HStack(alignment: .top, spacing: HomeRailLayout.cardSpacing) {
                     ForEach(homeAlbumPreview) { album in
                         NavigationLink {
                             AlbumDetailView(draft: album) { updated in
@@ -597,7 +596,8 @@ struct HomeView: View {
             .scrollClipDisabled()
             .scrollTargetBehavior(.viewAligned)
         }
-        .padding(.bottom, 48)
+        .padding(.top, HomeRailLayout.sectionSpacing)
+        .padding(.bottom, HomeRailLayout.sectionSpacing)
     }
 
     /// Only ever the first 6 — a taste, not the whole list (that's what the "see all" entry
@@ -701,6 +701,15 @@ struct HomeView: View {
         }
     }
 
+    private func removeMemoryEventLocally(_ deletedID: PhotoEvent.ID) {
+        memoryEvents.removeAll { $0.id == deletedID }
+        displayedLovedMemories.removeAll { $0.id == deletedID }
+        if displayedHeroMemory?.id == deletedID {
+            displayedHeroMemory = nil
+            displayedHeroCoverAssetID = nil
+        }
+    }
+
     /// § user report — "tab vào icon trái tim thấy phản ứng chậm, không nhạy": this used to
     /// `await` the SwiftData write (actor hop + fetch + save) *before* touching any local state,
     /// so the heart/card only updated once that round-trip finished. Optimistic-updates first —
@@ -769,10 +778,29 @@ private struct SeededGenerator: RandomNumberGenerator {
 }
 
 private enum HomeSurfaceStyle {
-    static let background = Color(red: 14 / 255, green: 13 / 255, blue: 16 / 255)
-    static let primaryText = Color(red: 246 / 255, green: 241 / 255, blue: 234 / 255)
-    static let mutedText = primaryText.opacity(0.45)
-    static let accent = Color(red: 225 / 255, green: 135 / 255, blue: 91 / 255)
+    static let background = NiziPinterestTheme.surfaceSoft
+    static let primaryText = NiziPinterestTheme.ink
+    static let mutedText = NiziPinterestTheme.mutedText
+    static let accent = NiziPinterestTheme.primary
+}
+
+private enum HomeRailLayout {
+    static let cardSpacing: CGFloat = 20
+    static let sectionSpacing: CGFloat = 48
+    static let lovedCornerRadius: CGFloat = 24
+    static let recentCornerRadius: CGFloat = 28
+}
+
+private struct HomeRailHeading: View {
+    let title: String
+
+    init(_ title: String) { self.title = title }
+
+    var body: some View {
+        Text(title.capitalized)
+            .font(.onboardingSerif(size: 24, weight: .medium))
+            .foregroundStyle(HomeSurfaceStyle.primaryText)
+    }
 }
 
 /// Disables UIKit's interactive-pop recognizer only for Home, the root of this NavigationStack.
@@ -833,23 +861,26 @@ private struct HomeRootInteractivePopGuard: UIViewControllerRepresentable {
 private struct AlbumMiniCard: View {
     let album: AlbumCardSample
     let assetProvider: PhotoAssetProvider
-    private let size: CGFloat = 128
+    private let width: CGFloat = 180
+    private let height: CGFloat = 270
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        ZStack(alignment: .bottomLeading) {
             coverImage
             VStack(alignment: .leading, spacing: 2) {
                 Text(album.title)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(HomeSurfaceStyle.primaryText.opacity(0.78))
+                    .foregroundStyle(.white)
                     .lineLimit(1)
                 Text(localizedString("album.photosCount", defaultValue: "\(album.photoCount) photos"))
                     .font(.system(size: 12))
-                    .foregroundStyle(HomeSurfaceStyle.mutedText.opacity(0.82))
+                    .foregroundStyle(.white.opacity(0.78))
                     .lineLimit(1)
             }
+            .padding(14)
         }
-        .frame(width: size, alignment: .leading)
+        .frame(width: width, height: height, alignment: .bottomLeading)
+        .clipShape(RoundedRectangle(cornerRadius: HomeRailLayout.lovedCornerRadius, style: .continuous))
     }
 
     @ViewBuilder
@@ -872,14 +903,13 @@ private struct AlbumMiniCard: View {
                             .resizable()
                             .scaledToFit()
                             .foregroundStyle(.secondary.opacity(0.5))
-                            .padding(size * 0.28)
+                            .padding(width * 0.28)
                     }
                 }
             }
             LinearGradient(colors: [.clear, .black.opacity(0.7)], startPoint: .center, endPoint: .bottom)
         }
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .frame(width: width, height: height)
     }
 }
 
@@ -940,8 +970,8 @@ private struct RecentMemoryCard: View {
     @State private var coverImage: PlatformImage?
     @State private var isCoverSharp = false
     private static let placeholderSize = CGSize(width: 40, height: 40)
-    private var cardHeight: CGFloat { UIScreen.main.bounds.width - 48 }
-    private var cardWidth: CGFloat { cardHeight * 2 / 3 }
+    private let cardWidth: CGFloat = 300
+    private let cardHeight: CGFloat = 400
     private var targetSize: CGSize { CGSize(width: cardWidth * 2, height: cardHeight * 2) }
 
     var body: some View {
@@ -973,7 +1003,7 @@ private struct RecentMemoryCard: View {
             .padding(20)
         }
         .frame(width: cardWidth, height: cardHeight)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: HomeRailLayout.recentCornerRadius, style: .continuous))
         .task(id: event.coverAssetID) {
             isCoverSharp = false
             guard let coverAssetID = event.coverAssetID else { return }
@@ -1040,16 +1070,16 @@ private struct LovedMemoryCard: View {
     /// image, just at different quality.
     @State private var isCoverSharp = false
     private static let placeholderSize = CGSize(width: 40, height: 40)
-    /// Hero dimensions never inherit an image's intrinsic size. An explicit screen-width canvas
-    /// is what prevents a landscape image from widening Home's entire ScrollView.
-    private var cardWidth: CGFloat { isHero ? UIScreen.main.bounds.width : 132 }
+    /// Hero dimensions never inherit an image's intrinsic size. The card stays inset from the
+    /// canvas like a Pinterest feature card, so landscape imagery cannot widen Home's ScrollView.
+    private var cardWidth: CGFloat { isHero ? UIScreen.main.bounds.width - 48 : 180 }
     private var cardHeight: CGFloat {
-        isHero ? UIScreen.main.bounds.height * (700.0 / 874.0) : 172
+        isHero ? cardWidth * 1.5 : 270
     }
     private var targetSize: CGSize {
         CGSize(width: cardWidth * 2, height: cardHeight * 2)
     }
-    private var textHorizontalPadding: CGFloat { isHero ? 24 : 10 }
+    private var textHorizontalPadding: CGFloat { isHero ? 24 : 14 }
 
     var body: some View {
         ZStack(alignment: isHero ? .bottom : .bottomLeading) {
@@ -1068,12 +1098,6 @@ private struct LovedMemoryCard: View {
                     .blur(radius: isCoverSharp ? 0 : 14)
                     .animation(.easeInOut(duration: 0.35), value: isCoverSharp)
             }
-            LinearGradient(
-                colors: [.black.opacity(0.55), .clear],
-                startPoint: .top,
-                endPoint: .center
-            )
-            .frame(width: cardWidth, height: cardHeight)
             LinearGradient(colors: [.clear, .black.opacity(0.7)], startPoint: .center, endPoint: .bottom)
                 .frame(width: cardWidth, height: cardHeight)
 
@@ -1117,7 +1141,7 @@ private struct LovedMemoryCard: View {
         }
         .frame(width: cardWidth, height: cardHeight, alignment: .bottomLeading)
         .clipped()
-        .clipShape(RoundedRectangle(cornerRadius: isHero ? 0 : 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: isHero ? NiziPinterestTheme.largeCornerRadius : HomeRailLayout.lovedCornerRadius, style: .continuous))
         .task(id: coverAssetID ?? event.coverAssetID) {
             isCoverSharp = false
             guard let coverAssetID = coverAssetID ?? event.coverAssetID else { return }
@@ -1192,6 +1216,90 @@ private struct LovedMemoryCard: View {
     }
 }
 
+/// A regular scroll-content header, intentionally not sticky.
+private struct NiziHomeHeader: View {
+    let onDiagnostics: () -> Void
+
+    var body: some View {
+        HStack {
+            NiziBrandMark()
+            Spacer()
+            NiziSettingsMenu(onDiagnostics: onDiagnostics)
+        }
+        .padding(.horizontal, 24)
+        .frame(height: 64)
+    }
+}
+
+struct NiziBrandMark: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Nizi")
+                .font(.onboardingSerif(size: 27, weight: .medium))
+            Text("Photo Memories")
+                .font(.system(size: 10, weight: .medium))
+                .tracking(0.5)
+                .foregroundStyle(NiziPinterestTheme.mutedText)
+        }
+        .foregroundStyle(NiziPinterestTheme.ink)
+    }
+}
+
+/// Shared settings menu for every primary destination. Account intentionally has no
+/// action yet; language updates the persisted app-wide locale and the light theme is explicit.
+struct NiziSettingsMenu: View {
+    let onDiagnostics: () -> Void
+    @AppStorage(NiziAppLanguage.storageKey) private var appLanguageRawValue: String = NiziAppLanguage.system.rawValue
+
+    private var selectedLanguage: NiziAppLanguage {
+        NiziAppLanguage(rawValue: appLanguageRawValue) ?? .system
+    }
+
+    var body: some View {
+        Menu {
+            Button {} label: {
+                Label("Tài khoản — sắp có", systemImage: "person.circle")
+            }
+            .disabled(true)
+
+            Menu {
+                ForEach(NiziAppLanguage.allCases) { language in
+                    Button {
+                        appLanguageRawValue = language.rawValue
+                    } label: {
+                        if selectedLanguage == language {
+                            Label(language.title, systemImage: "checkmark")
+                        } else {
+                            Text(language.title)
+                        }
+                    }
+                }
+            } label: {
+                Label("Language", systemImage: "globe")
+            }
+
+            Menu {
+                Label("Sáng", systemImage: "checkmark")
+                Text("Tối sẽ sớm có")
+            } label: {
+                Label("Theme", systemImage: "circle.lefthalf.filled")
+            }
+
+            Divider()
+            Button(action: onDiagnostics) {
+                Label("Diagnostics", systemImage: "stethoscope")
+            }
+        } label: {
+            Image(systemName: "gearshape")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(NiziPinterestTheme.ink)
+                .frame(width: 40, height: 40)
+                .background(NiziPinterestTheme.surfaceCard, in: Circle())
+        }
+        .accessibilityLabel("Cài đặt")
+    }
+}
+
 /// Fixed bottom navigation matching concept 4a: translucent blur, a subtle top divider, and a
 /// cream active item. Each tab routes to the matching archive from the screen that owns it.
 struct NiziBottomTabBar: View {
@@ -1208,48 +1316,39 @@ struct NiziBottomTabBar: View {
     let onEvents: () -> Void
     let onTrips: () -> Void
     let onPhotobooks: () -> Void
-    let onDiagnostics: () -> Void
-
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 12) {
             tab(systemImage: "house", label: "Home", isActive: selected == .home, action: onHome)
             tab(systemImage: "calendar", label: "Events", isActive: selected == .events, action: onEvents)
             tab(systemImage: "safari", label: "Trips", isActive: selected == .trips, action: onTrips)
             tab(systemImage: "book.closed", label: "Photobook", isActive: selected == .photobooks, action: onPhotobooks)
-            tab(systemImage: "stethoscope", label: "Diagnostics", isActive: selected == .diagnostics, action: onDiagnostics)
         }
         .frame(maxWidth: .infinity)
-        // Fixed edge inset anchors the first/last tabs. Giving every tab the same flexible
-        // column then spaces the two inner icons evenly, independent of label width.
-        .padding(.horizontal, 20)
-        .padding(.top, 16)
+        .padding(.horizontal, 24)
+        .padding(.top, 8)
         .padding(.bottom, 0)
         .background {
-            ZStack(alignment: .top) {
-                Color(red: 20 / 255, green: 19 / 255, blue: 22 / 255).opacity(0.85)
-                Color.white.opacity(0.08).frame(height: 1)
-            }
-            .background(.ultraThinMaterial)
+            LinearGradient(
+                colors: [.black.opacity(0.48), .black.opacity(0)],
+                startPoint: .bottom,
+                endPoint: .top
+            )
             .ignoresSafeArea(edges: .bottom)
         }
     }
 
     private func tab(systemImage: String, label: String, isActive: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            tabLabel(systemImage: systemImage, label: label, isActive: isActive)
-        }
+        Button(action: action) { tabLabel(systemImage: systemImage, label: label, isActive: isActive) }
         .buttonStyle(.plain)
-        .frame(maxWidth: .infinity)
+        .frame(width: 56, height: 56)
+        .background(isActive ? NiziPinterestTheme.primary : NiziPinterestTheme.surfaceCard, in: RoundedRectangle(cornerRadius: NiziPinterestTheme.cornerRadius, style: .continuous))
+        .accessibilityLabel(label)
     }
 
     private func tabLabel(systemImage: String, label: String, isActive: Bool) -> some View {
-        VStack(spacing: 3) {
-            Image(systemName: systemImage)
-                .font(.system(size: 18))
-            Text(label)
-                .font(.system(size: 10, weight: isActive ? .semibold : .regular))
-        }
-        .foregroundStyle(isActive ? HomeSurfaceStyle.primaryText : HomeSurfaceStyle.mutedText)
+        Image(systemName: systemImage)
+            .font(.system(size: 19, weight: .semibold))
+            .foregroundStyle(isActive ? NiziPinterestTheme.canvas : HomeSurfaceStyle.primaryText)
     }
 }
 
@@ -1261,8 +1360,8 @@ private struct TripsSeeAllTile: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.white.opacity(0.09))
+            RoundedRectangle(cornerRadius: HomeRailLayout.lovedCornerRadius, style: .continuous)
+                .fill(NiziPinterestTheme.surfaceCard)
 
             VStack(spacing: 12) {
                 Spacer()
@@ -1287,26 +1386,22 @@ private struct TripsSeeAllTile: View {
 }
 
 private struct AlbumSeeAllTile: View {
-    private let size: CGFloat = 128
+    private let width: CGFloat = 180
+    private let height: CGFloat = 270
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ZStack {
-                Color(.tertiarySystemFill)
-                Image(systemName: "square.grid.2x2")
-                    .font(.system(size: 28))
-                    .foregroundStyle(.secondary)
-            }
-            .frame(width: size, height: size)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-
+        VStack(alignment: .leading, spacing: 12) {
+            Image(systemName: "square.grid.2x2")
+                .font(.system(size: 30))
+            Spacer()
             Text("home.album_preview.see_all")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(HomeSurfaceStyle.mutedText.opacity(0.9))
+                .font(.system(size: 15, weight: .semibold))
                 .lineLimit(2)
-                .frame(width: size, alignment: .leading)
         }
-        .frame(width: size, alignment: .leading)
+        .foregroundStyle(HomeSurfaceStyle.primaryText)
+        .padding(18)
+        .frame(width: width, height: height, alignment: .leading)
+        .background(NiziPinterestTheme.surfaceCard, in: RoundedRectangle(cornerRadius: HomeRailLayout.lovedCornerRadius, style: .continuous))
     }
 }
 

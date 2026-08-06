@@ -77,7 +77,19 @@ final class NiziMoveImportCoordinator {
     }
 
     func pause() { isPaused = true; task?.cancel(); Task { [modelContainer, sessionID] in if let sessionID { try? await NiziMoveImportStore(modelContainer: modelContainer).updateSession(sessionID, status: .paused) } } }
-    func cancel() { pause(); screen = .introduction }
+    func cancel() {
+        isPaused = true
+        task?.cancel()
+        guard let sessionID else { screen = .introduction; return }
+        screen = .introduction
+        Task { [modelContainer, api] in
+            if let token = try? NiziMoveKeychain.accessToken(sessionID: sessionID) {
+                try? await api.cancel(sessionID: sessionID, accessToken: token)
+            }
+            NiziMoveKeychain.delete(sessionID: sessionID)
+            try? await NiziMoveImportStore(modelContainer: modelContainer).updateSession(sessionID, status: .cancelled)
+        }
+    }
 
     func createTripFromImportedEvent() async {
         guard let importedEventID else { return }
@@ -114,7 +126,14 @@ final class NiziMoveImportCoordinator {
                 didCreateTrip = false
                 screen = .result
             }
-        } catch { errorMessage = error.localizedDescription; try? await store.updateSession(sessionID, status: .partiallyCompleted); screen = .progress }
+        } catch {
+            if case NiziMoveError.server("SESSION_UNAUTHORIZED") = error {
+                NiziMoveKeychain.delete(sessionID: sessionID)
+            }
+            errorMessage = error.localizedDescription
+            try? await store.updateSession(sessionID, status: .partiallyCompleted)
+            screen = .progress
+        }
     }
 
     private func processWithRetries(_ initial: NiziMoveStoredAsset, sessionID: String, token: String, store: NiziMoveImportStore) async throws {

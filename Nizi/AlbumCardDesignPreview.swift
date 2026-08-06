@@ -128,6 +128,7 @@ struct YearFilterBar: View {
     /// EventList can render directly on its grouped background, avoiding a visible horizontal
     /// fill strip around the embedded year `ScrollView`.
     var showsBackground: Bool = true
+    var selectedColor: Color = .black
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -177,7 +178,7 @@ struct YearFilterBar: View {
                 .padding(.horizontal, 22)
                 .background {
                     if selected {
-                        Capsule().fill(Color.black)
+                        Capsule().fill(selectedColor)
                     }
                 }
         }

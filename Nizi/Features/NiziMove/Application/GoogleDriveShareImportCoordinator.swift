@@ -77,6 +77,11 @@ final class GoogleDriveShareImportCoordinator {
             createdSession = session; screen = .preparing
             try await waitUntilReady(session)
         } catch {
+            if case GoogleDriveShareImportError.unauthorized = error,
+               let createdSession {
+                NiziMoveKeychain.delete(sessionID: createdSession.sessionID)
+                try? await GoogleDrivePreparationStore(modelContainer: modelContainer).delete(sessionID: createdSession.sessionID)
+            }
             errorMessage = error.localizedDescription
         }
     }
@@ -98,6 +103,11 @@ final class GoogleDriveShareImportCoordinator {
             createdSession = session; mode = pending.mode; screen = .preparing
             try await waitUntilReady(session)
         } catch {
+            if case GoogleDriveShareImportError.unauthorized = error,
+               let createdSession {
+                NiziMoveKeychain.delete(sessionID: createdSession.sessionID)
+                try? await GoogleDrivePreparationStore(modelContainer: modelContainer).delete(sessionID: createdSession.sessionID)
+            }
             errorMessage = error.localizedDescription
         }
     }

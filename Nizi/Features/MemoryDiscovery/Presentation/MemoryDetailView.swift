@@ -25,11 +25,20 @@ struct MemoryDetailView: View {
     @State private var isShowingAllPhotos = false
     @State private var resolvedPlaceName: String?
     @State private var preview: MemoryPhotoPreview?
+    @State private var scrollOffset: CGFloat = 0
+    @State private var isDeletingEvent = false
+    @State private var showDeleteConfirmation = false
+    @State private var isCreatingPhotobook = false
+    @State private var createdAlbumDraft: AlbumDraft?
+    @State private var showPhotobookCreationError = false
+    @State private var isCreatingTrip = false
+    @State private var showTripCreationError = false
     /// Lets the screen that pushed this view (`HomeView`) reflect a newly-resolved place on its
     /// own already-rendered card in place, mirroring `TripDetailView`'s `onPlaceResolved` — avoids
     /// Home needing an unconditional reload on every single return just to catch the rare case
     /// this event's place actually changed.
     private let onEventUpdated: (PhotoEvent) -> Void
+    private let onEventDeleted: (UUID) async -> Void
 
     fileprivate static let gallerySpacing: CGFloat = 4
     fileprivate static let maximumRowHeight: CGFloat = 242
@@ -45,9 +54,14 @@ struct MemoryDetailView: View {
     private var heroHeight: CGFloat { heroWidth * 1.5 }
     private var heroTextWidth: CGFloat { heroWidth - Self.heroHorizontalPadding * 2 }
 
-    init(event: PhotoEvent, onEventUpdated: @escaping (PhotoEvent) -> Void = { _ in }) {
+    init(
+        event: PhotoEvent,
+        onEventUpdated: @escaping (PhotoEvent) -> Void = { _ in },
+        onEventDeleted: @escaping (UUID) async -> Void = { _ in }
+    ) {
         self.event = event
         self.onEventUpdated = onEventUpdated
+        self.onEventDeleted = onEventDeleted
         _resolvedPlaceName = State(initialValue: event.eventPlace?.displayName ?? event.primaryLocationLabel)
     }
 
@@ -60,8 +74,16 @@ struct MemoryDetailView: View {
                 }
                 .padding(.bottom, 32)
             }
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                geometry.contentOffset.y
+            } action: { _, offset in
+                scrollOffset = offset
+            }
 
-            topBar
+            if scrollOffset > 24 {
+                topBar
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
         .background(Color(.systemBackground))
         .ignoresSafeArea(edges: .top)
@@ -69,6 +91,34 @@ struct MemoryDetailView: View {
         .task {
             await loadSelectedPhotos()
             await enrichPlace()
+        }
+        .animation(.easeInOut(duration: 0.18), value: scrollOffset > 24)
+        .confirmationDialog("Xoá Event này?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            Button("Xoá Event", role: .destructive) { deleteEvent() }
+        } message: {
+            Text("Event sẽ bị xoá khỏi Nizi. Ảnh trong Photos không bị xoá.")
+        }
+        .alert("Không thể tạo Photobook", isPresented: $showPhotobookCreationError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Hãy thử lại sau.")
+        }
+        .alert("Không thể tạo Trip", isPresented: $showTripCreationError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Hãy thử lại sau.")
+        }
+        .fullScreenCover(item: $createdAlbumDraft) { draft in
+            NavigationStack {
+                AlbumDetailView(draft: draft) { updated in
+                    await saveCreatedPhotobook(updated)
+                }
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Đóng") { createdAlbumDraft = nil }
+                    }
+                }
+            }
         }
         .fullScreenCover(item: $preview) { preview in
             AlbumPhotoPreviewView(
@@ -123,7 +173,6 @@ struct MemoryDetailView: View {
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.white.opacity(0.88))
                     Spacer(minLength: 0)
-                    heroOptionsMenu
                 }
             }
             .frame(width: heroTextWidth, alignment: .leading)
@@ -136,25 +185,44 @@ struct MemoryDetailView: View {
     }
 
     private var topBar: some View {
-        topBarButton(systemImage: "chevron.left") {
-            dismiss()
+        HStack {
+            topBarButton(systemImage: "chevron.left") { dismiss() }
+            Spacer()
+            topBarOptionsMenu
         }
-        .padding(.leading, 18)
+        .padding(.horizontal, 18)
         .padding(.top, 52)
+        .padding(.bottom, 10)
     }
 
-    private var heroOptionsMenu: some View {
+    private var topBarOptionsMenu: some View {
         Menu {
             Button(isShowingAllPhotos ? "Chỉ hiện ảnh đã chọn" : "Hiện tất cả ảnh") {
                 isShowingAllPhotos.toggle()
             }
             .disabled(!hasHiddenPhotos)
+
+            Button(isCreatingPhotobook ? "Đang tạo Photobook…" : "Tạo Photobook") {
+                createPhotobook()
+            }
+            .disabled(isCreatingPhotobook || displayedAssetIDs.isEmpty)
+
+            Button(isCreatingTrip ? "Đang tạo Trip…" : "Tạo Trip") {
+                createTrip()
+            }
+            .disabled(isCreatingTrip)
+
+            Divider()
+            Button("Xoá Event", role: .destructive) {
+                showDeleteConfirmation = true
+            }
+            .disabled(isDeletingEvent)
         } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 36, height: 32)
-                .background(.black.opacity(0.35), in: Capsule())
+                .frame(width: 42, height: 42)
+                .background(.black.opacity(0.5), in: Circle())
         }
         .accessibilityLabel("Tuỳ chọn kỷ niệm")
     }
@@ -168,6 +236,78 @@ struct MemoryDetailView: View {
                 .background(.black.opacity(0.5), in: Circle())
         }
         .buttonStyle(.plain)
+    }
+
+    private func deleteEvent() {
+        guard !isDeletingEvent else { return }
+        isDeletingEvent = true
+        let eventID = event.id
+        let container = modelContext.container
+
+        Task {
+            do {
+                try await SwiftDataMemoryDiscoveryStore(modelContainer: container).deleteEvent(id: eventID)
+                await onEventDeleted(eventID)
+                dismiss()
+            } catch {
+                isDeletingEvent = false
+            }
+        }
+    }
+
+    private func createPhotobook() {
+        let assetIDs = displayedAssetIDs
+        guard !isCreatingPhotobook, !assetIDs.isEmpty else { return }
+        isCreatingPhotobook = true
+        let eventID = event.id.uuidString
+        let title = event.titleSuggestion
+        let startDate = event.startDate
+        let endDate = event.endDate
+        let locationName = resolvedPlaceName ?? event.primaryLocationLabel
+        let container = modelContext.container
+
+        Task {
+            do {
+                let result = try await Task.detached(priority: .userInitiated) {
+                    let photos = PHAssetPlanningPhotoAdapter.planningPhotos(assetIDs: assetIDs, eventId: eventID)
+                    let planningEvent = AlbumPlanningEvent(
+                        id: eventID, title: title, startDate: startDate, endDate: endDate,
+                        locationName: locationName, latitude: nil, longitude: nil, selectedPhotos: photos
+                    )
+                    return try await DefaultAlbumDraftPlanner().createDraft(
+                        from: AlbumPlanningInput(albumTitle: nil, events: [planningEvent])
+                    )
+                }.value
+                try await SwiftDataAlbumDraftStore(modelContainer: container).save(result.draft)
+                createdAlbumDraft = result.draft
+            } catch {
+                showPhotobookCreationError = true
+            }
+            isCreatingPhotobook = false
+        }
+    }
+
+    private func createTrip() {
+        guard !isCreatingTrip else { return }
+        isCreatingTrip = true
+        let eventID = event.id
+        let container = modelContext.container
+
+        Task {
+            do {
+                // The store returns immediately without a warning when this Event is already
+                // part of either a discovered or a user-created Trip.
+                _ = try await SwiftDataMemoryDiscoveryStore(modelContainer: container)
+                    .createTripIfNeeded(forEventID: eventID)
+            } catch {
+                showTripCreationError = true
+            }
+            isCreatingTrip = false
+        }
+    }
+
+    private func saveCreatedPhotobook(_ draft: AlbumDraft) async {
+        try? await SwiftDataAlbumDraftStore(modelContainer: modelContext.container).updateDraft(draft)
     }
 
     private var gallery: some View {

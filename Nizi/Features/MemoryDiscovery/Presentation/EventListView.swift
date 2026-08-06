@@ -33,6 +33,13 @@ struct EventListView: View {
     /// (second), while still rendering every selected Event as checked.
     @State private var selectedEventIDs: [PhotoEvent.ID] = []
     @State private var actionError: String?
+    /// The grid's visible card identity is preserved across a detail push/pop. Keeping this
+    /// separately from the data cache means filtering can still rebuild the grid deliberately.
+    @State private var scrollAnchor: PhotoEvent.ID?
+    /// A pushed detail keeps this view alive in the navigation stack. Do not refetch its full
+    /// datasource when it becomes visible again — that invalidates SwiftUI's grid layout cache
+    /// and returns the user to the first month.
+    @State private var hasLoadedEvents = false
     /// The exact `UIImage` each `EventCardView` is currently displaying, reported back as
     /// soon as it loads — see the Hero-image follow-up. Read (not re-fetched) when a card is
     /// tapped, so `EventDetailView` never opens with a blank cover for an event whose card
@@ -70,37 +77,41 @@ struct EventListView: View {
                                 emptyFilteredState
                             } else {
                                 ForEach(monthSections) { section in
-                                    VStack(alignment: .leading, spacing: 0) {
-                                        // § user request — as big and clear a divider as the
-                                        // Trips list's year headers.
+                                    VStack(alignment: .leading, spacing: 12) {
                                         Text(section.title)
-                                            .font(.onboardingSerif(size: 28, weight: .bold))
+                                            .font(.onboardingSerif(size: 24, weight: .medium))
                                             .foregroundStyle(EventArchiveStyle.primaryText)
-                                            .padding(.top, 22)
-                                            .padding(.bottom, 10)
+                                            .padding(.top, 28)
 
-                                        ForEach(section.events) { event in
-                                            eventRow(event, scrollProxy: scrollProxy)
-                                                .id(event.id)
-                                                .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
+                                        LazyVGrid(
+                                            columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3),
+                                            spacing: 8
+                                        ) {
+                                            ForEach(section.events) { event in
+                                                eventRow(event, scrollProxy: scrollProxy)
+                                                    .id(event.id)
+                                                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                                            }
                                         }
+                                        .scrollTargetLayout()
                                     }
-                                    .padding(.horizontal, 24)
+                                    .padding(.horizontal, 12)
                                 }
                             }
                         } header: {
                             yearFilterHeader
                         }
                     }
-                    .padding(.bottom, 28)
+                    .padding(.bottom, 36)
                 }
                 .scrollContentBackground(.hidden)
+                .scrollPosition(id: $scrollAnchor, anchor: .top)
             }
         }
         .background(EventArchiveStyle.background)
         .navigationTitle("event.list.title")
         .navigationBarTitleDisplayMode(.large)
-        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbarColorScheme(.light, for: .navigationBar)
         .toolbarBackground(EventArchiveStyle.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
@@ -124,8 +135,7 @@ struct EventListView: View {
                 onHome: { onSelectTab(.home) },
                 onEvents: {},
                 onTrips: { onSelectTab(.trips) },
-                onPhotobooks: { onSelectTab(.photobooks) },
-                onDiagnostics: { onSelectTab(.diagnostics) }
+                onPhotobooks: { onSelectTab(.photobooks) }
             )
         }
         .navigationBarBackButtonHidden(true)
@@ -137,10 +147,6 @@ struct EventListView: View {
             Text(actionError ?? "")
         }
         .task { await loadEvents() }
-        .onAppear {
-            // Home can unlove an Event while this list remains alive beneath its navigation push.
-            Task { await loadEvents() }
-        }
         }
     }
 
@@ -165,9 +171,10 @@ struct EventListView: View {
                 Button {
                     toggleSelection(of: event)
                 } label: {
-                    HStack(spacing: 12) {
-                        selectionIndicator(isSelected: selectedEventIDs.contains(event.id))
+                    ZStack(alignment: .topTrailing) {
                         eventArchiveRow(event)
+                        selectionIndicator(isSelected: selectedEventIDs.contains(event.id))
+                            .padding(8)
                     }
                 }
             } else {
@@ -178,9 +185,13 @@ struct EventListView: View {
                 // plain `EventDetailView`.
                 NavigationLink {
                     if Self.isMemory(event) {
-                        MemoryDetailView(event: event) { updated in
-                            updateEventLocally(updated)
-                        }
+                        MemoryDetailView(
+                            event: event,
+                            onEventUpdated: { updated in updateEventLocally(updated) },
+                            onEventDeleted: { deletedID in
+                                await removeEventFromList(deletedID, scrollProxy: scrollProxy)
+                            }
+                        )
                     } else {
                         EventDetailView(
                             event: event, initialHeroImage: loadedCoverImages[event.id],
@@ -392,7 +403,7 @@ struct EventListView: View {
             .foregroundStyle(isActive ? EventArchiveStyle.background : EventArchiveStyle.primaryText)
             .padding(.horizontal, 12)
             .frame(height: 30)
-            .background(isActive ? EventArchiveStyle.accent : Color.white.opacity(0.09), in: Capsule())
+            .background(isActive ? EventArchiveStyle.accent : NiziPinterestTheme.surfaceCard, in: Capsule())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(
@@ -403,12 +414,14 @@ struct EventListView: View {
     }
 
     private var yearFilterHeader: some View {
-        EventArchiveYearFilter(
+        YearFilterBar(
             years: availableYears,
             selectedYear: $selectedYear,
-            eventCount: filteredEvents.count,
-            itemLabel: selectedTab.itemCountLabel
+            placesAllLast: true,
+            selectedColor: EventArchiveStyle.accent
         )
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .background(EventArchiveStyle.background)
     }
 
@@ -469,14 +482,15 @@ struct EventListView: View {
             .foregroundStyle(EventArchiveStyle.mutedText)
                 .multilineTextAlignment(.center)
             Button("common.action.retry") {
-                Task { await loadEvents() }
+                Task { await loadEvents(force: true) }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
     }
 
-    private func loadEvents() async {
+    private func loadEvents(force: Bool = false) async {
+        guard force || !hasLoadedEvents else { return }
         isLoading = true
         errorMessage = nil
         do {
@@ -486,6 +500,7 @@ struct EventListView: View {
             // the seeding logic yet, before this screen reads `isLoved` for the Memory toggle.
             try await store.backfillAutoMemorySeeding()
             allEvents = try await store.fetchEvents(sortedBy: .scoreDescending)
+            hasLoadedEvents = true
             // Repair older one-level Vietnamese labels before/while the first viewport appears.
             // This bounded window deliberately avoids an app-wide reverse-geocoding pass.
             let candidates = Array(allEvents.prefix(12)).filter(needsVietnamesePlaceUpgrade)
@@ -507,7 +522,7 @@ struct EventListView: View {
             for event in selected {
                 try await store.deleteEvent(id: event.id)
             }
-            await loadEvents()
+            await loadEvents(force: true)
             selectedEventIDs.removeAll()
         } catch {
             actionError = "Không thể xoá các sự kiện đã chọn. Vui lòng thử lại."
@@ -515,25 +530,29 @@ struct EventListView: View {
     }
 
     /// Called by `EventDetailView` after its repository delete succeeds but before it pops. The
-    /// card immediately below the deleted one becomes the return anchor (or the preceding card
-    /// when deleting the last row), preserving the reader's place instead of recreating at top.
+    /// preceding card becomes the persistent grid anchor (or the next card for the first item),
+    /// so the still-mounted EventList returns at a meaningful neighbour rather than at the top.
     private func removeEventFromList(_ deletedID: PhotoEvent.ID, scrollProxy: ScrollViewProxy) async {
         let visibleEvents = filteredEvents
         guard let deletedIndex = visibleEvents.firstIndex(where: { $0.id == deletedID }) else { return }
-        let returnAnchor = visibleEvents.dropFirst(deletedIndex + 1).first?.id
-            ?? visibleEvents.prefix(deletedIndex).last?.id
+        let returnAnchor = visibleEvents.prefix(deletedIndex).last?.id
+            ?? visibleEvents.dropFirst(deletedIndex + 1).first?.id
 
         withAnimation(.easeInOut(duration: 0.3)) {
+            // `scrollProxy.scrollTo` alone is unreliable while EventDetail still covers this
+            // screen. The binding survives the pop and applies once the grid becomes visible.
+            scrollAnchor = returnAnchor
             allEvents.removeAll { $0.id == deletedID }
             selectedEventIDs.removeAll { $0 == deletedID }
+            loadedCoverImages.removeValue(forKey: deletedID)
         }
         guard let returnAnchor else { return }
 
         await Task.yield()
-        // Run exactly once, after the removed row has left the LazyVStack, so this does not
-        // compete with layout updates and produces no scroll-to-top flash on the pop transition.
+        // This gives immediate feedback when the source grid is still rendered (e.g. an iPad
+        // split presentation); `scrollAnchor` above remains the authoritative restoration path.
         withAnimation(.easeOut(duration: 0.2)) {
-            scrollProxy.scrollTo(returnAnchor, anchor: .top)
+            scrollProxy.scrollTo(returnAnchor, anchor: .center)
         }
     }
 
@@ -573,7 +592,7 @@ private enum EventListTab: CaseIterable {
     case events
     case memory
 
-    /// The noun `EventArchiveYearFilter`'s count label uses ("3 sự kiện" vs "3 kỷ niệm").
+    /// The noun used by diagnostics and selection copy ("3 sự kiện" vs "3 kỷ niệm").
     var itemCountLabel: String {
         switch self {
         case .events: return localizedString("event.list.tab.events.item_count_label", defaultValue: "sự kiện")
@@ -583,11 +602,11 @@ private enum EventListTab: CaseIterable {
 }
 
 private enum EventArchiveStyle {
-    static let background = Color(red: 14 / 255, green: 13 / 255, blue: 16 / 255)
-    static let primaryText = Color(red: 246 / 255, green: 241 / 255, blue: 234 / 255)
-    static let mutedText = primaryText.opacity(0.45)
-    static let divider = Color.white.opacity(0.07)
-    static let accent = Color(red: 225 / 255, green: 135 / 255, blue: 91 / 255)
+    static let background = NiziPinterestTheme.surfaceSoft
+    static let primaryText = NiziPinterestTheme.ink
+    static let mutedText = NiziPinterestTheme.mutedText
+    static let divider = NiziPinterestTheme.hairline
+    static let accent = NiziPinterestTheme.primary
 }
 
 private struct EventArchiveMonthSection: Identifiable {
@@ -606,70 +625,6 @@ private struct EventArchiveMonthSection: Identifiable {
     }
 }
 
-private struct EventArchiveYearFilter: View {
-    let years: [Int]
-    @Binding var selectedYear: Int?
-    let eventCount: Int
-    let itemLabel: String
-
-    var body: some View {
-        ScrollViewReader { proxy in
-            VStack(alignment: .leading, spacing: 9) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(years, id: \.self) { year in
-                            chip(title: String(year), isSelected: selectedYear == year) {
-                                select(year, proxy: proxy)
-                            }
-                            .id(Optional(year))
-                        }
-                        chip(title: localizedString("album.year_filter.all", defaultValue: "All"), isSelected: selectedYear == nil) {
-                            select(nil, proxy: proxy)
-                        }
-                        .id(Optional<Int>.none)
-                    }
-                    .padding(.horizontal, 24)
-                }
-
-                Text(eventCountLabel)
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(EventArchiveStyle.mutedText)
-                    .padding(.horizontal, 24)
-            }
-            .padding(.top, 8)
-            .padding(.bottom, 12)
-        }
-    }
-
-    private var eventCountLabel: String {
-        if let selectedYear {
-            return "\(eventCount) \(itemLabel) trong năm \(selectedYear)"
-        }
-        return "\(eventCount) \(itemLabel)"
-    }
-
-    private func select(_ year: Int?, proxy: ScrollViewProxy) {
-        withAnimation(.snappy(duration: 0.25)) {
-            selectedYear = year
-        }
-        withAnimation(.snappy(duration: 0.3)) {
-            proxy.scrollTo(year, anchor: .center)
-        }
-    }
-
-    private func chip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                .foregroundStyle(isSelected ? EventArchiveStyle.background : EventArchiveStyle.mutedText)
-                .padding(.horizontal, 16)
-                .frame(height: 31)
-                .background(isSelected ? EventArchiveStyle.accent : Color.white.opacity(0.07), in: Capsule())
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 private struct EventArchiveRow: View {
     let event: PhotoEvent
     let assetProvider: PhotoAssetProvider
@@ -681,40 +636,39 @@ private struct EventArchiveRow: View {
     /// user flings through a long year. Cancelling at disappearance prevents those rows from
     /// continuing iCloud/PhotoKit work after they are no longer useful on screen.
     @State private var thumbnailTask: Task<Void, Never>?
-    private static let thumbnailPixelSize = CGSize(width: 120, height: 120)
+    /// A three-column grid never renders an image wider than roughly 120pt on iPhone. Requesting
+    /// a compact square thumbnail avoids decoding portrait-sized images for every visible cell.
+    private static let thumbnailPixelSize = CGSize(width: 240, height: 240)
 
     var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.white.opacity(0.09))
+        GeometryReader { proxy in
+            ZStack(alignment: .bottomLeading) {
+                NiziPinterestTheme.surfaceCard
                 if let coverImage {
                     Image(uiImage: coverImage)
                         .resizable()
                         .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
                 }
+                LinearGradient(colors: [.clear, .black.opacity(0.72)], startPoint: .center, endPoint: .bottom)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(event.eventPlace?.displayName ?? event.primaryLocationLabel ?? event.titleSuggestion)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                    Text(metadata)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.78))
+                        .lineLimit(1)
+                }
+                .padding(8)
             }
-            .frame(width: 60, height: 60)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(event.eventPlace?.displayName ?? event.primaryLocationLabel ?? event.titleSuggestion)
-                    .font(.system(size: 14.5))
-                    .foregroundStyle(EventArchiveStyle.primaryText)
-                    .lineLimit(1)
-                Text(metadata)
-                    .font(.system(size: 12))
-                    .foregroundStyle(EventArchiveStyle.mutedText)
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.trailing, 34)
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
-        .padding(.vertical, 11)
-        .overlay(alignment: .bottom) {
-            EventArchiveStyle.divider.frame(height: 1)
-        }
-        .contentShape(Rectangle())
+        .aspectRatio(1, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: NiziPinterestTheme.cornerRadius, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: NiziPinterestTheme.cornerRadius, style: .continuous))
         .onAppear { startThumbnailLoad() }
         .onDisappear {
             thumbnailTask?.cancel()

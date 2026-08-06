@@ -7,22 +7,12 @@
 
 import SwiftUI
 
-/// Shared dark, cinematic look for the Welcome → Permission → Scan onboarding sequence, matching
-/// design concept "2a" in docs/design-system/Nizi Home Concepts.dc.html § t2. Newsreader is
-/// bundled as regular + italic variable fonts and exposed through `Font.onboardingSerif`.
+/// Shared light onboarding chrome. The imagery-first product palette follows
+/// `NiziUITests/DESIGN-pinterest.md`: quiet warm surfaces with one red primary action.
 enum OnboardingTheme {
-    static let ink = Color(hex: 0x0E0D10)
-    static let cream = Color(hex: 0xF6F1EA)
-    static let accent = Color(hex: 0xE1875B)
-}
-
-extension Color {
-    init(hex: UInt32) {
-        let r = Double((hex >> 16) & 0xFF) / 255
-        let g = Double((hex >> 8) & 0xFF) / 255
-        let b = Double(hex & 0xFF) / 255
-        self.init(red: r, green: g, blue: b)
-    }
+    static let ink = NiziPinterestTheme.canvas
+    static let cream = NiziPinterestTheme.ink
+    static let accent = NiziPinterestTheme.primary
 }
 
 extension Font {
@@ -58,7 +48,7 @@ struct OnboardingPillButton: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
         }
-        .background(OnboardingTheme.accent, in: Capsule())
+        .background(OnboardingTheme.accent, in: RoundedRectangle(cornerRadius: NiziPinterestTheme.cornerRadius, style: .continuous))
     }
 }
 
@@ -71,7 +61,7 @@ struct OnboardingTextLink: View {
         Button(action: action) {
             Text(titleKey)
                 .font(.system(size: 13))
-                .foregroundStyle(OnboardingTheme.cream.opacity(0.4))
+                .foregroundStyle(OnboardingTheme.cream.opacity(0.6))
         }
     }
 }
@@ -89,17 +79,17 @@ struct OnboardingEyebrowLabel: View {
     }
 }
 
-/// Ink background with a subtle radial vignette — deliberately not a photo grid, since Welcome
-/// and Permission both run before Photos access exists and there is no real photo to show yet.
+/// Quiet warm canvas — deliberately not a photo grid, since Welcome and Permission both run
+/// before Photos access exists and there is no real photo to show yet.
 struct OnboardingSolidBackground: View {
     var body: some View {
         ZStack {
-            OnboardingTheme.ink
+            NiziPinterestTheme.surfaceSoft
             RadialGradient(
-                colors: [OnboardingTheme.ink.opacity(0.0), OnboardingTheme.ink.opacity(0.6)],
-                center: .center,
-                startRadius: 80,
-                endRadius: 420
+                colors: [NiziPinterestTheme.canvas.opacity(0.6), NiziPinterestTheme.surfaceCard.opacity(0.7)],
+                center: .top,
+                startRadius: 40,
+                endRadius: 600
             )
         }
         .ignoresSafeArea()

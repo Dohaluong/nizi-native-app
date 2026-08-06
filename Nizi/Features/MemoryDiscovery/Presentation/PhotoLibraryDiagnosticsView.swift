@@ -170,8 +170,7 @@ struct PhotoLibraryDiagnosticsView: View {
                 onHome: { onSelectTab(.home) },
                 onEvents: { onSelectTab(.events) },
                 onTrips: { onSelectTab(.trips) },
-                onPhotobooks: { onSelectTab(.photobooks) },
-                onDiagnostics: {}
+                onPhotobooks: { onSelectTab(.photobooks) }
             )
         }
         .task {

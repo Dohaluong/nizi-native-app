@@ -55,8 +55,15 @@ actor GoogleDriveShareAPI {
         let (data, response) = try await URLSession.shared.data(for: request)
         let payload = try decode(StatusResponse.self, data: data, response: response)
         guard payload.success else { throw mappedError(payload.code) }
-        let session = payload.session
-        return GoogleDriveImportSessionProgress(status: session.status, totalAssets: session.totalAssets, readyAssets: session.readyAssets, failedAssets: session.failedAssets)
+        guard let session = payload.data ?? payload.session else { throw mappedError(payload.code) }
+        let preparation = session.preparation
+        return GoogleDriveImportSessionProgress(
+            status: session.status,
+            totalAssets: session.totalAssets ?? preparation?.total ?? 0,
+            readyAssets: session.readyAssets ?? preparation?.ready ?? 0,
+            failedAssets: session.failedAssets ?? preparation?.failed ?? 0,
+            currentFileName: preparation?.currentFileName
+        )
     }
 
     func cancel(sessionID: String, accessToken: String) async throws {
@@ -68,17 +75,30 @@ actor GoogleDriveShareAPI {
 
     private func decode<T: Decodable>(_ type: T.Type, data: Data, response: URLResponse) throws -> T {
         guard let http = response as? HTTPURLResponse else { throw GoogleDriveShareImportError.unexpected }
-        guard (200...299).contains(http.statusCode) else { throw mappedError(nil, statusCode: http.statusCode) }
-        do { return try decoder.decode(type, from: data) } catch { throw GoogleDriveShareImportError.unexpected }
+        guard (200...299).contains(http.statusCode) else {
+            let error = try? decoder.decode(DriveErrorResponse.self, from: data)
+            throw mappedError(error?.code, statusCode: http.statusCode)
+        }
+        do { return try decoder.decode(type, from: data) }
+        catch {
+            // A gateway can return a JSON bridge error with a 2xx status. Preserve its code
+            // instead of reducing every actionable error to a generic retry message.
+            if let error = try? decoder.decode(DriveErrorResponse.self, from: data), error.code != nil {
+                throw mappedError(error.code, statusCode: http.statusCode)
+            }
+            throw GoogleDriveShareImportError.unexpected
+        }
     }
 
     private func mappedError(_ code: String?, statusCode: Int? = nil) -> GoogleDriveShareImportError {
         switch code ?? "" {
+        case "FEATURE_DISABLED": .disabled
         case "INVALID_URL", "INVALID_GOOGLE_DRIVE_URL", "GOOGLE_DRIVE_INVALID_LINK", "GOOGLE_DRIVE_UNSUPPORTED_LINK": .invalidLink
         case "ACCESS_DENIED", "GOOGLE_DRIVE_ACCESS_DENIED", "NOT_FOUND", "GOOGLE_DRIVE_PERMISSION_DENIED", "GOOGLE_DRIVE_RESOURCE_NOT_FOUND": .inaccessible
         case "NO_IMAGES_FOUND", "GOOGLE_DRIVE_NO_SUPPORTED_IMAGES": .noPhotos
         case "INSPECTION_EXPIRED", "GOOGLE_DRIVE_INSPECTION_EXPIRED": .expired
         case "SESSION_EXPIRED": .sessionExpired
+        case "SESSION_UNAUTHORIZED": .unauthorized
         case "CANCELLED": .cancelled
         case "SERVER_BUSY", "RATE_LIMITED", "GOOGLE_DRIVE_RATE_LIMITED", "GOOGLE_DRIVE_TOO_MANY_FILES", "GOOGLE_DRIVE_TOO_MANY_SELECTED_FILES": .busy
         default: statusCode == 401 || statusCode == 403 ? .inaccessible : .unexpected
@@ -92,7 +112,21 @@ private struct InspectionResponse: Decodable {
     let success: Bool; let inspectionId: String?; let source: GoogleDriveInspectionSource?; let items: [GoogleDriveInspectionItem]; let nextCursor: String?; let code: String?
 }
 private struct CreateSessionResponse: Decodable { let success: Bool; let sessionId: String?; let nativeAccessToken: String?; let status: String?; let code: String? }
+private struct DriveErrorResponse: Decodable { let code: String? }
 private struct StatusResponse: Decodable {
-    let success: Bool; let session: Session; let code: String?
-    struct Session: Decodable { let status: String; let totalAssets: Int; let readyAssets: Int; let failedAssets: Int }
+    let success: Bool; let data: Session?; let session: Session?; let code: String?
+    struct Session: Decodable {
+        let status: String
+        let totalAssets: Int?
+        let readyAssets: Int?
+        let failedAssets: Int?
+        let preparation: Preparation?
+    }
+    struct Preparation: Decodable {
+        let total: Int
+        let pending: Int
+        let ready: Int
+        let failed: Int
+        let currentFileName: String?
+    }
 }

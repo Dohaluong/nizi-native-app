@@ -109,6 +109,12 @@ struct GoogleDriveLinkImportView: View {
             if let progress = coordinator.progress {
                 Text("\(progress.readyAssets) / \(progress.totalAssets) ảnh đã sẵn sàng")
                     .foregroundStyle(.secondary)
+                if let currentFileName = progress.currentFileName {
+                    Text("Đang chuẩn bị \(currentFileName)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
                 ProgressView(value: Double(progress.readyAssets + progress.failedAssets), total: Double(max(progress.totalAssets, 1))).padding(.horizontal, 28)
                 if progress.failedAssets > 0 { Text("\(progress.failedAssets) ảnh không thể chuẩn bị.").font(.footnote).foregroundStyle(.secondary) }
             } else { Text("Đang kết nối với Nizi Move…").foregroundStyle(.secondary) }
